@@ -40,6 +40,7 @@ import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.io.AbstractConnection;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
@@ -1032,7 +1033,10 @@ public abstract class HttpChannel implements Runnable, HttpOutput.Interceptor
 
     protected void execute(Runnable task)
     {
-        _executor.execute(task);
+        if (AbstractConnection.USE_LOOM)
+            Thread.startVirtualThread(task);
+        else
+            _executor.execute(task);
     }
 
     public Scheduler getScheduler()

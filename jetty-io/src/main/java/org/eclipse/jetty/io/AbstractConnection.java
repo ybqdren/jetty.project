@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractConnection implements Connection
 {
-    private static final boolean USE_LOOM = Boolean.getBoolean("org.eclipse.jetty.io.UseLoom");
+    public static final boolean USE_LOOM = Boolean.getBoolean("org.eclipse.jetty.io.use_loom");
     private static final Logger LOG = LoggerFactory.getLogger(AbstractConnection.class);
 
     private final List<Listener> _listeners = new CopyOnWriteArrayList<>();
