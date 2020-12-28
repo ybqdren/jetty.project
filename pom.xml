@@ -12,9 +12,9 @@
   <inceptionYear>1995</inceptionYear>
 
   <properties>
-    <compiler.source>11</compiler.source>
-    <compiler.target>11</compiler.target>
-    <compiler.release>11</compiler.release>
+    <compiler.source>16</compiler.source>
+    <compiler.target>16</compiler.target>
+    <compiler.release>16</compiler.release>
     <jetty.url>https://www.eclipse.org/jetty/</jetty.url>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <build-support.version>1.5</build-support.version>
