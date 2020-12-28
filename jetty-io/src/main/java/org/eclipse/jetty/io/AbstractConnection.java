@@ -50,7 +50,7 @@ public abstract class AbstractConnection implements Connection
             throw new IllegalArgumentException("Executor must not be null!");
         _endPoint = endp;
         _executor = executor;
-        _readCallback = USE_LOOM ? new ReadCallback() : new LoomReadCallback();
+        _readCallback = USE_LOOM ? new LoomReadCallback() : new ReadCallback();
     }
 
     @Override
