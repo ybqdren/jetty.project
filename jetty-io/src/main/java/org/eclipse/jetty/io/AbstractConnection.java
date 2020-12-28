@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractConnection implements Connection
 {
+    private static final boolean USE_LOOM = Boolean.getBoolean("org.eclipse.jetty.io.UseLoom");
     private static final Logger LOG = LoggerFactory.getLogger(AbstractConnection.class);
 
     private final List<Listener> _listeners = new CopyOnWriteArrayList<>();
@@ -49,7 +50,7 @@ public abstract class AbstractConnection implements Connection
             throw new IllegalArgumentException("Executor must not be null!");
         _endPoint = endp;
         _executor = executor;
-        _readCallback = new ReadCallback();
+        _readCallback = USE_LOOM ? new ReadCallback() : new LoomReadCallback();
     }
 
     @Override
@@ -329,6 +330,33 @@ public abstract class AbstractConnection implements Connection
         public String toString()
         {
             return String.format("AC.ReadCB@%h{%s}", AbstractConnection.this, AbstractConnection.this);
+        }
+    }
+
+    private class LoomReadCallback implements Callback, Invocable
+    {
+        @Override
+        public void succeeded()
+        {
+            Thread.startVirtualThread(AbstractConnection.this::onFillable);
+        }
+
+        @Override
+        public void failed(final Throwable x)
+        {
+            Thread.startVirtualThread(() -> onFillInterestedFailed(x));
+        }
+
+        @Override
+        public String toString()
+        {
+            return String.format("AC.ReadCB@%h{%s}", AbstractConnection.this, AbstractConnection.this);
+        }
+
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return InvocationType.NON_BLOCKING;
         }
     }
 }
