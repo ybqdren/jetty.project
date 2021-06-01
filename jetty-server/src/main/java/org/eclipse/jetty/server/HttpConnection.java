@@ -39,6 +39,7 @@ import org.eclipse.jetty.io.WriteFlusher;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IteratingCallback;
+import org.eclipse.jetty.util.Pool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +57,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Http
     private final HttpConfiguration _config;
     private final Connector _connector;
     private final ByteBufferPool _bufferPool;
+    private final Pool<RetainableByteBuffer> _pool;
     private final HttpInput _input;
     private final HttpGenerator _generator;
     private final HttpChannelOverHttp _channel;
@@ -95,6 +97,13 @@ public class HttpConnection extends AbstractConnection implements Runnable, Http
         _config = config;
         _connector = connector;
         _bufferPool = _connector.getByteBufferPool();
+        _pool = new Pool<>(Pool.StrategyType.THREAD_ID, 1000);
+        for (int i = 0; i < 1000; i++)
+        {
+            Pool<RetainableByteBuffer>.Entry entry = _pool.reserve();
+            RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(entry, getInputBufferSize(), isUseInputDirectByteBuffers());
+            entry.enable(retainableByteBuffer, false);
+        }
         _generator = newHttpGenerator();
         _channel = newHttpChannel();
         _input = _channel.getRequest().getHttpInput();
@@ -237,8 +246,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Http
     {
         if (_retainableByteBuffer == null)
         {
-            boolean useDirectByteBuffers = isUseInputDirectByteBuffers();
-            _retainableByteBuffer = new RetainableByteBuffer(_bufferPool, getInputBufferSize(), useDirectByteBuffers);
+            _retainableByteBuffer = _pool.acquire().getPooled();
         }
         return _retainableByteBuffer.getBuffer();
     }

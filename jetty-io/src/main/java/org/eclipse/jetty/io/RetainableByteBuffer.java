@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.util.Pool;
 import org.eclipse.jetty.util.Retainable;
 
 /**
@@ -30,6 +31,7 @@ public class RetainableByteBuffer implements Retainable
     private final ByteBufferPool pool;
     private final ByteBuffer buffer;
     private final AtomicInteger references;
+    private final Pool<RetainableByteBuffer>.Entry entry;
 
     public RetainableByteBuffer(ByteBufferPool pool, int size)
     {
@@ -38,8 +40,18 @@ public class RetainableByteBuffer implements Retainable
 
     public RetainableByteBuffer(ByteBufferPool pool, int size, boolean direct)
     {
+        this.entry = null;
         this.pool = pool;
         this.buffer = pool.acquire(size, direct);
+        this.references = new AtomicInteger(1);
+    }
+
+    public RetainableByteBuffer(Pool<RetainableByteBuffer>.Entry entry, int size, boolean direct)
+    {
+        this.entry = entry;
+        this.pool = null;
+        this.buffer = direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
+        BufferUtil.clear(buffer);
         this.references = new AtomicInteger(1);
     }
 
@@ -70,7 +82,18 @@ public class RetainableByteBuffer implements Retainable
     {
         int ref = references.decrementAndGet();
         if (ref == 0)
-            pool.release(buffer);
+        {
+            if (pool != null)
+            {
+                pool.release(buffer);
+            }
+            else
+            {
+                BufferUtil.clear(buffer);
+                references.set(1);
+                entry.release();
+            }
+        }
         else if (ref < 0)
             throw new IllegalStateException("already released " + this);
         return ref;

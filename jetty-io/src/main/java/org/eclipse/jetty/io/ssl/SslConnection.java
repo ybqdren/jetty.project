@@ -38,6 +38,7 @@ import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.io.WriteFlusher;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.Pool;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.Invocable;
@@ -104,6 +105,7 @@ public class SslConnection extends AbstractConnection implements Connection.Upgr
     private final AutoLock _lock = new AutoLock();
     private final List<SslHandshakeListener> handshakeListeners = new ArrayList<>();
     private final ByteBufferPool _bufferPool;
+    private final Pool<RetainableByteBuffer> _pool;
     private final SSLEngine _sslEngine;
     private final DecryptedEndPoint _decryptedEndPoint;
     private ByteBuffer _decryptedInput;
@@ -194,6 +196,13 @@ public class SslConnection extends AbstractConnection implements Connection.Upgr
         this._decryptedEndPoint = newDecryptedEndPoint();
         this._encryptedDirectBuffers = useDirectBuffersForEncryption;
         this._decryptedDirectBuffers = useDirectBuffersForDecryption;
+        this._pool = new Pool<>(Pool.StrategyType.THREAD_ID, 1000);
+        for (int i = 0; i < 1000; i++)
+        {
+            Pool<RetainableByteBuffer>.Entry entry = _pool.reserve();
+            RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(entry, getPacketBufferSize(), useDirectBuffersForEncryption);
+            entry.enable(retainableByteBuffer, false);
+        }
     }
 
     public void addHandshakeListener(SslHandshakeListener listener)
@@ -312,7 +321,7 @@ public class SslConnection extends AbstractConnection implements Connection.Upgr
     private void acquireEncryptedInput()
     {
         if (_encryptedInput == null)
-            _encryptedInput = new RetainableByteBuffer(_bufferPool, getPacketBufferSize(), _encryptedDirectBuffers);
+            _encryptedInput = _pool.acquire().getPooled();
     }
 
     private void acquireEncryptedOutput()
