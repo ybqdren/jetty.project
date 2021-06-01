@@ -58,9 +58,11 @@ import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.ClientConnectionFactory;
 import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.io.MappedByteBufferPool;
+import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.io.ssl.SslClientConnectionFactory;
 import org.eclipse.jetty.util.Fields;
 import org.eclipse.jetty.util.Jetty;
+import org.eclipse.jetty.util.Pool;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.SocketAddressResolver;
@@ -618,6 +620,11 @@ public class HttpClient extends ContainerLifeCycle
         return connector.getByteBufferPool();
     }
 
+    public Pool<RetainableByteBuffer> getRetainableByteBufferPool()
+    {
+        return connector.getRetainableByteBufferPool();
+    }
+
     /**
      * @param byteBufferPool the {@link ByteBufferPool} of this HttpClient
      */
@@ -1144,7 +1151,7 @@ public class HttpClient extends ContainerLifeCycle
     {
         if (sslContextFactory == null)
             sslContextFactory = getSslContextFactory();
-        return new SslClientConnectionFactory(sslContextFactory, getByteBufferPool(), getExecutor(), connectionFactory);
+        return new SslClientConnectionFactory(sslContextFactory, getRetainableByteBufferPool(), getByteBufferPool(), getExecutor(), connectionFactory);
     }
 
     private class ContentDecoderFactorySet implements Set<ContentDecoder.Factory>

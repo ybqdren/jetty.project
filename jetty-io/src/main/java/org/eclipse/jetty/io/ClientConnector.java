@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 import org.eclipse.jetty.util.IO;
+import org.eclipse.jetty.util.Pool;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -54,10 +55,16 @@ public class ClientConnector extends ContainerLifeCycle
     private Duration idleTimeout = Duration.ofSeconds(30);
     private SocketAddress bindAddress;
     private boolean reuseAddress = true;
+    private Pool<RetainableByteBuffer> retainableByteBufferPool;
 
     public Executor getExecutor()
     {
         return executor;
+    }
+
+    public Pool<RetainableByteBuffer> getRetainableByteBufferPool()
+    {
+        return retainableByteBufferPool;
     }
 
     public void setExecutor(Executor executor)
@@ -189,6 +196,15 @@ public class ClientConnector extends ContainerLifeCycle
         selectorManager = newSelectorManager();
         selectorManager.setConnectTimeout(getConnectTimeout().toMillis());
         addBean(selectorManager);
+
+        this.retainableByteBufferPool = new Pool<>(Pool.StrategyType.THREAD_ID, 1000);
+        for (int i = 0; i < 1000; i++)
+        {
+            Pool<RetainableByteBuffer>.Entry entry = retainableByteBufferPool.reserve();
+            RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(entry, 32768, true);
+            entry.enable(retainableByteBuffer, false);
+        }
+
         super.doStart();
     }
 
@@ -197,6 +213,7 @@ public class ClientConnector extends ContainerLifeCycle
     {
         super.doStop();
         removeBean(selectorManager);
+        retainableByteBufferPool = null;
     }
 
     protected SslContextFactory.Client newSslContextFactory()

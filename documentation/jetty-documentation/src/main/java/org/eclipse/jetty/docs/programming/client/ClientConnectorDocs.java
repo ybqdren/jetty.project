@@ -384,7 +384,7 @@ public class ClientConnectorDocs
             new TelnetConnection(endPoint, clientConnector.getExecutor());
 
         // Wrap the "telnet" ClientConnectionFactory with the SslClientConnectionFactory.
-        connectionFactory = new SslClientConnectionFactory(clientConnector.getSslContextFactory(),
+        connectionFactory = new SslClientConnectionFactory(clientConnector.getSslContextFactory(), clientConnector.getRetainableByteBufferPool(),
             clientConnector.getByteBufferPool(), clientConnector.getExecutor(), connectionFactory);
 
         // We will obtain a SslConnection now.

@@ -437,7 +437,7 @@ public class HTTP2Client extends ContainerLifeCycle
         {
             if (isUseALPN())
                 factory = new ALPNClientConnectionFactory(getExecutor(), factory, getProtocols());
-            factory = new SslClientConnectionFactory(sslContextFactory, getByteBufferPool(), getExecutor(), factory);
+            factory = new SslClientConnectionFactory(sslContextFactory, connector.getRetainableByteBufferPool(), getByteBufferPool(), getExecutor(), factory);
         }
         return factory;
     }

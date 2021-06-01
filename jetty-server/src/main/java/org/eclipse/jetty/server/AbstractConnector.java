@@ -34,7 +34,9 @@ import java.util.stream.Collectors;
 import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.io.ssl.SslConnection;
+import org.eclipse.jetty.util.Pool;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
@@ -145,6 +147,7 @@ public abstract class AbstractConnector extends ContainerLifeCycle implements Co
     private final Executor _executor;
     private final Scheduler _scheduler;
     private final ByteBufferPool _byteBufferPool;
+    private final Pool<RetainableByteBuffer> _retainableByteBufferPool;
     private final Thread[] _acceptors;
     private final Set<EndPoint> _endpoints = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<EndPoint> _immutableEndPoints = Collections.unmodifiableSet(_endpoints);
@@ -188,6 +191,14 @@ public abstract class AbstractConnector extends ContainerLifeCycle implements Co
             pool = _server.getBean(ByteBufferPool.class);
         _byteBufferPool = pool != null ? pool : new ArrayByteBufferPool();
         addBean(_byteBufferPool);
+
+        this._retainableByteBufferPool = new Pool<>(Pool.StrategyType.THREAD_ID, 1000);
+        for (int i = 0; i < 1000; i++)
+        {
+            Pool<RetainableByteBuffer>.Entry entry = _retainableByteBufferPool.reserve();
+            RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(entry, 32768, true);
+            entry.enable(retainableByteBuffer, false);
+        }
 
         addEventListener(new Container.Listener()
         {
@@ -253,6 +264,12 @@ public abstract class AbstractConnector extends ContainerLifeCycle implements Co
     public ByteBufferPool getByteBufferPool()
     {
         return _byteBufferPool;
+    }
+
+    @Override
+    public Pool<RetainableByteBuffer> getRetainableByteBufferPool()
+    {
+        return _retainableByteBufferPool;
     }
 
     @Override

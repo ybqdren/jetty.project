@@ -182,27 +182,21 @@ public class SslConnection extends AbstractConnection implements Connection.Upgr
 
     public SslConnection(ByteBufferPool byteBufferPool, Executor executor, EndPoint endPoint, SSLEngine sslEngine)
     {
-        this(byteBufferPool, executor, endPoint, sslEngine, false, false);
+        this(null, byteBufferPool, executor, endPoint, sslEngine, false, false);
     }
 
-    public SslConnection(ByteBufferPool byteBufferPool, Executor executor, EndPoint endPoint, SSLEngine sslEngine,
+    public SslConnection(Pool<RetainableByteBuffer> retainableByteBufferPool, ByteBufferPool byteBufferPool, Executor executor, EndPoint endPoint, SSLEngine sslEngine,
                          boolean useDirectBuffersForEncryption, boolean useDirectBuffersForDecryption)
     {
         // This connection does not execute calls to onFillable(), so they will be called by the selector thread.
         // onFillable() does not block and will only wakeup another thread to do the actual reading and handling.
         super(endPoint, executor);
         this._bufferPool = byteBufferPool;
+        this._pool = retainableByteBufferPool;
         this._sslEngine = sslEngine;
         this._decryptedEndPoint = newDecryptedEndPoint();
         this._encryptedDirectBuffers = useDirectBuffersForEncryption;
         this._decryptedDirectBuffers = useDirectBuffersForDecryption;
-        this._pool = new Pool<>(Pool.StrategyType.THREAD_ID, 1000);
-        for (int i = 0; i < 1000; i++)
-        {
-            Pool<RetainableByteBuffer>.Entry entry = _pool.reserve();
-            RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(entry, getPacketBufferSize(), useDirectBuffersForEncryption);
-            entry.enable(retainableByteBuffer, false);
-        }
     }
 
     public void addHandshakeListener(SslHandshakeListener listener)

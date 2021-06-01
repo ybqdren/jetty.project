@@ -97,13 +97,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Http
         _config = config;
         _connector = connector;
         _bufferPool = _connector.getByteBufferPool();
-        _pool = new Pool<>(Pool.StrategyType.THREAD_ID, 1000);
-        for (int i = 0; i < 1000; i++)
-        {
-            Pool<RetainableByteBuffer>.Entry entry = _pool.reserve();
-            RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(entry, getInputBufferSize(), isUseInputDirectByteBuffers());
-            entry.enable(retainableByteBuffer, false);
-        }
+        _pool = _connector.getRetainableByteBufferPool();
         _generator = newHttpGenerator();
         _channel = newHttpChannel();
         _input = _channel.getRequest().getHttpInput();

@@ -28,6 +28,8 @@ import org.eclipse.jetty.io.ClientConnectionFactory;
 import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.io.RetainableByteBuffer;
+import org.eclipse.jetty.util.Pool;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
@@ -39,6 +41,7 @@ public class SslClientConnectionFactory implements ClientConnectionFactory
     public static final String SSL_ENGINE_CONTEXT_KEY = "org.eclipse.jetty.client.ssl.engine";
 
     private final SslContextFactory sslContextFactory;
+    private final Pool<RetainableByteBuffer> retainableByteBufferPool;
     private final ByteBufferPool byteBufferPool;
     private final Executor executor;
     private final ClientConnectionFactory connectionFactory;
@@ -46,9 +49,10 @@ public class SslClientConnectionFactory implements ClientConnectionFactory
     private boolean _directBuffersForDecryption = true;
     private boolean _requireCloseMessage;
 
-    public SslClientConnectionFactory(SslContextFactory sslContextFactory, ByteBufferPool byteBufferPool, Executor executor, ClientConnectionFactory connectionFactory)
+    public SslClientConnectionFactory(SslContextFactory sslContextFactory, Pool<RetainableByteBuffer> retainableByteBufferPool, ByteBufferPool byteBufferPool, Executor executor, ClientConnectionFactory connectionFactory)
     {
         this.sslContextFactory = Objects.requireNonNull(sslContextFactory, "Missing SslContextFactory");
+        this.retainableByteBufferPool = retainableByteBufferPool;
         this.byteBufferPool = byteBufferPool;
         this.executor = executor;
         this.connectionFactory = connectionFactory;
@@ -123,7 +127,7 @@ public class SslClientConnectionFactory implements ClientConnectionFactory
 
     protected SslConnection newSslConnection(ByteBufferPool byteBufferPool, Executor executor, EndPoint endPoint, SSLEngine engine)
     {
-        return new SslConnection(byteBufferPool, executor, endPoint, engine, isDirectBuffersForEncryption(), isDirectBuffersForDecryption());
+        return new SslConnection(retainableByteBufferPool, byteBufferPool, executor, endPoint, engine, isDirectBuffersForEncryption(), isDirectBuffersForDecryption());
     }
 
     @Override
