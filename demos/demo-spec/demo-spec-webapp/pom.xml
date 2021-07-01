@@ -74,6 +74,7 @@
             <Web-ContextPath>/</Web-ContextPath>
             <Bundle-ClassPath>.,WEB-INF/classes,WEB-INF/lib</Bundle-ClassPath>
             <Jetty-ContextFilePath>/META-INF/plugin-context.xml</Jetty-ContextFilePath>
+            <Require-Bundle>org.eclipse.jetty.servlet-api</Require-Bundle>
           </instructions>
         </configuration>
       </plugin>

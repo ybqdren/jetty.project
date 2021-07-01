@@ -13,15 +13,20 @@
 
 package org.eclipse.jetty.osgi.annotations;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import javax.servlet.ServletContainerInitializer;
 
 import org.eclipse.jetty.annotations.AnnotationParser.Handler;
 import org.eclipse.jetty.osgi.boot.OSGiMetaInfConfiguration;
 import org.eclipse.jetty.osgi.boot.OSGiWebappConstants;
+import org.eclipse.jetty.osgi.boot.utils.BundleFileLocatorHelperFactory;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.statistic.CounterStatistic;
@@ -43,10 +48,19 @@ public class AnnotationConfiguration extends org.eclipse.jetty.annotations.Annot
 
     public class BundleParserTask extends ParserTask
     {
-
-        public BundleParserTask(AnnotationParser parser, Set<? extends Handler> handlers, Resource resource)
+        private Bundle _bundle;
+        private Set<URL> _skipClasses;
+        
+        public BundleParserTask(AnnotationParser parser, Set<? extends Handler> handlers, Bundle bundle, Resource resource)
+        {
+            this(parser, handlers, bundle, resource, null);
+        }
+        
+        public BundleParserTask(AnnotationParser parser, Set<? extends Handler> handlers, Bundle bundle, Resource resource, Set<URL> skipClasses)
         {
             super(parser, handlers, resource);
+            _bundle = bundle;
+            _skipClasses = skipClasses;
         }
 
         @Override
@@ -55,10 +69,9 @@ public class AnnotationConfiguration extends org.eclipse.jetty.annotations.Annot
             if (_parser != null)
             {
                 org.eclipse.jetty.osgi.annotations.AnnotationParser osgiAnnotationParser = (org.eclipse.jetty.osgi.annotations.AnnotationParser)_parser;
-                Bundle bundle = osgiAnnotationParser.getBundle(_resource);
                 if (_stat != null)
                     _stat.start();
-                osgiAnnotationParser.parse(_handlers, bundle);
+                osgiAnnotationParser.parse(_handlers, _bundle, _skipClasses);
                 if (_stat != null)
                     _stat.end();
             }
@@ -97,14 +110,12 @@ public class AnnotationConfiguration extends org.eclipse.jetty.annotations.Annot
     }
 
     /**
-     * Here is the order in which jars and osgi artifacts are scanned for discoverable annotations.
-     * <ol>
-     * <li>The container jars are scanned.</li>
-     * <li>The WEB-INF/classes are scanned</li>
-     * <li>The osgi fragment to the web bundle are parsed.</li>
-     * <li>The WEB-INF/lib are scanned</li>
-     * <li>The required bundles are parsed</li>
-     * </ol>
+     * Parse the jars that are inside the webbundle's WEB-INF/lib, as well as any Require-Bundles and 
+     * OSGi fragments that are stapled to the webbundle.
+     * 
+     * We need to be careful when parsing the webbundle and the OSGi fragment to ensure that the same
+     * classes aren't scanned twice, because OSGi treats the resources of the fragment bundle as if they
+     * were contained inside the webbundle.
      */
     @Override
     public void parseWebInfLib(WebAppContext context, org.eclipse.jetty.annotations.AnnotationParser parser)
@@ -116,84 +127,45 @@ public class AnnotationConfiguration extends org.eclipse.jetty.annotations.Annot
             _webInfLibStats = new CounterStatistic();
 
         Bundle webbundle = (Bundle)context.getAttribute(OSGiWebappConstants.JETTY_OSGI_BUNDLE);
+        
         @SuppressWarnings("unchecked")
-        Set<Bundle> fragAndRequiredBundles = (Set<Bundle>)context.getAttribute(OSGiMetaInfConfiguration.FRAGMENT_AND_REQUIRED_BUNDLES);
+        Map<Bundle, Resource> fragAndRequiredBundles = (Map<Bundle, Resource>)context.getAttribute(OSGiMetaInfConfiguration.FRAGMENT_AND_REQUIRED_BUNDLES_MAP);
+        oparser.indexBundles(fragAndRequiredBundles);
+        
+        //Remember all the classes from OSGi fragment bundles so we can avoid
+        //parsing them twice.
+        HashSet<URL> fragmentClasses = new HashSet<>();
         if (fragAndRequiredBundles != null)
         {
-            //index and scan fragments
-            for (Bundle bundle : fragAndRequiredBundles)
+            for (Map.Entry<Bundle, Resource> entry : fragAndRequiredBundles.entrySet())
             {
-                //skip bundles that have been uninstalled since we discovered them
-                if (bundle.getState() == Bundle.UNINSTALLED)
+                //Skip any that have been uninstalled since discovery
+                if (entry.getKey().getState() == Bundle.UNINSTALLED)
                     continue;
 
-                Resource bundleRes = oparser.indexBundle(bundle);
-                if (!context.getMetaData().getWebInfResources(false).contains(bundleRes))
+                if (StringUtil.isNotBlank(entry.getKey().getHeaders().get(Constants.FRAGMENT_HOST)))
                 {
-                    context.getMetaData().addWebInfResource(bundleRes);
-                }
-
-                if (bundle.getHeaders().get(Constants.FRAGMENT_HOST) != null)
-                {
-                    //a fragment indeed:
-                    parseFragmentBundle(context, oparser, webbundle, bundle);
-                    _webInfLibStats.increment();
+                    Enumeration<URL> classes = entry.getKey().findEntries("/", "*.class", true);
+                    while (classes.hasMoreElements())
+                    {
+                        URL u = classes.nextElement();
+                        fragmentClasses.add(u);
+                    }
                 }
             }
-        }
-        //scan ourselves
-        oparser.indexBundle(webbundle);
-        parseWebBundle(context, oparser, webbundle);
-        _webInfLibStats.increment();
+        } 
 
+        File f = BundleFileLocatorHelperFactory.getFactory().getHelper().getBundleInstallLocation(webbundle);
+        Resource resource = Resource.newResource(f.toURI());
+
+        //scan ourselves, avoiding scanning the classes from the OSGi fragments
+        oparser.indexBundle(webbundle, resource);
+        parseBundle(context, oparser, webbundle, resource, fragmentClasses);
+        _webInfLibStats.increment();
+            
         //scan the WEB-INF/lib
         super.parseWebInfLib(context, parser);
-        if (fragAndRequiredBundles != null)
-        {
-            //scan the required bundles
-            for (Bundle requiredBundle : fragAndRequiredBundles)
-            {
-                //skip bundles that have been uninstalled since we discovered them
-                if (requiredBundle.getState() == Bundle.UNINSTALLED)
-                    continue;
 
-                if (requiredBundle.getHeaders().get(Constants.FRAGMENT_HOST) == null)
-                {
-                    //a bundle indeed:
-                    parseRequiredBundle(context, oparser, webbundle, requiredBundle);
-                    _webInfLibStats.increment();
-                }
-            }
-        }
-    }
-
-    /**
-     * Scan a fragment bundle for servlet annotations
-     *
-     * @param context The webapp context
-     * @param parser The parser
-     * @param webbundle The current webbundle
-     * @param fragmentBundle The OSGi fragment bundle to scan
-     * @throws Exception if unable to parse fragment bundle
-     */
-    protected void parseFragmentBundle(WebAppContext context, AnnotationParser parser,
-                                       Bundle webbundle, Bundle fragmentBundle) throws Exception
-    {
-        parseBundle(context, parser, webbundle, fragmentBundle);
-    }
-
-    /**
-     * Scan a bundle required by the webbundle for servlet annotations
-     *
-     * @param context The webapp context
-     * @param parser The parser
-     * @param webbundle The current webbundle
-     * @throws Exception if unable to parse the web bundle
-     */
-    protected void parseWebBundle(WebAppContext context, AnnotationParser parser, Bundle webbundle)
-        throws Exception
-    {
-        parseBundle(context, parser, webbundle, webbundle);
     }
 
     @Override
@@ -202,31 +174,24 @@ public class AnnotationConfiguration extends org.eclipse.jetty.annotations.Annot
     {
         Bundle webbundle = (Bundle)context.getAttribute(OSGiWebappConstants.JETTY_OSGI_BUNDLE);
         String bundleClasspath = (String)webbundle.getHeaders().get(Constants.BUNDLE_CLASSPATH);
-        //only scan WEB-INF/classes if we didn't already scan it with parseWebBundle
         if (StringUtil.isBlank(bundleClasspath) || !bundleClasspath.contains("WEB-INF/classes"))
             super.parseWebInfClasses(context, parser);
     }
 
     /**
-     * Scan a bundle required by the webbundle for servlet annotations
-     *
-     * @param context The webapp context
-     * @param parser The parser
-     * @param webbundle The current webbundle
-     * @param requiredBundle The OSGi required bundle to scan
-     * @throws Exception if unable to parse the required bundle
+     * Parse a bundle, optionally skipping some classes.
+     * 
+     * @param context the WebAppContext of the webapp
+     * @param parser the parser to use
+     * @param bundle the bundle to parse 
+     * @param resource the Resource representing the bundle
+     * @param skipClasses URL of classes that should not be parsed
+     * @throws Exception
      */
-    protected void parseRequiredBundle(WebAppContext context, AnnotationParser parser,
-                                       Bundle webbundle, Bundle requiredBundle) throws Exception
-    {
-        parseBundle(context, parser, webbundle, requiredBundle);
-    }
-
     protected void parseBundle(WebAppContext context, AnnotationParser parser,
-                               Bundle webbundle, Bundle bundle) throws Exception
+                               Bundle bundle, Resource resource, Set<URL> skipClasses)
+            throws Exception
     {
-
-        Resource bundleRes = parser.getResource(bundle);
         Set<Handler> handlers = new HashSet<>();
         handlers.addAll(_discoverableAnnotationHandlers);
         if (_classInheritanceHandler != null)
@@ -235,10 +200,16 @@ public class AnnotationConfiguration extends org.eclipse.jetty.annotations.Annot
 
         if (_parserTasks != null)
         {
-            BundleParserTask task = new BundleParserTask(parser, handlers, bundleRes);
+            BundleParserTask task = new BundleParserTask(parser, handlers, bundle, resource, skipClasses);
             _parserTasks.add(task);
             if (LOG.isDebugEnabled())
                 task.setStatistic(new TimeStatistic());
         }
+    }
+
+    protected void parseBundle(WebAppContext context, AnnotationParser parser,
+                               Bundle bundle, Resource resource) throws Exception
+    {
+        parseBundle(context, parser, bundle, resource, null);
     }
 }

@@ -101,29 +101,40 @@ public class TestJettyOSGiBootWithAnnotations
             String port = System.getProperty("boot.annotations.port");
             assertNotNull(port);
 
+            // Test the webapp is deployed ok
             ContentResponse response = client.GET("http://127.0.0.1:" + port + "/index.html");
             assertEquals("Response status code", HttpStatus.OK_200, response.getStatus());
+            TestOSGiUtil.assertContains("Response contents", response.getContentAsString(), "Test Specification WebApp");
 
-            String content = response.getContentAsString();
-            TestOSGiUtil.assertContains("Response contents", content, "Test Specification WebApp");
-
+            //Test that the annotations were processed correctly
             Request req = client.POST("http://127.0.0.1:" + port + "/test");
             response = req.send();
             assertEquals("Response status code", HttpStatus.OK_200, response.getStatus());
-            content = response.getContentAsString();
-            TestOSGiUtil.assertContains("Response contents", content,
+            TestOSGiUtil.assertContains("Response contents", response.getContentAsString(),
                 "<p><b>Result: <span class=\"pass\">PASS</span></p>");
 
-            response = client.GET("http://127.0.0.1:" + port + "/frag.html");
+            //Test that static content was correctly added from an OSGi bundle via a Fragment-Host
+            response = client.GET("http://127.0.0.1:" + port + "/frag.html");  
             assertEquals("Response status code", HttpStatus.OK_200, response.getStatus());
-            content = response.getContentAsString();
-            TestOSGiUtil.assertContains("Response contents", content, "<h1>FRAGMENT</h1>");
+            TestOSGiUtil.assertContains("Response contents", response.getContentAsString(), "<h1>FRAGMENT</h1>");
+            
+            //Test multipart works
             MultiPartRequestContent multiPart = new MultiPartRequestContent();
             multiPart.addFieldPart("field", new StringRequestContent("foo"), null);
             multiPart.close();
             response = client.newRequest("http://127.0.0.1:" + port + "/multi").method("POST")
                 .body(multiPart).send();
             assertEquals(HttpStatus.OK_200, response.getStatus());
+
+            //Test that a META-INF/resource was correctly added from an OSGi bundle via a Fragment-Host
+            response = client.GET("http://127.0.0.1:" + port + "/classic.html");
+            assertEquals(HttpStatus.OK_200, response.getStatus());
+            TestOSGiUtil.assertContains("Response contents", response.getContentAsString(), "CLASSIC");
+            
+            //Test that a META-INF/web-fragment.xml was correctly added from an OSGi bundle via a Fragment-Host
+            response = client.GET("http://127.0.0.1:" + port + "/bundlefrag/x");
+            assertEquals(HttpStatus.OK_200, response.getStatus());
+            TestOSGiUtil.assertContains("Response contents", response.getContentAsString(), "Fragment Servlet");
         }
         finally
         {

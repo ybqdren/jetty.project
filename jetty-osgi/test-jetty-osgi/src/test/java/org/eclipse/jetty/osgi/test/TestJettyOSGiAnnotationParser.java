@@ -16,17 +16,19 @@ package org.eclipse.jetty.osgi.test;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.inject.Inject;
 
 import aQute.bnd.osgi.Constants;
 import org.eclipse.jetty.annotations.ClassInheritanceHandler;
 import org.eclipse.jetty.osgi.annotations.AnnotationParser;
+import org.eclipse.jetty.osgi.boot.utils.BundleFileLocatorHelperFactory;
+import org.eclipse.jetty.util.resource.Resource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.Configuration;
@@ -38,8 +40,10 @@ import org.ops4j.pax.tinybundles.core.TinyBundles;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
+
 
 
 /**
@@ -84,13 +88,16 @@ public class TestJettyOSGiAnnotationParser
         if (Boolean.getBoolean(TestOSGiUtil.BUNDLE_DEBUG))
             TestOSGiUtil.diagnoseBundles(bundleContext);
         
-        //test the osgi annotation parser ignore the module-info.class file in the fake bundle
+        //test the osgi annotation parser ignores the module-info.class file in the fake bundle
         //Get a reference to the deployed fake bundle
         Bundle b = TestOSGiUtil.getBundle(bundleContext, "bundle.with.module.info");
         AnnotationParser parser = new AnnotationParser(0);
-        parser.indexBundle(b);
-        ClassInheritanceHandler handler = new ClassInheritanceHandler(new ConcurrentHashMap<>());
+        File f = BundleFileLocatorHelperFactory.getFactory().getHelper().getBundleInstallLocation(b);
+        Resource resource = Resource.newResource(f.toURI());
+        parser.indexBundle(b, resource);
+        ConcurrentHashMap<String, Set<String>> classMap = new ConcurrentHashMap<>();
+        ClassInheritanceHandler handler = new ClassInheritanceHandler(classMap);
         parser.parse(Collections.singleton(handler), b);
-
+        assertEquals(0, classMap.size()); 
     }
 }

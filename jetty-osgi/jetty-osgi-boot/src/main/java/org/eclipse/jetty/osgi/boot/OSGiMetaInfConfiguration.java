@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,7 +45,7 @@ import org.slf4j.LoggerFactory;
 /**
  * OSGiWebInfConfiguration
  *
- * Handle adding resources found in bundle fragments, and add them into the
+ * Handle adding resources found in bundle fragments.
  */
 public class OSGiMetaInfConfiguration extends MetaInfConfiguration
 {
@@ -59,7 +60,10 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
      * Regex of symbolic names of bundles that should be considered to be on the container classpath
      */
     public static final String CONTAINER_BUNDLE_PATTERN = "org.eclipse.jetty.server.webapp.containerIncludeBundlePattern";
+    public static final String FRAGMENT_AND_REQUIRED_BUNDLES_MAP = "org.eclipse.jetty.osgi.fragmentAndRequiredBundlesMap";
+    @Deprecated
     public static final String FRAGMENT_AND_REQUIRED_BUNDLES = "org.eclipse.jetty.osgi.fragmentAndRequiredBundles";
+    @Deprecated
     public static final String FRAGMENT_AND_REQUIRED_RESOURCES = "org.eclipse.jetty.osgi.fragmentAndRequiredResources";
 
     @Override
@@ -144,13 +148,13 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
     @Override
     public void postConfigure(WebAppContext context) throws Exception
     {
-        context.setAttribute(FRAGMENT_AND_REQUIRED_BUNDLES, null);
-        context.setAttribute(FRAGMENT_AND_REQUIRED_RESOURCES, null);
+        context.setAttribute(FRAGMENT_AND_REQUIRED_BUNDLES_MAP, null);
         super.postConfigure(context);
     }
 
     /**
-     * Consider the fragment bundles associated with the bundle of the webapp being deployed.
+     * Find the bundles that are marked as Require-Bundle, and bundles that have the webapp 
+     * as Fragment-Host. These are all then added to the virtual WEB-INF/lib of the webapp.
      *
      * @see org.eclipse.jetty.webapp.MetaInfConfiguration#findJars(org.eclipse.jetty.webapp.WebAppContext)
      */
@@ -168,18 +172,11 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
         Bundle[] bundles = PackageAdminServiceTracker.INSTANCE.getFragmentsAndRequiredBundles((Bundle)context.getAttribute(OSGiWebappConstants.JETTY_OSGI_BUNDLE));
         if (bundles != null && bundles.length > 0)
         {
-            Set<Bundle> fragsAndReqsBundles = (Set<Bundle>)context.getAttribute(FRAGMENT_AND_REQUIRED_BUNDLES);
-            if (fragsAndReqsBundles == null)
+            Map<Bundle, Resource> bundlesMap = (Map<Bundle, Resource>)context.getAttribute(FRAGMENT_AND_REQUIRED_BUNDLES_MAP);
+            if (bundlesMap == null)
             {
-                fragsAndReqsBundles = new HashSet<Bundle>();
-                context.setAttribute(FRAGMENT_AND_REQUIRED_BUNDLES, fragsAndReqsBundles);
-            }
-
-            Set<Resource> fragsAndReqsResources = (Set<Resource>)context.getAttribute(FRAGMENT_AND_REQUIRED_RESOURCES);
-            if (fragsAndReqsResources == null)
-            {
-                fragsAndReqsResources = new HashSet<Resource>();
-                context.setAttribute(FRAGMENT_AND_REQUIRED_RESOURCES, fragsAndReqsResources);
+                bundlesMap = new HashMap<Bundle, Resource>();
+                context.setAttribute(FRAGMENT_AND_REQUIRED_BUNDLES_MAP, bundlesMap);
             }
 
             for (Bundle b : bundles)
@@ -188,12 +185,9 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
                 if (b.getState() == Bundle.UNINSTALLED)
                     continue;
 
-                //add to context attribute storing associated fragments and required bundles
-                fragsAndReqsBundles.add(b);
                 File f = BundleFileLocatorHelperFactory.getFactory().getHelper().getBundleInstallLocation(b);
                 Resource r = Resource.newResource(f.toURI());
-                //add to convenience context attribute storing fragments and required bundles as Resources
-                fragsAndReqsResources.add(r);
+                bundlesMap.put(b, r);
                 mergedResources.add(r);
             }
         }
@@ -202,7 +196,7 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
     }
 
     /**
-     * Allow fragments to supply some resources that are added to the baseResource of the webapp.
+     * Allow OSGi fragments to supply some resources that are added to the baseResource of the webapp.
      *
      * The resources can be either prepended or appended to the baseResource.
      *
@@ -214,11 +208,12 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
         TreeMap<String, Resource> prependedResourcesPath = new TreeMap<String, Resource>();
         TreeMap<String, Resource> appendedResourcesPath = new TreeMap<String, Resource>();
 
+        //The bundle representing the webapp
         Bundle bundle = (Bundle)context.getAttribute(OSGiWebappConstants.JETTY_OSGI_BUNDLE);
         if (bundle != null)
         {
-            Set<Bundle> fragments = (Set<Bundle>)context.getAttribute(FRAGMENT_AND_REQUIRED_BUNDLES);
-            if (fragments != null && !fragments.isEmpty())
+            Map<Bundle, Resource> bundleMap = (Map<Bundle, Resource>)context.getAttribute(FRAGMENT_AND_REQUIRED_BUNDLES_MAP);
+            if (bundleMap != null)
             {
                 // sorted extra resource base found in the fragments.
                 // the resources are either overriding the resourcebase found in the
@@ -233,18 +228,20 @@ public class OSGiMetaInfConfiguration extends MetaInfConfiguration
                 // This natural order could be abused to define the order in which
                 // the base resources are
                 // looked up.
-                for (Bundle frag : fragments)
+                for (Bundle b : bundleMap.keySet())
                 {
-                    String path = Util.getManifestHeaderValue(OSGiWebappConstants.JETTY_WAR_FRAGMENT_RESOURCE_PATH, frag.getHeaders());
-                    convertFragmentPathToResource(path, frag, appendedResourcesPath);
-                    path = Util.getManifestHeaderValue(OSGiWebappConstants.JETTY_WAR_PREPEND_FRAGMENT_RESOURCE_PATH, frag.getHeaders());
-                    convertFragmentPathToResource(path, frag, prependedResourcesPath);
+                    String path = Util.getManifestHeaderValue(OSGiWebappConstants.JETTY_WAR_FRAGMENT_RESOURCE_PATH, b.getHeaders());
+                    convertFragmentPathToResource(path, b, appendedResourcesPath);
+                    path = Util.getManifestHeaderValue(OSGiWebappConstants.JETTY_WAR_PREPEND_FRAGMENT_RESOURCE_PATH, b.getHeaders());
+                    convertFragmentPathToResource(path, b, prependedResourcesPath);
                 }
+                
                 if (!appendedResourcesPath.isEmpty())
                 {
                     LinkedHashSet<Resource> resources = new LinkedHashSet<Resource>();
                     //Add in any existing setting of extra resource dirs
                     Set<Resource> resourceDirs = (Set<Resource>)context.getAttribute(MetaInfConfiguration.RESOURCE_DIRS);
+                    
                     if (resourceDirs != null && !resourceDirs.isEmpty())
                         resources.addAll(resourceDirs);
                     //Then append the values from JETTY_WAR_FRAGMENT_FOLDER_PATH
