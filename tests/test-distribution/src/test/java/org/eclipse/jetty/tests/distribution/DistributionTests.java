@@ -20,9 +20,11 @@ package org.eclipse.jetty.tests.distribution;
 
 import java.io.File;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jetty.client.HttpClient;
@@ -32,7 +34,6 @@ import org.eclipse.jetty.http2.client.HTTP2Client;
 import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.unixsocket.UnixSocketConnector;
 import org.eclipse.jetty.unixsocket.client.HttpClientTransportOverUnixSockets;
-import org.eclipse.jetty.util.IO;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.Tag;
@@ -248,7 +249,7 @@ public class DistributionTests extends AbstractDistributionTest
             File war = distribution.resolveArtifact("org.eclipse.jetty.tests:test-simple-webapp:war:" + jettyVersion);
             distribution.installWarFile(war, "test");
 
-            try (DistributionTester.Run run2 = distribution.start("jetty.unixsocket.path=" + sockFile.toString()))
+            try (DistributionTester.Run run2 = distribution.start("jetty.unixsocket.path=" + sockFile))
             {
                 assertTrue(run2.awaitConsoleLogsFor("Started @", 10, TimeUnit.SECONDS));
 
@@ -268,11 +269,9 @@ public class DistributionTests extends AbstractDistributionTest
     @Test
     public void testLog4j2ModuleWithSimpleWebAppWithJSP() throws Exception
     {
-        Path jettyBase = Files.createTempDirectory("jetty_base");
         String jettyVersion = System.getProperty("jettyVersion");
         DistributionTester distribution = DistributionTester.Builder.newInstance()
             .jettyVersion(jettyVersion)
-            .jettyBase(jettyBase)
             .mavenLocalRepository(System.getProperty("mavenRepoPath"))
             .build();
 
@@ -285,7 +284,7 @@ public class DistributionTests extends AbstractDistributionTest
         {
             assertTrue(run1.awaitFor(5, TimeUnit.SECONDS));
             assertEquals(0, run1.getExitValue());
-            assertTrue(Files.exists(jettyBase.resolve("resources/log4j2.xml")));
+            assertTrue(Files.exists(distribution.getJettyBase().resolve("resources/log4j2.xml")));
 
             File war = distribution.resolveArtifact("org.eclipse.jetty.tests:test-simple-webapp:war:" + jettyVersion);
             distribution.installWarFile(war, "test");
@@ -300,12 +299,8 @@ public class DistributionTests extends AbstractDistributionTest
                 assertEquals(HttpStatus.OK_200, response.getStatus());
                 assertThat(response.getContentAsString(), containsString("Hello"));
                 assertThat(response.getContentAsString(), not(containsString("<%")));
-                assertTrue(Files.exists(jettyBase.resolve("resources/log4j2.xml")));
+                assertTrue(Files.exists(distribution.getJettyBase().resolve("resources/log4j2.xml")));
             }
-        }
-        finally
-        {
-            IO.delete(jettyBase.toFile());
         }
     }
 
@@ -313,11 +308,9 @@ public class DistributionTests extends AbstractDistributionTest
     @ValueSource(strings = {"http", "https"})
     public void testWebsocketClientInWebappProvidedByServer(String scheme) throws Exception
     {
-        Path jettyBase = Files.createTempDirectory("jetty_base");
         String jettyVersion = System.getProperty("jettyVersion");
         DistributionTester distribution = DistributionTester.Builder.newInstance()
             .jettyVersion(jettyVersion)
-            .jettyBase(jettyBase)
             .mavenLocalRepository(System.getProperty("mavenRepoPath"))
             .build();
 
@@ -361,11 +354,9 @@ public class DistributionTests extends AbstractDistributionTest
     @ValueSource(strings = {"http", "https"})
     public void testWebsocketClientInWebapp(String scheme) throws Exception
     {
-        Path jettyBase = Files.createTempDirectory("jetty_base");
         String jettyVersion = System.getProperty("jettyVersion");
         DistributionTester distribution = DistributionTester.Builder.newInstance()
             .jettyVersion(jettyVersion)
-            .jettyBase(jettyBase)
             .mavenLocalRepository(System.getProperty("mavenRepoPath"))
             .build();
 
@@ -412,11 +403,9 @@ public class DistributionTests extends AbstractDistributionTest
     @Tag("external")
     public void testDownload() throws Exception
     {
-        Path jettyBase = Files.createTempDirectory("jetty_base");
         String jettyVersion = System.getProperty("jettyVersion");
         DistributionTester distribution = DistributionTester.Builder.newInstance()
             .jettyVersion(jettyVersion)
-            .jettyBase(jettyBase)
             .mavenLocalRepository(System.getProperty("mavenRepoPath"))
             .build();
 
@@ -427,8 +416,46 @@ public class DistributionTests extends AbstractDistributionTest
         try (DistributionTester.Run run = distribution.start(args1))
         {
             assertTrue(run.awaitConsoleLogsFor("Base directory was modified", 15, TimeUnit.SECONDS));
-            Path target = jettyBase.resolve(outPath);
+            Path target = distribution.getJettyBase().resolve(outPath);
             assertTrue(Files.exists(target), "could not create " + target);
+        }
+    }
+
+    @Test
+    public void testIniSectionPropertyOverriddenByCommandLine() throws Exception
+    {
+        String jettyVersion = System.getProperty("jettyVersion");
+        DistributionTester distribution = DistributionTester.Builder.newInstance()
+            .jettyVersion(jettyVersion)
+            .mavenLocalRepository(System.getProperty("mavenRepoPath"))
+            .build();
+
+        Path jettyBase = distribution.getJettyBase();
+        Path jettyBaseModules = jettyBase.resolve("modules");
+        Files.createDirectories(jettyBaseModules);
+        String passwordProperty = "jetty.sslContext.keyStorePassword";
+        // Create module with an [ini] section with an invalid password,
+        // which should be overridden on the command line at startup.
+        String module = "" +
+            "[depends]\n" +
+            "ssl\n" +
+            "\n" +
+            "[ini]\n" +
+            "" + passwordProperty + "=invalid\n";
+        String moduleName = "ssl-ini";
+        Files.write(jettyBaseModules.resolve(moduleName + ".mod"), module.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE);
+
+        try (DistributionTester.Run run1 = distribution.start("--add-to-start=https," + moduleName))
+        {
+            assertTrue(run1.awaitFor(5, TimeUnit.SECONDS));
+            assertEquals(0, run1.getExitValue());
+
+            System.setProperty("distribution.debug.port", "8000");
+            // Override the property on the command line with the correct password.
+            try (DistributionTester.Run run2 = distribution.start(passwordProperty + "=storepwd"))
+            {
+                assertTrue(run2.awaitConsoleLogsFor("Started @", 1000, TimeUnit.SECONDS));
+            }
         }
     }
 }

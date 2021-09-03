@@ -167,7 +167,7 @@
             <mavenRepoPath>${settings.localRepository}</mavenRepoPath>
             <jettyVersion>${project.version}</jettyVersion>
             <hazelcast.version>${hazelcast.version}</hazelcast.version>
-            <distribution.debug.port>$(distribution.debug.port}</distribution.debug.port>
+            <distribution.debug.port>${distribution.debug.port}</distribution.debug.port>
           </systemPropertyVariables>
         </configuration>
       </plugin>
