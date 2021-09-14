@@ -51,7 +51,6 @@ public class NestedTransport implements HttpTransport
             {
                 ServletOutputStream outputStream = httpServletResponse.getOutputStream();
                 _flusher = new ContentFlusher(outputStream);
-                outputStream.setWriteListener(_flusher.getListener());
             }
             catch (IOException e)
             {
@@ -63,7 +62,7 @@ public class NestedTransport implements HttpTransport
         // If last content we want to also signal we are done to asyncContext when done.
         if (lastContent)
             callback = Callback.from(callback, _asyncCompleteCallback);
-        _flusher.enqueue(content, lastContent, callback);
+        _flusher.flush(content, lastContent, callback);
         if (lastContent)
             _flusher = null;
     }

@@ -14,6 +14,7 @@
 package org.eclipse.jetty.nested;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.WritePendingException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import javax.servlet.ServletOutputStream;
@@ -22,24 +23,24 @@ import javax.servlet.WriteListener;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IteratingCallback;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ContentFlusher extends IteratingCallback
 {
-    private static final Logger log = Log.getLogger(ContentFlusher.class);
+    private static final Logger log = LoggerFactory.getLogger(ContentFlusher.class);
+    private static final int BUFFER_SIZE = 1024;
 
     private final Queue<Entry> entries = new ArrayDeque<>();
     private final ServletOutputStream outputStream;
-    private final WriteListener writeListener;
-    private boolean finished;
     private Throwable failure;
     private Entry current;
+    private boolean completed;
 
     public ContentFlusher(ServletOutputStream outputStream)
     {
         this.outputStream = outputStream;
-        this.writeListener = new WriteListener()
+        outputStream.setWriteListener(new WriteListener()
         {
             @Override
             public void onWritePossible()
@@ -50,36 +51,35 @@ public class ContentFlusher extends IteratingCallback
             @Override
             public void onError(Throwable t)
             {
-                onFailure(t);
+                fail(t);
             }
-        };
+        });
     }
 
-    public final void enqueue(ByteBuffer buffer, boolean last, Callback callback)
+    public final void flush(ByteBuffer buffer, boolean last, Callback callback)
     {
         Entry entry = new Entry(buffer, last, callback);
         if (log.isDebugEnabled())
             log.debug("Queuing {}", entry);
 
-        boolean enqueued = false;
+        Throwable error = null;
         synchronized (this)
         {
-            if (failure == null)
-                enqueued = entries.add(entry);
+            if (failure != null)
+                error = failure;
+            else if (current != null)
+                error = new WritePendingException();
+            else
+                current = new Entry(buffer, last, callback);
         }
 
-        if (enqueued)
-            iterate();
-        else
+        if (error != null)
             notifyCallbackFailure(callback, failure);
+        else
+            iterate();
     }
 
-    public WriteListener getListener()
-    {
-        return writeListener;
-    }
-
-    public void onFailure(Throwable t)
+    public void fail(Throwable t)
     {
         synchronized (this)
         {
@@ -87,18 +87,7 @@ public class ContentFlusher extends IteratingCallback
                 failure = t;
         }
 
-        for (Entry entry : entries)
-            notifyCallbackFailure(entry.callback, t);
-        entries.clear();
-    }
-
-    private Entry pollEntry()
-    {
-        // TODO: We don't need queue, only one single send at once.
-        synchronized (this)
-        {
-            return entries.poll();
-        }
+        iterate();
     }
 
     @Override
@@ -106,23 +95,8 @@ public class ContentFlusher extends IteratingCallback
     {
         while (true)
         {
-            if (finished)
-            {
-                if (outputStream.isReady())
-                {
-                    // We're done and ready to close.
-                    outputStream.close();
-                    return Action.SUCCEEDED;
-                }
-                else
-                {
-                    // We will get called back by the WriteListener.
-                    return Action.IDLE;
-                }
-            }
-
-            if (current == null)
-                current = pollEntry();
+            if (failure != null)
+                throw failure;
 
             // We will get called back by the Transport when data is available to send.
             if (current == null)
@@ -132,15 +106,28 @@ public class ContentFlusher extends IteratingCallback
             if (!outputStream.isReady())
                 return Action.IDLE;
 
-            // TODO: We cannot succeed the callback until isReady() return true.
-            // OutputStream is ready so make a write.
+            if (completed)
+            {
+                notifyCallbackSuccess(current.callback);
+                boolean last = current.last;
+                completed = false;
+                current = null;
 
-            // TODO: Either we copy the whole buffer and an iterating callback is not needed or we copy the buffer in chunks and an iterating callback is needed.
-            byte[] content = BufferUtil.toArray(current.buffer);
-            outputStream.write(content);
-            notifyCallbackSuccess(current.callback);
-            finished = current.last;
-            current = null;
+                if (last)
+                {
+                    outputStream.close();
+                    return Action.SUCCEEDED;
+                }
+
+                return Action.IDLE;
+            }
+
+            byte[] array = new byte[BUFFER_SIZE];
+            int len = Math.min(current.buffer.remaining(), BUFFER_SIZE);
+            current.buffer.get(array, 0, len);
+            outputStream.write(array, 0, len);
+            if (BufferUtil.isEmpty(current.buffer))
+                completed = true;
         }
     }
 
@@ -150,13 +137,21 @@ public class ContentFlusher extends IteratingCallback
         if (log.isDebugEnabled())
             log.debug("onCompleteFailure {}", t.toString());
 
+        synchronized (this)
+        {
+            if (failure == null)
+                failure = t;
+        }
+
         if (current != null)
         {
             notifyCallbackFailure(current.callback, t);
             current = null;
         }
 
-        onFailure(t);
+        for (Entry entry : entries)
+            notifyCallbackFailure(entry.callback, t);
+        entries.clear();
     }
 
     private void notifyCallbackSuccess(Callback callback)
