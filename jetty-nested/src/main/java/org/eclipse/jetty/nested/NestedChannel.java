@@ -125,20 +125,7 @@ public class NestedChannel extends HttpChannel implements ReadListener
             }
             catch (IOException e)
             {
-                synchronized (this)
-                {
-                    switch (_state)
-                    {
-                        case ERROR:
-                            _error.addSuppressed(e);
-                            break;
-
-                        default:
-                            _state = ReadState.ERROR;
-                            _error = e;
-                            break;
-                    }
-                }
+                fail(e);
                 return new HttpInput.ErrorContent(e);
             }
             return content;
@@ -169,16 +156,12 @@ public class NestedChannel extends HttpChannel implements ReadListener
         }
     }
 
-    @Override
-    public boolean failed(Throwable failure)
+    private void fail(Throwable failure)
     {
         synchronized (this)
         {
             switch (_state)
             {
-                case AWAITING_DATA:
-                    break;
-
                 case ERROR:
                     _error.addSuppressed(failure);
                     break;
@@ -189,7 +172,12 @@ public class NestedChannel extends HttpChannel implements ReadListener
                     break;
             }
         }
+    }
 
+    @Override
+    public boolean failed(Throwable failure)
+    {
+        fail(failure);
         return _httpInput.onContentProducible();
     }
 
@@ -201,6 +189,7 @@ public class NestedChannel extends HttpChannel implements ReadListener
             _inputEOF = true;
             switch (_state)
             {
+                case NEED_DATA:
                 case AWAITING_DATA:
                     _state = ReadState.DATA_AVAILABLE;
                     break;
@@ -254,11 +243,7 @@ public class NestedChannel extends HttpChannel implements ReadListener
     {
         boolean reschedule = eof();
         if (reschedule)
-        {
-            boolean handle = _httpInput.onContentProducible();
-            if (handle)
-                execute(this);
-        }
+            execute(this);
         _asyncCompleteCallback.succeeded();
     }
 
