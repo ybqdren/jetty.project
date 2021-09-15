@@ -75,7 +75,6 @@ public class NestedChannel extends HttpChannel implements ReadListener
                     _state = ReadState.NEED_DATA;
                     return false;
 
-                // TODO: Just because isReady has not returned false does not mean produceContent will not return null.
                 case DATA_AVAILABLE:
                 case ERROR:
                 case EOF:

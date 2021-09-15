@@ -44,7 +44,6 @@ public class NestedConnector extends AbstractConnector
         //  There is a proposal in the servlet spec to have connection IDs.
         NestedEndpoint endPoint = new NestedEndpoint(request, response);
         NestedConnection connection = (NestedConnection)getDefaultConnectionFactory().newConnection(this, endPoint);
-        endPoint.setConnection(connection);
         connection.handle();
     }
 

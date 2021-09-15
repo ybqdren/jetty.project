@@ -115,8 +115,8 @@ public class NestedConnection implements Connection
         HttpServletRequest httpRequest = _endpoint.getRequest();
         AsyncContext asyncContext = httpRequest.startAsync();
 
-        // Only succeed the AsyncContext when both the NestedTransport and NestedChannel are done.
-        AtomicInteger count = new AtomicInteger(2);
+        // Only succeed the AsyncContext when all async calls are done, NestedTransport, NestedChannel and NestedChannel.handle()
+        AtomicInteger count = new AtomicInteger(3);
         Callback asyncCompleteCallback = Callback.from(() ->
         {
             if (count.decrementAndGet() == 0)
@@ -128,7 +128,6 @@ public class NestedConnection implements Connection
         // Provide the content to the HttpChannel.
         // TODO: We want to recycle the channel instead of creating a new one every time.
         HttpChannel httpChannel = new NestedChannel(_connector, _connector.getHttpConfiguration(), _endpoint, transport, asyncCompleteCallback);
-
 
         // Disable Async.
         Request request = httpChannel.getRequest();
@@ -161,6 +160,16 @@ public class NestedConnection implements Connection
         httpChannel.onRequest(requestMetadata);
         httpChannel.onContentComplete();
 
-        asyncContext.start(httpChannel::handle);
+        asyncContext.start(() ->
+        {
+            try
+            {
+                httpChannel.handle();
+            }
+            finally
+            {
+                asyncCompleteCallback.succeeded();
+            }
+        });
     }
 }

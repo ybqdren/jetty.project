@@ -15,8 +15,6 @@ package org.eclipse.jetty.nested;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritePendingException;
-import java.util.ArrayDeque;
-import java.util.Queue;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
 
@@ -29,17 +27,17 @@ import org.slf4j.LoggerFactory;
 public class ContentFlusher extends IteratingCallback
 {
     private static final Logger log = LoggerFactory.getLogger(ContentFlusher.class);
-    private static final int BUFFER_SIZE = 1024;
+    private static final int BUFFER_SIZE = 1024 * 4;
 
-    private final Queue<Entry> entries = new ArrayDeque<>();
+    private final byte[] array;
     private final ServletOutputStream outputStream;
-    private Throwable failure;
     private Entry current;
-    private boolean completed;
+    private Throwable failure;
 
     public ContentFlusher(ServletOutputStream outputStream)
     {
         this.outputStream = outputStream;
+        this.array = new byte[BUFFER_SIZE];
         outputStream.setWriteListener(new WriteListener()
         {
             @Override
@@ -56,7 +54,7 @@ public class ContentFlusher extends IteratingCallback
         });
     }
 
-    public final void flush(ByteBuffer buffer, boolean last, Callback callback)
+    public final void write(ByteBuffer buffer, boolean last, Callback callback)
     {
         Entry entry = new Entry(buffer, last, callback);
         if (log.isDebugEnabled())
@@ -95,39 +93,49 @@ public class ContentFlusher extends IteratingCallback
     {
         while (true)
         {
-            if (failure != null)
-                throw failure;
+            Entry entry;
+            synchronized (this)
+            {
+                if (failure != null)
+                    throw failure;
+                entry = current;
+            }
 
-            // We will get called back by the Transport when data is available to send.
-            if (current == null)
+            // The initial onWritePossible callback may be notified before a write.
+            if (entry == null)
                 return Action.IDLE;
 
             // We will get called back by the WriteListener when ready to write.
             if (!outputStream.isReady())
                 return Action.IDLE;
 
-            if (completed)
+            if (BufferUtil.isEmpty(entry.buffer))
             {
-                notifyCallbackSuccess(current.callback);
-                boolean last = current.last;
-                completed = false;
                 current = null;
-
-                if (last)
+                if (entry.last)
                 {
                     outputStream.close();
+                    notifyCallbackSuccess(entry.callback);
                     return Action.SUCCEEDED;
                 }
 
+                notifyCallbackSuccess(entry.callback);
                 return Action.IDLE;
             }
 
-            byte[] array = new byte[BUFFER_SIZE];
-            int len = Math.min(current.buffer.remaining(), BUFFER_SIZE);
-            current.buffer.get(array, 0, len);
-            outputStream.write(array, 0, len);
-            if (BufferUtil.isEmpty(current.buffer))
-                completed = true;
+            if (entry.buffer.hasArray())
+            {
+                byte[] array = entry.buffer.array();
+                int offset = entry.buffer.arrayOffset() + entry.buffer.position();
+                int length = entry.buffer.remaining();
+                outputStream.write(array, offset, length);
+            }
+            else
+            {
+                int len = Math.min(entry.buffer.remaining(), array.length);
+                entry.buffer.get(array, 0, len);
+                outputStream.write(array, 0, len);
+            }
         }
     }
 
@@ -148,10 +156,6 @@ public class ContentFlusher extends IteratingCallback
             notifyCallbackFailure(current.callback, t);
             current = null;
         }
-
-        for (Entry entry : entries)
-            notifyCallbackFailure(entry.callback, t);
-        entries.clear();
     }
 
     private void notifyCallbackSuccess(Callback callback)

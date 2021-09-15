@@ -62,7 +62,7 @@ public class NestedTransport implements HttpTransport
         // If last content we want to also signal we are done to asyncContext when done.
         if (lastContent)
             callback = Callback.from(callback, _asyncCompleteCallback);
-        _flusher.flush(content, lastContent, callback);
+        _flusher.write(content, lastContent, callback);
         if (lastContent)
             _flusher = null;
     }
