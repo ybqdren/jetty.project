@@ -1,4 +1,4 @@
-//
+package org.eclipse.jetty.nested;//
 // ========================================================================
 // Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
 //
@@ -10,8 +10,6 @@
 // SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
 // ========================================================================
 //
-
-package org.eclipse.jetty.nested;
 
 import java.io.IOException;
 import java.io.PrintWriter;

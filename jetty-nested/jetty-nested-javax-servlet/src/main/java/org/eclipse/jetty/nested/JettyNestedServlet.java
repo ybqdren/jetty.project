@@ -1,4 +1,4 @@
-//
+package org.eclipse.jetty.nested;//
 // ========================================================================
 // Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
 //
@@ -10,8 +10,6 @@
 // SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
 // ========================================================================
 //
-
-package org.eclipse.jetty.nested;
 
 import java.io.IOException;
 import javax.servlet.ServletException;
@@ -65,8 +63,8 @@ public class JettyNestedServlet extends HttpServlet
     }
 
     @Override
-    protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+    protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException
     {
-        _connector.service(req, resp);
+        _connector.service(new JavaxServletRequestResponse(req, resp));
     }
 }

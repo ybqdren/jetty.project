@@ -16,9 +16,6 @@ package org.eclipse.jetty.nested;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.EventListener;
-import java.util.concurrent.atomic.AtomicInteger;
-import javax.servlet.AsyncContext;
-import javax.servlet.http.HttpServletRequest;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpURI;
@@ -28,14 +25,13 @@ import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.util.Callback;
 
 public class NestedConnection implements Connection
 {
     private final NestedConnector _connector;
     private final NestedEndpoint _endpoint;
 
-    protected NestedConnection(NestedConnector connector, NestedEndpoint endpoint)
+    public NestedConnection(NestedConnector connector, NestedEndpoint endpoint)
     {
         _connector = connector;
         _endpoint = endpoint;
@@ -112,40 +108,33 @@ public class NestedConnection implements Connection
 
     public void handle() throws IOException
     {
-        HttpServletRequest httpRequest = _endpoint.getRequest();
-        AsyncContext asyncContext = httpRequest.startAsync();
+        NestedRequestResponse nestedRequestResponse = _endpoint.getNestedRequestResponse();
+        nestedRequestResponse.startAsync();
 
-        // Only succeed the AsyncContext when all async calls are done, NestedTransport, NestedChannel and NestedChannel.handle()
-        AtomicInteger count = new AtomicInteger(3);
-        Callback asyncCompleteCallback = Callback.from(() ->
-        {
-            if (count.decrementAndGet() == 0)
-                asyncContext.complete();
-        });
-
-        NestedTransport transport = new NestedTransport(_endpoint, asyncCompleteCallback);
+        // TODO: Implement the NestedChannel with the top layers HttpChannel.
+        NestedTransport transport = new NestedTransport(_endpoint);
 
         // Provide the content to the HttpChannel.
         // TODO: We want to recycle the channel instead of creating a new one every time.
-        HttpChannel httpChannel = new NestedChannel(_connector, _connector.getHttpConfiguration(), _endpoint, transport, asyncCompleteCallback);
+        HttpChannel httpChannel = new NestedChannel(_connector, _connector.getHttpConfiguration(), _endpoint, transport);
 
         // Disable Async.
         Request request = httpChannel.getRequest();
         request.setAsyncSupported(false, null);
 
         // Create the RequestMetadata
-        String method = httpRequest.getMethod();
-        HttpURI httpURI = HttpURI.build(httpRequest.getRequestURI());
-        HttpVersion httpVersion = HttpVersion.fromString(httpRequest.getProtocol());
-        long contentLength = httpRequest.getContentLengthLong();
+        String method = nestedRequestResponse.getMethod();
+        HttpURI httpURI = HttpURI.build(nestedRequestResponse.getRequestURI());
+        HttpVersion httpVersion = HttpVersion.fromString(nestedRequestResponse.getProtocol());
+        long contentLength = nestedRequestResponse.getContentLengthLong();
 
         HttpFields.Mutable httpFields = HttpFields.build();
-        Enumeration<String> headerNames = httpRequest.getHeaderNames();
+        Enumeration<String> headerNames = nestedRequestResponse.getHeaderNames();
         while (headerNames.hasMoreElements())
         {
             String headerName = headerNames.nextElement();
 
-            Enumeration<String> headerValues = httpRequest.getHeaders(headerName);
+            Enumeration<String> headerValues = nestedRequestResponse.getHeaders(headerName);
             while (headerValues.hasMoreElements())
             {
                 String headerValue = headerValues.nextElement();
@@ -154,13 +143,14 @@ public class NestedConnection implements Connection
         }
 
         // TODO: why should this be done after the httpChannel.onRequest().
-        request.setSecure(httpRequest.isSecure());
+        request.setSecure(nestedRequestResponse.isSecure());
 
         MetaData.Request requestMetadata = new MetaData.Request(method, httpURI, httpVersion, httpFields, contentLength);
         httpChannel.onRequest(requestMetadata);
         httpChannel.onContentComplete();
 
-        asyncContext.start(() ->
+
+        _connector.getExecutor().execute(() ->
         {
             try
             {
@@ -168,7 +158,7 @@ public class NestedConnection implements Connection
             }
             finally
             {
-                asyncCompleteCallback.succeeded();
+                nestedRequestResponse.stopAsync();
             }
         });
     }

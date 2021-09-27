@@ -15,8 +15,6 @@ package org.eclipse.jetty.nested;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritePendingException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
 
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -27,18 +25,15 @@ import org.slf4j.LoggerFactory;
 public class ContentFlusher extends IteratingCallback
 {
     private static final Logger log = LoggerFactory.getLogger(ContentFlusher.class);
-    private static final int BUFFER_SIZE = 1024 * 4;
 
-    private final byte[] array;
-    private final ServletOutputStream outputStream;
+    private final NestedRequestResponse nestedRequestResponse;
     private Entry current;
     private Throwable failure;
 
-    public ContentFlusher(ServletOutputStream outputStream)
+    public ContentFlusher(NestedRequestResponse nestedRequestResponse)
     {
-        this.outputStream = outputStream;
-        this.array = new byte[BUFFER_SIZE];
-        outputStream.setWriteListener(new WriteListener()
+        this.nestedRequestResponse = nestedRequestResponse;
+        nestedRequestResponse.setWriteListener(new NestedRequestResponse.WriteListener()
         {
             @Override
             public void onWritePossible()
@@ -106,7 +101,7 @@ public class ContentFlusher extends IteratingCallback
                 return Action.IDLE;
 
             // We will get called back by the WriteListener when ready to write.
-            if (!outputStream.isReady())
+            if (!nestedRequestResponse.isWriteReady())
                 return Action.IDLE;
 
             if (BufferUtil.isEmpty(entry.buffer))
@@ -114,7 +109,7 @@ public class ContentFlusher extends IteratingCallback
                 current = null;
                 if (entry.last)
                 {
-                    outputStream.close();
+                    nestedRequestResponse.closeOutput();
                     notifyCallbackSuccess(entry.callback);
                     return Action.SUCCEEDED;
                 }
@@ -123,19 +118,7 @@ public class ContentFlusher extends IteratingCallback
                 return Action.IDLE;
             }
 
-            if (entry.buffer.hasArray())
-            {
-                byte[] array = entry.buffer.array();
-                int offset = entry.buffer.arrayOffset() + entry.buffer.position();
-                int length = entry.buffer.remaining();
-                outputStream.write(array, offset, length);
-            }
-            else
-            {
-                int len = Math.min(entry.buffer.remaining(), array.length);
-                entry.buffer.get(array, 0, len);
-                outputStream.write(array, 0, len);
-            }
+            nestedRequestResponse.write(current.buffer);
         }
     }
 

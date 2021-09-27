@@ -14,8 +14,6 @@
 package org.eclipse.jetty.nested;
 
 import java.io.IOException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.server.AbstractConnector;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -38,12 +36,28 @@ public class NestedConnector extends AbstractConnector
         return _httpConfiguration;
     }
 
-    public void service(HttpServletRequest request, HttpServletResponse response) throws IOException
+//    @Deprecated
+//    public void service(HttpServletRequest request, HttpServletResponse response) throws IOException
+//    {
+//        // TODO: this is depending on the servlet API, so if we were to use this jetty-nested (javax)
+//        //  from a jakarta server it would not work.
+//
+//        service(new JavaxServletRequestResponse(request, response));
+//    }
+//
+//    @Deprecated
+//    public void service(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+//    {
+//        // TODO: we cant be dependant on Request type as this may be run in any Jetty server.
+//    }
+
+    public void service(NestedRequestResponse nestedRequestResponse) throws IOException
     {
-        // TODO: recover existing endpoint and connection from WeakReferenceMap with request as key, or some other way of doing persistent connection.
-        //  There is a proposal in the servlet spec to have connection IDs.
-        NestedEndpoint endPoint = new NestedEndpoint(request, response);
-        NestedConnection connection = (NestedConnection)getDefaultConnectionFactory().newConnection(this, endPoint);
+        // TODO: recover existing endpoint and connection from WeakReferenceMap with request as key, or some other way of
+        //  doing persistent connection. There is a proposal in the servlet spec to have connection IDs.
+
+        NestedEndpoint endPoint = new NestedEndpoint(nestedRequestResponse);
+        NestedConnection connection = new NestedConnection(this, endPoint);
         connection.handle();
     }
 

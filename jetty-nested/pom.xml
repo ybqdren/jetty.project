@@ -7,43 +7,14 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
+  <groupId>org.eclipse.jetty.nested</groupId>
   <artifactId>jetty-nested</artifactId>
-  <name>Jetty :: Nested</name>
+  <packaging>pom</packaging>
 
-  <properties>
-    <bundle-symbolic-name>${project.groupId}.nested</bundle-symbolic-name>
-  </properties>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-io</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-client</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-slf4j-impl</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
+  <modules>
+    <module>jetty-nested-impl</module>
+    <module>jetty-nested-javax-servlet</module>
+    <module>jetty-nested-jakarta-servlet</module>
+    <module>jetty-nested-javax-handler</module>
+  </modules>
 </project>

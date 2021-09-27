@@ -15,8 +15,6 @@ package org.eclipse.jetty.nested;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.MetaData;
@@ -26,42 +24,31 @@ import org.eclipse.jetty.util.Callback;
 public class NestedTransport implements HttpTransport
 {
     private final NestedEndpoint _endpoint;
-    private final Callback _asyncCompleteCallback;
     private ContentFlusher _flusher;
 
-    public NestedTransport(NestedEndpoint endpoint, Callback asyncCompleteCallback)
+    public NestedTransport(NestedEndpoint endpoint)
     {
         _endpoint = endpoint;
-        _asyncCompleteCallback = asyncCompleteCallback;
     }
 
     @Override
     public void send(MetaData.Request request, MetaData.Response response, ByteBuffer content, boolean lastContent, Callback callback)
     {
-        HttpServletResponse httpServletResponse = _endpoint.getResponse();
+        NestedRequestResponse nestedReqResp = _endpoint.getNestedRequestResponse();
         if (response != null)
         {
-            httpServletResponse.setStatus(response.getStatus());
+            nestedReqResp.setStatus(response.getStatus());
             for (HttpField field : response.getFields())
             {
-                httpServletResponse.addHeader(field.getName(), field.getValue());
+                nestedReqResp.addHeader(field.getName(), field.getValue());
             }
 
-            try
-            {
-                ServletOutputStream outputStream = httpServletResponse.getOutputStream();
-                _flusher = new ContentFlusher(outputStream);
-            }
-            catch (IOException e)
-            {
-                callback.failed(e);
-                return;
-            }
+            _flusher = new ContentFlusher(nestedReqResp);
         }
 
         // If last content we want to also signal we are done to asyncContext when done.
         if (lastContent)
-            callback = Callback.from(callback, _asyncCompleteCallback);
+            callback = Callback.from(callback, nestedReqResp::stopAsync);
         _flusher.write(content, lastContent, callback);
         if (lastContent)
             _flusher = null;
@@ -82,10 +69,10 @@ public class NestedTransport implements HttpTransport
     @Override
     public void onCompleted()
     {
-        HttpServletResponse response = _endpoint.getResponse();
+        NestedRequestResponse nestedReqResp = _endpoint.getNestedRequestResponse();
         try
         {
-            response.getOutputStream().close();
+            nestedReqResp.closeOutput();
         }
         catch (IOException e)
         {

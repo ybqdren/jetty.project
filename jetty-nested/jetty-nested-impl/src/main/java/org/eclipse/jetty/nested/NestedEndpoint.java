@@ -18,8 +18,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadPendingException;
 import java.nio.channels.WritePendingException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
@@ -28,26 +26,17 @@ import org.eclipse.jetty.util.Callback;
 public class NestedEndpoint implements EndPoint
 {
     private final long _creationTime = System.currentTimeMillis();
-
-    private final HttpServletRequest _request;
-    private final HttpServletResponse _response;
-
+    private final NestedRequestResponse _nestedRequestResponse;
     private boolean _closed = false;
 
-    protected NestedEndpoint(HttpServletRequest request, HttpServletResponse response)
+    public NestedEndpoint(NestedRequestResponse nestedRequestResponse)
     {
-        _request = request;
-        _response = response;
+        _nestedRequestResponse = nestedRequestResponse;
     }
 
-    public HttpServletRequest getRequest()
+    public NestedRequestResponse getNestedRequestResponse()
     {
-        return _request;
-    }
-
-    public HttpServletResponse getResponse()
-    {
-        return _response;
+        return _nestedRequestResponse;
     }
 
     @Override
