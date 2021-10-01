@@ -111,29 +111,21 @@ public class NestedConnection implements Connection
         NestedRequestResponse nestedRequestResponse = _endpoint.getNestedRequestResponse();
         nestedRequestResponse.startAsync();
 
+        // TODO: We want to recycle the channel instead of creating a new one every time.
         // TODO: Implement the NestedChannel with the top layers HttpChannel.
         NestedTransport transport = new NestedTransport(_endpoint);
-
-        // Provide the content to the HttpChannel.
-        // TODO: We want to recycle the channel instead of creating a new one every time.
         HttpChannel httpChannel = new NestedChannel(_connector, _connector.getHttpConfiguration(), _endpoint, transport);
 
-        // Disable Async.
         Request request = httpChannel.getRequest();
-        request.setAsyncSupported(false, null);
+        request.setAsyncSupported(false, null); // TODO: Is this necessary?
+        request.setSecure(nestedRequestResponse.isSecure());
 
-        // Create the RequestMetadata
-        String method = nestedRequestResponse.getMethod();
-        HttpURI httpURI = HttpURI.build(nestedRequestResponse.getRequestURI());
-        HttpVersion httpVersion = HttpVersion.fromString(nestedRequestResponse.getProtocol());
-        long contentLength = nestedRequestResponse.getContentLengthLong();
-
+        // Collect the request Headers.
         HttpFields.Mutable httpFields = HttpFields.build();
         Enumeration<String> headerNames = nestedRequestResponse.getHeaderNames();
         while (headerNames.hasMoreElements())
         {
             String headerName = headerNames.nextElement();
-
             Enumeration<String> headerValues = nestedRequestResponse.getHeaders(headerName);
             while (headerValues.hasMoreElements())
             {
@@ -142,13 +134,14 @@ public class NestedConnection implements Connection
             }
         }
 
-        // TODO: why should this be done after the httpChannel.onRequest().
-        request.setSecure(nestedRequestResponse.isSecure());
-
+        // Generate the Request MetaData.
+        String method = nestedRequestResponse.getMethod();
+        HttpURI httpURI = HttpURI.build(nestedRequestResponse.getRequestURI());
+        HttpVersion httpVersion = HttpVersion.fromString(nestedRequestResponse.getProtocol());
+        long contentLength = nestedRequestResponse.getContentLengthLong();
         MetaData.Request requestMetadata = new MetaData.Request(method, httpURI, httpVersion, httpFields, contentLength);
         httpChannel.onRequest(requestMetadata);
         httpChannel.onContentComplete();
-
 
         _connector.getExecutor().execute(() ->
         {

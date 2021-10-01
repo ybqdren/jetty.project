@@ -125,11 +125,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public void onAllDataRead()
     {
-        // TODO: do we need to delay this until the callback is succeeded of the last HttpInput.Content produced?
         boolean reschedule = eof();
         if (reschedule)
             execute(this);
-        _nestedRequestResponse.stopAsync();
     }
 
     @Override
@@ -138,6 +136,12 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
         boolean handle = failed(t);
         if (handle)
             execute(this);
+    }
+
+    @Override
+    public void onCompleted()
+    {
+        super.onCompleted();
         _nestedRequestResponse.stopAsync();
     }
 }

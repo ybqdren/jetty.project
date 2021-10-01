@@ -46,9 +46,6 @@ public class NestedTransport implements HttpTransport
             _flusher = new ContentFlusher(nestedReqResp);
         }
 
-        // If last content we want to also signal we are done to asyncContext when done.
-        if (lastContent)
-            callback = Callback.from(callback, nestedReqResp::stopAsync);
         _flusher.write(content, lastContent, callback);
         if (lastContent)
             _flusher = null;

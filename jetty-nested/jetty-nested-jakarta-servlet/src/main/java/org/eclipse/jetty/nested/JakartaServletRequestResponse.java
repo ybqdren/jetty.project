@@ -16,7 +16,6 @@ package org.eclipse.jetty.nested;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Enumeration;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletInputStream;
@@ -33,7 +32,6 @@ public class JakartaServletRequestResponse implements NestedRequestResponse
     private final ServletInputStream _inputStream;
     private final ServletOutputStream _outputStream;
     private final byte[] _outputBuffer = new byte[BUFFER_SIZE];
-    private final AtomicInteger _closeCount = new AtomicInteger(3);
     private AsyncContext _asyncContext;
     private boolean _outClosed = false;
 
@@ -56,11 +54,8 @@ public class JakartaServletRequestResponse implements NestedRequestResponse
     @Override
     public void stopAsync()
     {
-        if (_closeCount.decrementAndGet() == 0)
-        {
-            _asyncContext.complete();
-            _asyncContext = null;
-        }
+        _asyncContext.complete();
+        _asyncContext = null;
     }
 
     @Override

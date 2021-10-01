@@ -8,13 +8,13 @@
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.eclipse.jetty.nested</groupId>
-  <artifactId>jetty-nested</artifactId>
+  <artifactId>jetty-nested-parent</artifactId>
   <packaging>pom</packaging>
 
   <modules>
     <module>jetty-nested-impl</module>
     <module>jetty-nested-javax-servlet</module>
     <module>jetty-nested-jakarta-servlet</module>
-<!--    <module>jetty-nested-javax-handler</module>-->
+    <module>jetty-nested-javax-handler</module>
   </modules>
 </project>
