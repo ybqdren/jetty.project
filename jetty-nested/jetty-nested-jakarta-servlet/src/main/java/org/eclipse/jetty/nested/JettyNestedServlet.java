@@ -14,49 +14,59 @@
 package org.eclipse.jetty.nested;
 
 import java.io.IOException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-import org.eclipse.jetty.server.Request;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.AbstractHandler;
 
-public class NestedHandler extends AbstractHandler
+public class JettyNestedServlet extends HttpServlet
 {
     private final Server _server;
     private final NestedConnector _connector;
 
-    public NestedHandler()
+    public JettyNestedServlet()
     {
         _server = new Server();
         _connector = new NestedConnector(_server);
         _server.addConnector(_connector);
     }
 
-    public Server getNestedServer()
+    public Server getServer()
     {
         return _server;
     }
 
     @Override
-    protected void doStart() throws Exception
+    public void init() throws ServletException
     {
-        // Manage LifeCycle manually as eventually this will be shaded and won't implement the same LifeCycle as the Handler.
-        _server.start();
-        super.doStart();
+        try
+        {
+            _server.start();
+        }
+        catch (Exception e)
+        {
+            throw new ServletException(e);
+        }
     }
 
     @Override
-    protected void doStop() throws Exception
+    public void destroy()
     {
-        _server.stop();
-        super.doStop();
+        try
+        {
+            _server.stop();
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
     }
 
     @Override
-    public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException
+    protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException
     {
-        baseRequest.setHandled(true);
-        _connector.service(new JavaxHandlerRequestResponse(target, baseRequest, request, response));
+        _connector.service(new JakartaServletRequestResponse(req, resp));
     }
 }

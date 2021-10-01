@@ -16,6 +16,7 @@ package org.eclipse.jetty.nested;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -24,8 +25,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.util.StringRequestContent;
+import org.eclipse.jetty.nested.NestedHandler;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.IO;
@@ -47,17 +52,9 @@ public class NestedConnectorTest
         _server.addConnector(_connector);
 
         // Create a servlet which nests a Jetty server.
-        JettyNestedJavaxServlet jettyNestedServlet = new JettyNestedJavaxServlet();
-        ServletContextHandler nestedHandler = new ServletContextHandler();
-        nestedHandler.setContextPath("/");
-        nestedHandler.addServlet(TestServlet.class, "/");
-        jettyNestedServlet.getServer().setHandler(nestedHandler);
-
-        // Add the Nested Servlet to the server.
-        ServletContextHandler contextHandler = new ServletContextHandler();
-        contextHandler.setContextPath("/");
-        contextHandler.addServlet(new ServletHolder(jettyNestedServlet), "/*");
-        _server.setHandler(contextHandler);
+        NestedHandler nestedHandler = new NestedHandler();
+        nestedHandler.getNestedServer().setHandler(new TestHandler());
+        _server.setHandler(nestedHandler);
 
         // Start server and client.
         _server.start();
@@ -72,32 +69,18 @@ public class NestedConnectorTest
         _server.stop();
     }
 
-    public static class TestServlet extends HttpServlet
+    public static class TestHandler extends AbstractHandler
     {
         @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException
+        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
         {
-            resp.getWriter().println("hello world");
-        }
-
-        @Override
-        protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException
-        {
-            ServletInputStream inputStream = req.getInputStream();
+            baseRequest.setHandled(true);
+            ServletInputStream inputStream = request.getInputStream();
             String requestContent = IO.toString(inputStream);
-            PrintWriter writer = resp.getWriter();
+            PrintWriter writer = response.getWriter();
             writer.println("we got the request content: ");
             writer.println(requestContent);
         }
-    }
-
-    @Test
-    public void testGet() throws Exception
-    {
-        URI uri = URI.create("http://localhost:" + _connector.getLocalPort());
-        ContentResponse response = _httpClient.GET(uri);
-        System.err.println(response.getHeaders());
-        System.err.println(response.getContentAsString());
     }
 
     @Test

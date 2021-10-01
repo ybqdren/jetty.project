@@ -16,6 +16,8 @@ package org.eclipse.jetty.nested;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.servlet.AsyncContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -32,6 +34,8 @@ public class JavaxHandlerRequestResponse implements NestedRequestResponse
     private final Response _response;
     private final HttpInput _httpInput;
     private final HttpOutput _httpOutput;
+    private final AtomicInteger _closeCount = new AtomicInteger(3);
+    private AsyncContext _asyncContext;
 
     public JavaxHandlerRequestResponse(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
     {
@@ -45,11 +49,19 @@ public class JavaxHandlerRequestResponse implements NestedRequestResponse
     @Override
     public void startAsync()
     {
+        if (_asyncContext != null)
+            throw new IllegalStateException();
+        _asyncContext = _request.startAsync();
     }
 
     @Override
     public void stopAsync()
     {
+        if (_closeCount.decrementAndGet() == 0)
+        {
+            _asyncContext.complete();
+            _asyncContext = null;
+        }
     }
 
     @Override

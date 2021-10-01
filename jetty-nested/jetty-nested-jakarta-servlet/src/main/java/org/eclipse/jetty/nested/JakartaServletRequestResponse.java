@@ -17,13 +17,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletInputStream;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class JavaxServletRequestResponse implements NestedRequestResponse
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+public class JakartaServletRequestResponse implements NestedRequestResponse
 {
     private static final int BUFFER_SIZE = 1024;
 
@@ -36,7 +37,7 @@ public class JavaxServletRequestResponse implements NestedRequestResponse
     private AsyncContext _asyncContext;
     private boolean _outClosed = false;
 
-    public JavaxServletRequestResponse(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws IOException
+    public JakartaServletRequestResponse(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws IOException
     {
         _httpServletRequest = httpServletRequest;
         _httpServletResponse = httpServletResponse;
@@ -149,7 +150,7 @@ public class JavaxServletRequestResponse implements NestedRequestResponse
     @Override
     public void setReadListener(ReadListener readListener)
     {
-        _inputStream.setReadListener(new javax.servlet.ReadListener()
+        _inputStream.setReadListener(new jakarta.servlet.ReadListener()
         {
             @Override
             public void onDataAvailable() throws IOException
@@ -224,7 +225,7 @@ public class JavaxServletRequestResponse implements NestedRequestResponse
     @Override
     public void setWriteListener(WriteListener writeListener)
     {
-        _outputStream.setWriteListener(new javax.servlet.WriteListener()
+        _outputStream.setWriteListener(new jakarta.servlet.WriteListener()
         {
             @Override
             public void onWritePossible() throws IOException

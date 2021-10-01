@@ -1,4 +1,4 @@
-package org.eclipse.jetty.nested;//
+//
 // ========================================================================
 // Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
 //
@@ -11,6 +11,8 @@ package org.eclipse.jetty.nested;//
 // ========================================================================
 //
 
+package org.eclipse.jetty.nested;
+
 import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -19,12 +21,12 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.server.Server;
 
-public class JettyNestedServlet extends HttpServlet
+public class JettyNestedJavaxServlet extends HttpServlet
 {
     private final Server _server;
     private final NestedConnector _connector;
 
-    public JettyNestedServlet()
+    public JettyNestedJavaxServlet()
     {
         _server = new Server();
         _connector = new NestedConnector(_server);
