@@ -16,6 +16,7 @@ package org.eclipse.jetty.nested;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -76,14 +77,7 @@ public class NestedConnectorTest
     public static class TestServlet extends HttpServlet
     {
         @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException
-        {
-            resp.getWriter().println("hello world");
-            resp.getWriter().println("method: " + req.getMethod());
-        }
-
-        @Override
-        protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException
+        protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
         {
             ServletInputStream inputStream = req.getInputStream();
             String requestContent = IO.toString(inputStream);
@@ -112,7 +106,7 @@ public class NestedConnectorTest
     @Test
     public void testPost() throws Exception
     {
-        URI uri = URI.create("http://localhost:" + _connector.getLocalPort() + "/nested?param1=value1&param2=value2");
+        URI uri = URI.create("http://localhost:" + _connector.getLocalPort() + "/nested/test/servlet/tester?param1=value1&param2=value2");
         ContentResponse response = _httpClient.POST(uri).body(new StringRequestContent("this is the request content")).send();
         System.err.println(response.getHeaders());
         System.err.println(response.getContentAsString());
