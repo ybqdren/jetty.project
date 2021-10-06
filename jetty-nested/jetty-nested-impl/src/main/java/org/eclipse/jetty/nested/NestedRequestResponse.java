@@ -88,4 +88,13 @@ public interface NestedRequestResponse
 
         void onError(final Throwable t);
     }
+
+    // Address Methods
+    String getRemoteAddr();
+
+    int getRemotePort();
+
+    String getLocalAddr();
+
+    int getLocalPort();
 }

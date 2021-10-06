@@ -42,13 +42,13 @@ public class NestedEndpoint implements EndPoint
     @Override
     public InetSocketAddress getLocalAddress()
     {
-        return InetSocketAddress.createUnresolved("0.0.0.0", 0);
+        return InetSocketAddress.createUnresolved(_nestedRequestResponse.getLocalAddr(), _nestedRequestResponse.getLocalPort());
     }
 
     @Override
     public InetSocketAddress getRemoteAddress()
     {
-        return null;
+        return InetSocketAddress.createUnresolved(_nestedRequestResponse.getRemoteAddr(), _nestedRequestResponse.getRemotePort());
     }
 
     @Override

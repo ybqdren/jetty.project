@@ -22,6 +22,7 @@ import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.util.URIUtil;
 
 public class JakartaServletRequestResponse implements NestedRequestResponse
 {
@@ -61,7 +62,8 @@ public class JakartaServletRequestResponse implements NestedRequestResponse
     @Override
     public String getRequestURI()
     {
-        return _httpServletRequest.getRequestURI();
+        String pathInContext = URIUtil.addPaths(_httpServletRequest.getContextPath(), _httpServletRequest.getServletPath());
+        return URIUtil.addPathQuery(pathInContext, _httpServletRequest.getQueryString());
     }
 
     @Override
@@ -234,5 +236,29 @@ public class JakartaServletRequestResponse implements NestedRequestResponse
                 writeListener.onError(t);
             }
         });
+    }
+
+    @Override
+    public String getRemoteAddr()
+    {
+        return _httpServletRequest.getRemoteAddr();
+    }
+
+    @Override
+    public int getRemotePort()
+    {
+        return _httpServletRequest.getRemotePort();
+    }
+
+    @Override
+    public String getLocalAddr()
+    {
+        return _httpServletRequest.getLocalAddr();
+    }
+
+    @Override
+    public int getLocalPort()
+    {
+        return _httpServletRequest.getLocalPort();
     }
 }

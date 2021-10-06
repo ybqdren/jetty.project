@@ -22,6 +22,8 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.jetty.util.URIUtil;
+
 public class JavaxServletRequestResponse implements NestedRequestResponse
 {
     private static final int BUFFER_SIZE = 1024;
@@ -60,7 +62,8 @@ public class JavaxServletRequestResponse implements NestedRequestResponse
     @Override
     public String getRequestURI()
     {
-        return _httpServletRequest.getRequestURI();
+        String pathInContext = URIUtil.addPaths(_httpServletRequest.getContextPath(), _httpServletRequest.getServletPath());
+        return URIUtil.addPathQuery(pathInContext, _httpServletRequest.getQueryString());
     }
 
     @Override
@@ -233,5 +236,29 @@ public class JavaxServletRequestResponse implements NestedRequestResponse
                 writeListener.onError(t);
             }
         });
+    }
+
+    @Override
+    public String getRemoteAddr()
+    {
+        return _httpServletRequest.getRemoteAddr();
+    }
+
+    @Override
+    public int getRemotePort()
+    {
+        return _httpServletRequest.getRemotePort();
+    }
+
+    @Override
+    public String getLocalAddr()
+    {
+        return _httpServletRequest.getLocalAddr();
+    }
+
+    @Override
+    public int getLocalPort()
+    {
+        return _httpServletRequest.getLocalPort();
     }
 }

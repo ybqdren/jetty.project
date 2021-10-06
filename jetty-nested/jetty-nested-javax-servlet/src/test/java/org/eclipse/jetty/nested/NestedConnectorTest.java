@@ -29,6 +29,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.IO;
+import org.eclipse.jetty.util.ajax.JSON;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -49,14 +50,14 @@ public class NestedConnectorTest
         // Create a servlet which nests a Jetty server.
         JettyNestedJavaxServlet jettyNestedServlet = new JettyNestedJavaxServlet();
         ServletContextHandler nestedHandler = new ServletContextHandler();
-        nestedHandler.setContextPath("/");
+        nestedHandler.setContextPath("/nested");
         nestedHandler.addServlet(TestServlet.class, "/");
         jettyNestedServlet.getServer().setHandler(nestedHandler);
 
         // Add the Nested Servlet to the server.
         ServletContextHandler contextHandler = new ServletContextHandler();
-        contextHandler.setContextPath("/");
-        contextHandler.addServlet(new ServletHolder(jettyNestedServlet), "/*");
+        contextHandler.setContextPath("/nested");
+        contextHandler.addServlet(new ServletHolder(jettyNestedServlet), "/");
         _server.setHandler(contextHandler);
 
         // Start server and client.
@@ -78,6 +79,7 @@ public class NestedConnectorTest
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException
         {
             resp.getWriter().println("hello world");
+            resp.getWriter().println("method: " + req.getMethod());
         }
 
         @Override
@@ -86,8 +88,15 @@ public class NestedConnectorTest
             ServletInputStream inputStream = req.getInputStream();
             String requestContent = IO.toString(inputStream);
             PrintWriter writer = resp.getWriter();
-            writer.println("we got the request content: ");
-            writer.println(requestContent);
+            writer.println("method: " + req.getMethod());
+            writer.println("requestContent: " + requestContent);
+            writer.println("requestURI: " + req.getRequestURI());
+            writer.println("requestURL: " + req.getRequestURL());
+            writer.println("params: " + new JSON().toJSON(req.getParameterMap()));
+            writer.println("contextPath: " + req.getContextPath());
+            writer.println("servletPath: " + req.getServletPath());
+            writer.println("pathInfo: " + req.getPathInfo());
+            writer.println("query: " + req.getQueryString());
         }
     }
 
@@ -103,7 +112,7 @@ public class NestedConnectorTest
     @Test
     public void testPost() throws Exception
     {
-        URI uri = URI.create("http://localhost:" + _connector.getLocalPort());
+        URI uri = URI.create("http://localhost:" + _connector.getLocalPort() + "/nested?param1=value1&param2=value2");
         ContentResponse response = _httpClient.POST(uri).body(new StringRequestContent("this is the request content")).send();
         System.err.println(response.getHeaders());
         System.err.println(response.getContentAsString());

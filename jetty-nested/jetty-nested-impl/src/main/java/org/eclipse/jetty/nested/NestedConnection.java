@@ -117,7 +117,7 @@ public class NestedConnection implements Connection
         HttpChannel httpChannel = new NestedChannel(_connector, _connector.getHttpConfiguration(), _endpoint, transport);
 
         Request request = httpChannel.getRequest();
-        request.setAsyncSupported(false, null); // TODO: Is this necessary?
+        request.setAsyncSupported(true, null); // TODO: Is this necessary?
         request.setSecure(nestedRequestResponse.isSecure());
 
         // Collect the request Headers.
@@ -143,16 +143,6 @@ public class NestedConnection implements Connection
         httpChannel.onRequest(requestMetadata);
         httpChannel.onContentComplete();
 
-        _connector.getExecutor().execute(() ->
-        {
-            try
-            {
-                httpChannel.handle();
-            }
-            finally
-            {
-                nestedRequestResponse.stopAsync();
-            }
-        });
+        _connector.getExecutor().execute(httpChannel::handle);
     }
 }

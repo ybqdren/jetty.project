@@ -15,6 +15,6 @@
     <module>jetty-nested-impl</module>
     <module>jetty-nested-javax-servlet</module>
     <module>jetty-nested-jakarta-servlet</module>
-    <module>jetty-nested-javax-handler</module>
+<!--    <module>jetty-nested-javax-handler</module>-->
   </modules>
 </project>
