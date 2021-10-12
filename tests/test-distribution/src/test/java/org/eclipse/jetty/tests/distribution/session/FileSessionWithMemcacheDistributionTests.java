@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty.tests.distribution.session;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -43,13 +44,20 @@ public class FileSessionWithMemcacheDistributionTests extends AbstractSessionDis
     {
         memcached =
                 new GenericContainer("memcached:" + System.getProperty("memcached.docker.version", "1.6.6"))
+                        .withExposedPorts(11211)
                         .withLogConsumer(new Slf4jLogConsumer(MEMCACHED_LOG));
         memcached.start();
         this.host = memcached.getContainerIpAddress();
         this.port = memcached.getMappedPort(11211);
         super.prepareJettyHomeTester();
     }
-
+    
+    @Override
+    public void configureExternalSessionStorage(Path jettyBase) throws Exception
+    {
+        // no op
+    }
+    
     @Override
     public void startExternalSessionStorage() throws Exception
     {

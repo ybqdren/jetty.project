@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty.tests.distribution.session;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -32,12 +33,13 @@ public class MongodbSessionDistributionTests extends AbstractSessionDistribution
 
     private static final Logger MONGO_LOG = LoggerFactory.getLogger("org.eclipse.jetty.tests.distribution.session.mongo");
 
+    private static final int MONGO_PORT = 27017;
+
     final String imageName = "mongo:" + System.getProperty("mongo.docker.version", "2.2.7");
     final GenericContainer mongoDBContainer =
             new GenericContainer(imageName)
                     .withLogConsumer(new Slf4jLogConsumer(MONGO_LOG))
-                    .waitingFor(new LogMessageWaitStrategy()
-                            .withRegEx(".*waiting for connections.*"));
+                    .withExposedPorts(MONGO_PORT);
     private String host;
     private int port;
 
@@ -46,7 +48,7 @@ public class MongodbSessionDistributionTests extends AbstractSessionDistribution
     {
         mongoDBContainer.start();
         host = mongoDBContainer.getHost();
-        port = mongoDBContainer.getMappedPort(27017);
+        port = mongoDBContainer.getMappedPort(MONGO_PORT);
     }
 
     @Override
@@ -55,6 +57,12 @@ public class MongodbSessionDistributionTests extends AbstractSessionDistribution
         mongoDBContainer.stop();
     }
 
+    @Override
+    public void configureExternalSessionStorage(Path jettyBase) throws Exception
+    {
+        // no op
+    }
+    
     @Override
     public List<String> getFirstStartExtraArgs()
     {

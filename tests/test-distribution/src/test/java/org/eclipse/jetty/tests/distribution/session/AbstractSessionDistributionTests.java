@@ -32,16 +32,19 @@ import org.eclipse.jetty.tests.distribution.AbstractJettyHomeTest;
 import org.eclipse.jetty.tests.distribution.JettyHomeTester;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Testcontainers(disabledWithoutDocker = true)
 public abstract class AbstractSessionDistributionTests extends AbstractJettyHomeTest
 {
 
     private String jettyVersion = System.getProperty("jettyVersion");
+    private String sessionLogLevel = System.getProperty("sessionLogLevel", "INFO");
 
     protected JettyHomeTester jettyHomeTester;
 
@@ -83,7 +86,10 @@ public abstract class AbstractSessionDistributionTests extends AbstractJettyHome
             args = new ArrayList<>(Collections.singletonList("jetty.http.port=" + port));
             args.addAll(getSecondStartExtraArgs());
             argsStart = args.toArray(new String[0]);
-
+            
+            //allow the external storage mechanisms to do some config before starting test
+            configureExternalSessionStorage(jettyHomeTester.getJettyBase());
+            
             try (JettyHomeTester.Run run2 = jettyHomeTester.start(argsStart))
             {
                 assertTrue(run2.awaitConsoleLogsFor("Started Server@", START_TIMEOUT, TimeUnit.SECONDS));
@@ -102,7 +108,7 @@ public abstract class AbstractSessionDistributionTests extends AbstractJettyHome
             Files.deleteIfExists(logFile);
             try (BufferedWriter writer = Files.newBufferedWriter(logFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE))
             {
-                writer.write("org.eclipse.jetty.server.session.LEVEL=DEBUG");
+                writer.write("org.eclipse.jetty.server.session.LEVEL=" + sessionLogLevel);
             }
 
             try (JettyHomeTester.Run run2 = jettyHomeTester.start(argsStart))
@@ -132,5 +138,7 @@ public abstract class AbstractSessionDistributionTests extends AbstractJettyHome
     public abstract void startExternalSessionStorage() throws Exception;
 
     public abstract void stopExternalSessionStorage() throws Exception;
+
+    public abstract void configureExternalSessionStorage(Path jettyBase) throws Exception;
 
 }

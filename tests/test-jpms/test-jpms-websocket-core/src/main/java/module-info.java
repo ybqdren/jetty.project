@@ -11,35 +11,12 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.security.jaspi.modules;
-
-import java.util.Arrays;
-
-public class UserInfo
+/**
+ * This module-info.java exists so that the tests can be run in JPMS mode,
+ * therefore testing the JPMS module descriptors of the dependencies involved.
+ */
+module org.eclipse.jetty.websocket.core.tests
 {
-    private final String userName;
-
-    private char[] password;
-
-    public UserInfo(String userName, char[] password)
-    {
-        this.userName = userName;
-        this.password = password;
-    }
-
-    public String getUserName()
-    {
-        return userName;
-    }
-
-    public char[] getPassword()
-    {
-        return password;
-    }
-
-    public void clearPassword()
-    {
-        Arrays.fill(password, (char)0);
-        password = null;
-    }
+    requires org.eclipse.jetty.websocket.core.client;
+    requires org.eclipse.jetty.websocket.core.server;
 }
