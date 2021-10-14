@@ -19,10 +19,15 @@ import java.nio.ByteBuffer;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.HttpTransport;
+import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NestedTransport implements HttpTransport
 {
+    private static final Logger LOG = LoggerFactory.getLogger(NestedTransport.class);
+
     private final NestedEndpoint _endpoint;
     private ContentFlusher _flusher;
 
@@ -34,6 +39,9 @@ public class NestedTransport implements HttpTransport
     @Override
     public void send(MetaData.Request request, MetaData.Response response, ByteBuffer content, boolean lastContent, Callback callback)
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("send() {}, {}, last=={}", request, BufferUtil.toDetailString(content), lastContent);
+
         NestedRequestResponse nestedReqResp = _endpoint.getNestedRequestResponse();
         if (response != null)
         {
@@ -67,6 +75,9 @@ public class NestedTransport implements HttpTransport
     public void onCompleted()
     {
         NestedRequestResponse nestedReqResp = _endpoint.getNestedRequestResponse();
+        if (LOG.isDebugEnabled())
+            LOG.debug("onCompleted() {}", nestedReqResp);
+
         try
         {
             nestedReqResp.closeOutput();
@@ -80,6 +91,8 @@ public class NestedTransport implements HttpTransport
     @Override
     public void abort(Throwable failure)
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("abort()", failure);
         _endpoint.close();
     }
 }

@@ -18,9 +18,13 @@ import java.io.IOException;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpInput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NestedChannel extends HttpChannel implements NestedRequestResponse.ReadListener
 {
+    private static final Logger LOG = LoggerFactory.getLogger(NestedChannel.class);
+
     private final HttpInput _httpInput;
     private final NestedRequestResponse _nestedRequestResponse;
     private HttpInput.Content _specialContent;
@@ -36,12 +40,18 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public boolean needContent()
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("needContent()");
+
         return _nestedRequestResponse.isReadReady();
     }
 
     @Override
     public HttpInput.Content produceContent()
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("produceContent()");
+
         if (_specialContent != null)
             return _specialContent;
 
@@ -84,6 +94,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public boolean failAllContent(Throwable failure)
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("failAllContent()", failure);
+
         // We don't store content so nothing to fail.
         return _nestedRequestResponse.isReadClosed();
     }
@@ -91,6 +104,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public boolean failed(Throwable failure)
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("failed()", failure);
+
         if (_specialContent != null)
             _specialContent = new HttpInput.ErrorContent(failure);
         return _httpInput.onContentProducible();
@@ -99,6 +115,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     protected boolean eof()
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("eof()");
+
         try
         {
             _nestedRequestResponse.closeInput();
@@ -117,6 +136,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public void onDataAvailable()
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("onDataAvailable()");
+
         boolean handle = _httpInput.onContentProducible();
         if (handle)
             execute(this);
@@ -125,6 +147,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public void onAllDataRead()
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("onAllDataRead()");
+
         boolean reschedule = eof();
         if (reschedule)
             execute(this);
@@ -133,6 +158,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public void onError(Throwable t)
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("onError()");
+
         boolean handle = failed(t);
         if (handle)
             execute(this);
@@ -141,6 +169,9 @@ public class NestedChannel extends HttpChannel implements NestedRequestResponse.
     @Override
     public void onCompleted()
     {
+        if (LOG.isDebugEnabled())
+            LOG.debug("onCompleted()");
+
         super.onCompleted();
         _nestedRequestResponse.stopAsync();
     }
