@@ -1,0 +1,27 @@
+new HttpTransport()
+{
+    void send(MetaData.Request, MetaData.Response, ByteBuffer, boolean last, Callback callback);
+    void push(MetaData.Request request);
+    void onCompleted();
+    void abort(Throwable failure);
+}
+
+new HttpChannel(Connector, HttpConfiguration,  EndPoint, HttpTransport)
+{
+    boolean needContent();
+    HttpInput.Content produceContent();
+    boolean failAllContent(Throwable failure);
+    boolean failed(Throwable failure);
+    boolean eof();
+    boolean checkAndPrepareUpgrade()
+}
+
+HttpChannel.onRequest(MetaData.Request);
+HttpChannel.handle();
+boolean HttpInput.onContentProducible()
+boolean HttpChannel.onContent(HttpInput.Content) // listeners only?
+boolean HttpChannel.onContentComplete()
+void HttpChannel.onTrailers(HttpFields trailers)
+boolean HttpChannel.onRequestComplete()
+
+request.setAttribute(UPGRADE_CONNECTION,connection_);

@@ -1,0 +1,97 @@
+@startuml
+title "HttpInput"
+
+participant Connection as "Connection\nis-a\nHttpTransport"
+participant Stream
+participant Channel
+participant Request
+participant Response
+participant Handler
+
+autoactivate on
+
+== Async Read ==
+
+Connection -> Channel ** : new(transport)
+    activate Channel
+    Channel -> Request **: new(channel)
+    Channel --> Response **: new(channel)
+return
+
+... wait for request ...
+
+-> Connection : request
+  Connection -> Stream **: new
+  Connection -> Channel: onRequest(stream)
+    Channel -> Request : setStream(stream)
+    return
+  return Runnable
+  Connection -> Channel : run
+    Channel -> Handler :handle
+      Handler -> Request: getMetaData
+      return
+      Handler -> Request: read
+        Request -> Stream : read
+        return null
+      return
+      Handler -> Request: needContent
+        Request -> Stream: needContent
+          Stream -> Connection: private fillInterest
+          return
+        return
+      return
+    return true
+  return
+return
+... wait for data ...
+-> Connection : data available
+  Connection -> Stream: private fillable
+    Stream -> Request: onContentAvailable
+    return Runnable
+  return Runnable
+  Connection -> Channel : run
+    Channel -> Handler : onContentAvailable
+      Handler -> Request : read
+        Request -> Stream : read
+          Stream -> Connection : private read/fill/etc.
+            Connection -> Channel : onRequestComplete
+            return null
+          return
+        return content
+      return content
+
+      Handler -> Response : setCode(200)
+      return
+      Handler -> Response : getHttpFields
+      return
+      Handler -> Response : write
+        Response -> Stream : write
+          Stream -> Connection : private write response
+          return
+        return
+      return
+    return
+  return
+return
+... wait for write to complete ...
+-> Connection : write complete
+  Connection -> Stream : private write complete
+  return Runnable
+  Connection -> Channel : run
+    Channel -> Response : succeeded
+      Response -> Handler : succeeded
+        Handler -> Request : succeeded
+          Request -> Channel : private
+          return
+        return
+      return
+    return
+
+    Channel -> Stream : success
+      Stream -> Connection : private
+      return
+    return
+  return
+return
+
+@enduml
