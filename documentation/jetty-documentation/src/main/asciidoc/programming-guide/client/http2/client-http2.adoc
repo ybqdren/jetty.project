@@ -107,7 +107,7 @@ Sending an HTTP request to the server, and receiving a response, creates a _stre
 
 In order to send an HTTP request to the server, the client must send a `HEADERS` frame.
 `HEADERS` frames carry the request method, the request URI and the request headers.
-Sending the `HEADERS` frame opens the `Stream`:
+Sending the `HEADERS` frame opens the `Exchange`:
 
 [source,java,indent=0,subs=normal]
 ----
@@ -118,7 +118,7 @@ Note how `Session.newStream(...)` takes a `Stream.Listener` parameter.
 This listener is notified of stream events originated by the server such as receiving `HEADERS` or `DATA` frames that are part of the response, discussed in more details in the xref:pg-client-http2-response[section below].
 Please refer to the `Stream.Listener` link:{javadoc-url}/org/eclipse/jetty/http2/api/Stream.Listener.html[javadocs] for the complete list of events.
 
-HTTP requests may have content, which is sent using the `Stream` APIs:
+HTTP requests may have content, which is sent using the `Exchange` APIs:
 
 [source,java,indent=0]
 ----

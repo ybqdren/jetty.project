@@ -50,7 +50,7 @@ public class ServletDispatcher implements RequestDispatcher
     @Override
     public void include(ServletRequest request, ServletResponse response) throws ServletException, IOException
     {
-
+        // Like the forward impl, but also need to wrap response to stop close and headers
     }
 
     private class ForwardServletRequestWrapper extends HttpServletRequestWrapper

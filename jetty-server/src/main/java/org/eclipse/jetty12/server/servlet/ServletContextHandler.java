@@ -1,6 +1,7 @@
 package org.eclipse.jetty12.server.servlet;
 
 import jakarta.servlet.ServletContext;
+import org.eclipse.jetty12.server.Channel;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.handler.ContextHandler;
@@ -30,16 +31,19 @@ public class ServletContextHandler extends ContextHandler<ServletScopedRequest>
     }
 
     @Override
-    protected ServletScopedRequest scope(Request request, Response response, String pathInContext)
+    protected ServletScopedRequest wrap(Request request, Response response, String pathInContext)
     {
         ServletHandler.MappedServlet mappedServlet = _servletHandler.findMapping(pathInContext);
-        // TODO is a null mapping a 404?
-        //      if so we should create the scoped request, call sendError(404) and let flow through to ServletHandler.
-        //      or is a null an indication that we will not handle and the handler should return false?
         if (mappedServlet == null)
             return null;
 
-        // TODO could we somehow reuse a wrapper for the next cycle?
-        return new ServletScopedRequest(getContext(), request, pathInContext, mappedServlet);
+        Channel channel = request.getChannel();
+        ServletScopedRequest servletScopedRequest = (ServletScopedRequest)channel.getAttribute(ServletScopedRequest.class.getName());
+        if (servletScopedRequest == null)
+            servletScopedRequest = new ServletScopedRequest(getContext(), _servletContext, request, pathInContext, mappedServlet);
+        else
+            servletScopedRequest.remap(mappedServlet);
+
+        return servletScopedRequest;
     }
 }

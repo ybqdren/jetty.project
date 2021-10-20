@@ -20,7 +20,6 @@ public class ServletHandler extends Handler.Abstract<ServletScopedRequest>
 
     public MappedServlet findMapping(String pathInContext)
     {
-        // TODO find ServletHandler and let it do it's stuff
         return null;
     }
 
@@ -31,7 +30,7 @@ public class ServletHandler extends Handler.Abstract<ServletScopedRequest>
         if (mappedServlet == null)
             return false; // TODO or 404?
 
-        request.handle(mappedServlet, request.getHttpServletRequest(), request.getHttpServletResponse());
+        request.handle();
         return true;
     }
 }

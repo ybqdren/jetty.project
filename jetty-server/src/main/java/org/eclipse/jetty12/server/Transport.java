@@ -3,6 +3,7 @@ package org.eclipse.jetty12.server;
 import java.net.SocketAddress;
 import java.util.function.BiConsumer;
 
+import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.io.Connection;
 
 /**
@@ -14,6 +15,8 @@ import org.eclipse.jetty.io.Connection;
 interface Transport
 {
     String getId();
+
+    HttpVersion getVersion();
 
     String getProtocol();
 

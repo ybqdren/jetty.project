@@ -82,7 +82,7 @@ Receiving an HTTP request from the client, and sending a response, creates a _st
 
 An HTTP request is made of a `HEADERS` frame, that carries the request method, the request URI and the request headers, and optional `DATA` frames that carry the request content.
 
-Receiving the `HEADERS` frame opens the `Stream`:
+Receiving the `HEADERS` frame opens the `Exchange`:
 
 [source,java,indent=0]
 ----

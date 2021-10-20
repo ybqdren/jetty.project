@@ -12,15 +12,13 @@ public interface Request extends Attributes, Callback
 {
     String getId();
 
-    Transport getTransport();
+    Channel getChannel();
 
     MetaData.Request getMetaData();
 
-    int available();
+    Content readContent();
 
-    Content read();
-
-    void needContent(Runnable onContentAvailable);
+    void demandContent(Runnable onContentAvailable);
 
     void onTrailers(Consumer<HttpFields> onTrailers);
 
@@ -53,9 +51,9 @@ public interface Request extends Attributes, Callback
         }
 
         @Override
-        public Transport getTransport()
+        public Channel getChannel()
         {
-            return wrapped.getTransport();
+            return wrapped.getChannel();
         }
 
         @Override
@@ -65,21 +63,15 @@ public interface Request extends Attributes, Callback
         }
 
         @Override
-        public int available()
+        public Content readContent()
         {
-            return wrapped.available();
+            return wrapped.readContent();
         }
 
         @Override
-        public Content read()
+        public void demandContent(Runnable onContentAvailable)
         {
-            return wrapped.read();
-        }
-
-        @Override
-        public void needContent(Runnable onContentAvailable)
-        {
-            wrapped.needContent(onContentAvailable);
+            wrapped.demandContent(onContentAvailable);
         }
 
         @Override

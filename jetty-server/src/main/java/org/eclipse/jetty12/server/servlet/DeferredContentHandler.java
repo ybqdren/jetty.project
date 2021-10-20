@@ -17,7 +17,7 @@ public class DeferredContentHandler extends Handler.Wrapper<ServletScopedRequest
         //      if the content is multi-part, asynchronous read all parts before handling
 
         // Otherwise just delay until some content arrives.
-        request.needContent(() ->
+        request.demandContent(() ->
         {
             if (!super.handle(request, response))
                 request.failed(new IllegalStateException());

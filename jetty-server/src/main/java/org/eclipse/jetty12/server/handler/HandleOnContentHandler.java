@@ -10,10 +10,10 @@ public class HandleOnContentHandler extends Handler.Wrapper<Request>
     public boolean handle(Request request, Response response)
     {
         // If no content or content available, then don't delay dispatch
-        if (request.getMetaData().getContentLength() <= 0 || request.available() > 0)
+        if (request.getMetaData().getContentLength() <= 0)
             return super.handle(request, response);
 
-        request.needContent(() ->
+        request.demandContent(() ->
         {
             if (!super.handle(request, response))
                 request.failed(new IllegalStateException());

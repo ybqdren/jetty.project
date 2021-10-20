@@ -14,16 +14,6 @@ public interface Handler<R extends Request>
     {
     }
 
-    class Wrapper<R extends Request> extends Convertor<R, R>
-    {
-        @Override
-        public boolean handle(R request, Response response)
-        {
-            Handler<R> next = getNext();
-            return next != null && next.handle(request, response);
-        }
-    }
-
     abstract class Convertor<R extends Request, N extends Request> extends Abstract<R>
     {
         private Handler<N> _next;
@@ -37,6 +27,16 @@ public interface Handler<R extends Request>
         {
             updateBean(_next, next);
             _next = next;
+        }
+    }
+
+    class Wrapper<R extends Request> extends Convertor<R, R>
+    {
+        @Override
+        public boolean handle(R request, Response response)
+        {
+            Handler<R> next = getNext();
+            return next != null && next.handle(request, response);
         }
     }
 }

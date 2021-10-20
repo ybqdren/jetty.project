@@ -41,7 +41,7 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Convertor<R
         if (pathInContext == null)
             return false;
 
-        R scoped = scope(request, response, pathInContext);
+        R scoped = wrap(request, response, pathInContext);
         if (scoped == null)
             return false; // TODO 404? 500? Error dispatch ???
 
@@ -49,7 +49,7 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Convertor<R
         return true;
     }
 
-    protected R scope(Request request, Response response, String pathInContext)
+    protected R wrap(Request request, Response response, String pathInContext)
     {
         return (R)new ScopedRequest(_context, request, pathInContext);
     }

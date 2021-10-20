@@ -32,15 +32,26 @@ import org.eclipse.jetty12.server.handler.ScopedRequest;
 public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
     private final State _state = new State();
+    private final ServletContext _servletContext;
     private final MappedHttpServletRequest _httpServletRequest;
     private final HttpServletResponse _httpServletResponse;
-    private final ServletHandler.MappedServlet _mappedServlet;
+    private ServletHandler.MappedServlet _mappedServlet;
 
-    protected ServletScopedRequest(ContextHandler.Context context, Request wrapped, String pathInContext, ServletHandler.MappedServlet mappedServlet)
+    protected ServletScopedRequest(ContextHandler.Context context,
+                                   ServletContext servletContext,
+                                   Request wrapped,
+                                   String pathInContext,
+                                   ServletHandler.MappedServlet mappedServlet)
     {
         super(context, wrapped, pathInContext);
+        _servletContext = servletContext;
         _httpServletRequest = new MappedHttpServletRequest();
-        _httpServletResponse = null; // TODO
+        _httpServletResponse = null;
+        _mappedServlet = mappedServlet;
+    }
+
+    void remap(ServletHandler.MappedServlet mappedServlet)
+    {
         _mappedServlet = mappedServlet;
     }
 
@@ -76,12 +87,13 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     @Override
     public void run()
     {
-        handle(_mappedServlet, _httpServletRequest, _httpServletResponse);
+        handle();
     }
 
-    public void handle(ServletHandler.MappedServlet mappedServlet, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse)
+    public void handle()
     {
         // implement the state machine from HttpChannelState and HttpChannel
+        // Note that sendError may already have been called before we are handling for the first time.
 
         HttpChannelState.Action action = _state.handling();
         loop: while (true)
@@ -98,9 +110,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
                         break;
 
                     case DISPATCH:
-                        // TODO Call the servlet?
-                        //      or call the ServletHandler?
-                        mappedServlet.handle(httpServletRequest, httpServletResponse);
+                        _mappedServlet.handle(_httpServletRequest, _httpServletResponse);
                         break;
 
                     // TODO etc.
@@ -520,7 +530,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public ServletContext getServletContext()
         {
-            return null;
+            return _servletContext;
         }
 
         @Override
