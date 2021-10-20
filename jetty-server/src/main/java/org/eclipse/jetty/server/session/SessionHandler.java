@@ -37,7 +37,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionAttributeListener;
 import jakarta.servlet.http.HttpSessionBindingEvent;
-import jakarta.servlet.http.HttpSessionContext;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
@@ -131,25 +130,6 @@ public class SessionHandler extends ScopedHandler
                 HttpSessionIdListener.class,
                 HttpSessionListener.class
             };
-
-    @Deprecated(since = "Servlet API 2.1")
-    static final HttpSessionContext __nullSessionContext = new HttpSessionContext()
-    {
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public HttpSession getSession(String sessionId)
-        {
-            return null;
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        public Enumeration getIds()
-        {
-            return Collections.enumeration(Collections.EMPTY_LIST);
-        }
-    };
 
     /**
      * Setting of max inactive interval for new sessions
@@ -740,7 +720,7 @@ public class SessionHandler extends ScopedHandler
     {
         long created = System.currentTimeMillis();
         String id = _sessionIdManager.newSessionId(request, created);
-        Session session = _sessionCache.newSession(request, id, created, (_dftMaxIdleSecs > 0 ? _dftMaxIdleSecs * 1000L : -1));
+        Session session = _sessionCache.newSession(id, created, (_dftMaxIdleSecs > 0 ? _dftMaxIdleSecs * 1000L : -1));
         session.setExtendedId(_sessionIdManager.getExtendedId(id, request));
         session.getSessionData().setLastNode(_sessionIdManager.getWorkerName());
 

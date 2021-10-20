@@ -13,7 +13,7 @@
 
 package org.eclipse.jetty.server.session;
 
-import java.util.ArrayList;
+
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -26,7 +26,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSessionActivationListener;
 import jakarta.servlet.http.HttpSessionBindingEvent;
 import jakarta.servlet.http.HttpSessionBindingListener;
-import jakarta.servlet.http.HttpSessionContext;
 import jakarta.servlet.http.HttpSessionEvent;
 import org.eclipse.jetty.io.CyclicTimeout;
 import org.eclipse.jetty.util.thread.AutoLock;
@@ -168,31 +167,22 @@ public class Session implements SessionHandler.SessionIf
     }
 
     /**
-     * Create a new session
+     * Create a new session object. The session could be an 
+     * entirely new session, or could be being re-inflated from
+     * persistent store.
      *
      * @param handler the SessionHandler that manages this session
-     * @param request the request the session should be based on
-     * @param data the session data
-     */
-    public Session(SessionHandler handler, HttpServletRequest request, SessionData data)
-    {
-        _handler = handler;
-        _sessionData = data;
-        _newSession = true;
-        _sessionData.setDirty(true);
-        _sessionInactivityTimer = new SessionInactivityTimer();
-    }
-
-    /**
-     * Re-inflate an existing session from some eg persistent store.
-     *
-     * @param handler the SessionHandler managing the session
      * @param data the session data
      */
     public Session(SessionHandler handler, SessionData data)
     {
         _handler = handler;
         _sessionData = data;
+        if (_sessionData.getLastSaved() <= 0)
+        {
+            _newSession = true;
+            _sessionData.setDirty(true);
+        }
         _sessionInactivityTimer = new SessionInactivityTimer();
     }
 
@@ -586,14 +576,6 @@ public class Session implements SessionHandler.SessionIf
         }
     }
 
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public HttpSessionContext getSessionContext()
-    {
-        checkValidForRead();
-        return SessionHandler.__nullSessionContext;
-    }
-
     public SessionHandler getSessionHandler()
     {
         return _handler;
@@ -655,17 +637,6 @@ public class Session implements SessionHandler.SessionIf
     }
 
     @Override
-    @Deprecated(since = "Servlet API 2.2")
-    public Object getValue(String name)
-    {
-        try (AutoLock l = _lock.lock())
-        {
-            checkValidForRead();
-            return _sessionData.getAttribute(name);
-        }
-    }
-
-    @Override
     public Enumeration<String> getAttributeNames()
     {
         try (AutoLock l = _lock.lock())
@@ -700,29 +671,6 @@ public class Session implements SessionHandler.SessionIf
         return Collections.unmodifiableSet(_sessionData.getKeys());
     }
 
-    /**
-     * @deprecated As of Servlet 2.2, this method is replaced by
-     * {@link #getAttributeNames}
-     */
-    @Override
-    @Deprecated(since = "Servlet API 2.2")
-    public String[] getValueNames() throws IllegalStateException
-    {
-        try (AutoLock l = _lock.lock())
-        {
-            checkValidForRead();
-            Iterator<String> itor = _sessionData.getKeys().iterator();
-            if (!itor.hasNext())
-                return new String[0];
-            ArrayList<String> names = new ArrayList<>();
-            while (itor.hasNext())
-            {
-                names.add(itor.next());
-            }
-            return names.toArray(new String[names.size()]);
-        }
-    }
-
     @Override
     public void setAttribute(String name, Object value)
     {
@@ -740,21 +688,7 @@ public class Session implements SessionHandler.SessionIf
     }
 
     @Override
-    @Deprecated(since = "Servlet API 2.2")
-    public void putValue(String name, Object value)
-    {
-        setAttribute(name, value);
-    }
-
-    @Override
     public void removeAttribute(String name)
-    {
-        setAttribute(name, null);
-    }
-
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public void removeValue(String name)
     {
         setAttribute(name, null);
     }

@@ -178,8 +178,6 @@ public class DeferredAuthentication implements Authentication.Deferred
             return null;
         }
 
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
         public String encodeRedirectUrl(String url)
         {
             return null;
@@ -191,8 +189,6 @@ public class DeferredAuthentication implements Authentication.Deferred
             return null;
         }
 
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
         public String encodeUrl(String url)
         {
             return null;
@@ -233,8 +229,6 @@ public class DeferredAuthentication implements Authentication.Deferred
         {
         }
 
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
         public void setStatus(int sc, String sm)
         {
         }

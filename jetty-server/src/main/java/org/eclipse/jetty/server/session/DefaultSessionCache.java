@@ -179,12 +179,6 @@ public class DefaultSessionCache extends AbstractSessionCache
     }
 
     @Override
-    public Session newSession(HttpServletRequest request, SessionData data)
-    {
-        return new Session(getSessionHandler(), request, data);
-    }
-
-    @Override
     public Session newSession(SessionData data)
     {
         return new Session(getSessionHandler(), data);

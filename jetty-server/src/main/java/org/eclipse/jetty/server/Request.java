@@ -45,6 +45,7 @@ import jakarta.servlet.AsyncListener;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.MultipartConfigElement;
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
@@ -1176,15 +1177,6 @@ public class Request implements HttpServletRequest
         return _reader;
     }
 
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public String getRealPath(String path)
-    {
-        if (_context == null)
-            return null;
-        return _context.getRealPath(path);
-    }
-
     /**
      * Access the underlying Remote {@link InetSocketAddress} for this request.
      *
@@ -1625,13 +1617,6 @@ public class Request implements HttpServletRequest
     public boolean isRequestedSessionIdFromCookie()
     {
         return _requestedSessionId != null && _requestedSessionIdFromCookie;
-    }
-
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public boolean isRequestedSessionIdFromUrl()
-    {
-        return _requestedSessionId != null && !_requestedSessionIdFromCookie;
     }
 
     @Override
@@ -2541,6 +2526,24 @@ public class Request implements HttpServletRequest
         return findServletPathMapping();
     }
     
+    @Override
+    public ServletConnection getServletConnection()
+    {
+        return null;
+    }
+
+    @Override
+    public String getProtocolRequestId()
+    {
+        return null;
+    }
+
+    @Override
+    public String getRequestId()
+    {
+        return null;
+    }
+
     private String formatAddrOrHost(String name)
     {
         return _channel == null ? HostPort.normalizeHost(name) : _channel.formatAddrOrHost(name);

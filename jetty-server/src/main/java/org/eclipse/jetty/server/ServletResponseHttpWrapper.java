@@ -56,15 +56,11 @@ public class ServletResponseHttpWrapper extends ServletResponseWrapper implement
         return null;
     }
 
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
     public String encodeUrl(String url)
     {
         return null;
     }
 
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
     public String encodeRedirectUrl(String url)
     {
         return null;
@@ -120,7 +116,6 @@ public class ServletResponseHttpWrapper extends ServletResponseWrapper implement
     {
     }
 
-    @Override
     @Deprecated(since = "Servlet API 2.1")
     public void setStatus(int sc, String sm)
     {

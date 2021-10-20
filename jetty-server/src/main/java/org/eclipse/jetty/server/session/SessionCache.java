@@ -64,13 +64,12 @@ public interface SessionCache extends LifeCycle
     /**
      * Create an entirely new Session.
      *
-     * @param request the request
      * @param id the unique id associated to the session
      * @param time the timestamp of the session creation
      * @param maxInactiveMs the max inactive time in milliseconds
      * @return a new Session
      */
-    Session newSession(HttpServletRequest request, String id, long time, long maxInactiveMs);
+    Session newSession(String id, long time, long maxInactiveMs);
 
     /**
      * Re-materialize a Session that has previously existed.

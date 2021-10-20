@@ -444,20 +444,6 @@ public class Response implements HttpServletResponse
     }
 
     @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public String encodeUrl(String url)
-    {
-        return encodeURL(url);
-    }
-
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public String encodeRedirectUrl(String url)
-    {
-        return encodeRedirectURL(url);
-    }
-
-    @Override
     public void sendError(int sc) throws IOException
     {
         sendError(sc, null);
@@ -754,13 +740,6 @@ public class Response implements HttpServletResponse
                 _reason = null;
             _status = sc;
         }
-    }
-
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
-    public void setStatus(int sc, String message)
-    {
-        setStatusWithReason(sc, null);
     }
 
     public void setStatusWithReason(int sc, String message)

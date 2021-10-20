@@ -111,15 +111,6 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
     public abstract Session newSession(SessionData data);
 
     /**
-     * Create a new Session for a request.
-     *
-     * @param request the request
-     * @param data the session data
-     * @return the new session
-     */
-    public abstract Session newSession(HttpServletRequest request, SessionData data);
-
-    /**
      * Get the session matching the key from the cache. Does not load
      * the session.
      *
@@ -823,11 +814,11 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
     }
 
     @Override
-    public Session newSession(HttpServletRequest request, String id, long time, long maxInactiveMs)
+    public Session newSession(String id, long time, long maxInactiveMs)
     {
         if (LOG.isDebugEnabled())
             LOG.debug("Creating new session id={}", id);
-        Session session = newSession(request, _sessionDataStore.newSessionData(id, time, time, time, maxInactiveMs));
+        Session session = newSession(_sessionDataStore.newSessionData(id, time, time, time, maxInactiveMs));
         session.getSessionData().setLastNode(_context.getWorkerName());
         try
         {

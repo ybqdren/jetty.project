@@ -159,22 +159,6 @@ public class UpgradeHttpServletResponse implements HttpServletResponse
     }
 
     @Override
-    public String encodeUrl(String s)
-    {
-        if (_response == null)
-            throw new UnsupportedOperationException(UNSUPPORTED_AFTER_WEBSOCKET_UPGRADE);
-        return _response.encodeUrl(s);
-    }
-
-    @Override
-    public String encodeRedirectUrl(String s)
-    {
-        if (_response == null)
-            throw new UnsupportedOperationException(UNSUPPORTED_AFTER_WEBSOCKET_UPGRADE);
-        return _response.encodeRedirectUrl(s);
-    }
-
-    @Override
     public ServletOutputStream getOutputStream() throws IOException
     {
         if (_response == null)
@@ -356,13 +340,5 @@ public class UpgradeHttpServletResponse implements HttpServletResponse
         if (_response == null)
             throw new UnsupportedOperationException(UNSUPPORTED_AFTER_WEBSOCKET_UPGRADE);
         _response.setStatus(i);
-    }
-
-    @Override
-    public void setStatus(int i, String s)
-    {
-        if (_response == null)
-            throw new UnsupportedOperationException(UNSUPPORTED_AFTER_WEBSOCKET_UPGRADE);
-        _response.setStatus(i, s);
     }
 }
