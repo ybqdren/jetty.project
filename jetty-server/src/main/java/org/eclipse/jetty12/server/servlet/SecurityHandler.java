@@ -15,17 +15,14 @@ public class SecurityHandler extends Handler.Wrapper<ServletScopedRequest>
         {
             try
             {
-                // TODO how to do error pages?
-                //      the issue here is that the dispatch state machine would need to be handled by ServletContextHandler
-                //      but that would mess up things like DeferredContentHandler
-                //      other option is to somehow invoke the ServletHandler here, perhaps with a Dispatcher?
                 request.getHttpServletResponse().sendError(403);
             }
             catch (Exception e)
             {
                 request.failed(e);
+                return true;
             }
-            return true;
+            // Fall through to super.handle, so ServletHandler will be called and will see the sendError and act on it
         }
 
         return super.handle(request, response);

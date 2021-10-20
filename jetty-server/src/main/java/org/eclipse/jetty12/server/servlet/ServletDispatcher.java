@@ -9,20 +9,19 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.server.ServletPathMapping;
 import org.eclipse.jetty12.server.handler.ContextHandler;
 
 public class ServletDispatcher implements RequestDispatcher
 {
     private final ContextHandler.Context _context;
     private final ServletHandler _servletHandler;
-    private final ServletPathMapping _mapping;
+    private final ServletHandler.MappedServlet _mappedServlet;
 
-    public ServletDispatcher(ContextHandler.Context context, ServletHandler servletHandler, ServletPathMapping mapping)
+    public ServletDispatcher(ContextHandler.Context context, ServletHandler servletHandler, ServletHandler.MappedServlet mapping)
     {
         _context = context;
         _servletHandler = servletHandler;
-        _mapping = mapping;
+        _mappedServlet = mapping;
     }
 
     @Override
@@ -33,8 +32,19 @@ public class ServletDispatcher implements RequestDispatcher
         HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpServletResponse httpResponse = (HttpServletResponse)response;
 
-        _servletHandler.handle(_mapping, new ForwardServletRequestWrapper(httpRequest), httpResponse);
+        _mappedServlet.handle(new ForwardServletRequestWrapper(httpRequest), httpResponse);
 
+        if (!httpRequest.isAsyncStarted())
+        {
+            try
+            {
+                httpResponse.getOutputStream().close();
+            }
+            catch (IllegalStateException e)
+            {
+                httpResponse.getWriter().close();
+            }
+        }
     }
 
     @Override
@@ -56,13 +66,13 @@ public class ServletDispatcher implements RequestDispatcher
         @Override
         public String getPathInfo()
         {
-            return _mapping.getPathInfo();
+            return _mappedServlet.getServletPathMapping().getPathInfo();
         }
 
         @Override
         public String getServletPath()
         {
-            return _mapping.getServletPath();
+            return _mappedServlet.getServletPathMapping().getServletPath();
         }
 
         @Override

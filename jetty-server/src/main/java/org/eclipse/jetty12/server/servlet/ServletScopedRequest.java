@@ -24,23 +24,24 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
-import org.eclipse.jetty.server.ServletPathMapping;
+import org.eclipse.jetty.server.HttpChannelState;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.handler.ContextHandler;
 import org.eclipse.jetty12.server.handler.ScopedRequest;
 
 public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
+    private final State _state = new State();
     private final MappedHttpServletRequest _httpServletRequest;
     private final HttpServletResponse _httpServletResponse;
-    private final ServletPathMapping _servletPathMapping;
+    private final ServletHandler.MappedServlet _mappedServlet;
 
-    protected ServletScopedRequest(ContextHandler.Context context, Request wrapped, String pathInContext, ServletPathMapping mapping)
+    protected ServletScopedRequest(ContextHandler.Context context, Request wrapped, String pathInContext, ServletHandler.MappedServlet mappedServlet)
     {
         super(context, wrapped, pathInContext);
         _httpServletRequest = new MappedHttpServletRequest();
         _httpServletResponse = null; // TODO
-        _servletPathMapping = mapping;
+        _mappedServlet = mappedServlet;
     }
 
     public MappedHttpServletRequest getHttpServletRequest()
@@ -53,9 +54,9 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         return _httpServletResponse;
     }
 
-    public ServletPathMapping getServletPathMapping()
+    public ServletHandler.MappedServlet getMappedServlet()
     {
-        return _servletPathMapping;
+        return _mappedServlet;
     }
 
     public static ServletScopedRequest getRequest(HttpServletRequest httpServletRequest)
@@ -75,12 +76,65 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     @Override
     public void run()
     {
-        handle(_servletPathMapping, _httpServletRequest, _httpServletResponse);
+        handle(_mappedServlet, _httpServletRequest, _httpServletResponse);
     }
 
-    public void handle(ServletPathMapping servletPathMapping, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse)
+    public void handle(ServletHandler.MappedServlet mappedServlet, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse)
     {
         // implement the state machine from HttpChannelState and HttpChannel
+
+        HttpChannelState.Action action = _state.handling();
+        loop: while (true)
+        {
+            try
+            {
+                switch (action)
+                {
+                    case COMPLETE:
+                        succeeded();
+                        break loop;
+
+                    case WAIT:
+                        break;
+
+                    case DISPATCH:
+                        // TODO Call the servlet?
+                        //      or call the ServletHandler?
+                        mappedServlet.handle(httpServletRequest, httpServletResponse);
+                        break;
+
+                    // TODO etc.
+                    default:
+                        break;
+                }
+            }
+            catch (Throwable failure)
+            {
+                // TODO
+            }
+
+            action = _state.unhandle();
+        }
+    }
+
+    private static class State extends HttpChannelState
+    {
+        public State()
+        {
+            super(null);
+        }
+
+        @Override
+        public Action handling()
+        {
+            return super.handling();
+        }
+
+        @Override
+        protected Action unhandle()
+        {
+            return super.unhandle();
+        }
     }
 
     class MappedHttpServletRequest implements HttpServletRequest
@@ -141,7 +195,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getPathInfo()
         {
-            return _servletPathMapping.getPathInfo();
+            return _mappedServlet.getServletPathMapping().getPathInfo();
         }
 
         @Override
@@ -202,7 +256,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getServletPath()
         {
-            return _servletPathMapping.getServletPath();
+            return _mappedServlet.getServletPathMapping().getServletPath();
         }
 
         @Override

@@ -18,7 +18,6 @@ import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
-import org.eclipse.jetty.server.ServletPathMapping;
 import org.eclipse.jetty12.server.handler.ContextHandler;
 
 public class ServletContextContext implements ServletContext
@@ -96,7 +95,7 @@ public class ServletContextContext implements ServletContext
     @Override
     public RequestDispatcher getRequestDispatcher(String pathInContext)
     {
-        ServletPathMapping mapping = _servletHandler.findMapping(pathInContext);
+        ServletHandler.MappedServlet mapping = _servletHandler.findMapping(pathInContext);
         return new ServletDispatcher(_context, _servletHandler, mapping);
     }
 
