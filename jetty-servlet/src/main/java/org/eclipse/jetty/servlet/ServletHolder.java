@@ -41,7 +41,6 @@ import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.ServletSecurityElement;
-import jakarta.servlet.SingleThreadModel;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.security.IdentityService;
@@ -170,8 +169,6 @@ public class ServletHolder extends Holder<Servlet> implements UserIdentity.Scope
 
     public void setServlet(Servlet servlet)
     {
-        if (servlet == null || servlet instanceof SingleThreadModel)
-            throw new IllegalArgumentException(SingleThreadModel.class.getName() + " has been deprecated since Servlet API 2.4");
         setInstance(servlet);
     }
 
@@ -592,11 +589,6 @@ public class ServletHolder extends Holder<Servlet> implements UserIdentity.Scope
             servlet = getInstance();
             if (servlet == null)
                 servlet = newInstance();
-            if (servlet instanceof SingleThreadModel)
-            {
-                predestroyServlet(servlet);
-                servlet = new SingleThreadedWrapper();
-            }
 
             if (_config == null)
                 _config = new Config();

@@ -32,6 +32,7 @@ import java.util.TreeMap;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
@@ -333,14 +334,6 @@ public class UpgradeHttpServletRequest implements HttpServletRequest
     }
 
     @Override
-    public boolean isRequestedSessionIdFromUrl()
-    {
-        if (request == null)
-            throw new UnsupportedOperationException(UNSUPPORTED_AFTER_WEBSOCKET_UPGRADE);
-        return request.isRequestedSessionIdFromUrl();
-    }
-
-    @Override
     public Object getAttribute(String name)
     {
         if (request == null)
@@ -459,12 +452,6 @@ public class UpgradeHttpServletRequest implements HttpServletRequest
     public boolean isSecure()
     {
         return secure;
-    }
-
-    @Override
-    public String getRealPath(String path)
-    {
-        return context.getRealPath(path);
     }
 
     @Override
@@ -655,5 +642,26 @@ public class UpgradeHttpServletRequest implements HttpServletRequest
         if (request == null)
             throw new UnsupportedOperationException(UNSUPPORTED_AFTER_WEBSOCKET_UPGRADE);
         return request.upgrade(handlerClass);
+    }
+
+    @Override
+    public String getRequestId()
+    {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public String getProtocolRequestId()
+    {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public ServletConnection getServletConnection()
+    {
+        // TODO Auto-generated method stub
+        return null;
     }
 }

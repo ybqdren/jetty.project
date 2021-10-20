@@ -184,8 +184,6 @@ public class ServletRequestHttpWrapper extends ServletRequestWrapper implements 
         return false;
     }
 
-    @Override
-    @Deprecated(since = "Servlet API 2.1")
     public boolean isRequestedSessionIdFromUrl()
     {
         return false;

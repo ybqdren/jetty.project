@@ -177,11 +177,7 @@ public class SessionInvalidationTest
                 assertThrows(IllegalStateException.class, () -> session.getCreationTime());
                 assertThrows(IllegalStateException.class, () -> session.getAttribute("foo"));
                 assertThrows(IllegalStateException.class, () -> session.getAttributeNames());
-                assertThrows(IllegalStateException.class, () -> session.getValue("foo"));
-                assertThrows(IllegalStateException.class, () -> session.getValueNames());
-                assertThrows(IllegalStateException.class, () -> session.putValue("a", "b"));
                 assertThrows(IllegalStateException.class, () -> session.removeAttribute("foo"));
-                assertThrows(IllegalStateException.class, () -> session.removeValue("foo"));
                 assertThrows(IllegalStateException.class, () -> session.setAttribute("a", "b"));
                 assertDoesNotThrow(() -> session.getId());
             }

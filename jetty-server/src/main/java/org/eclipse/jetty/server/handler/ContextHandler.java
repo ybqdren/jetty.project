@@ -2331,7 +2331,6 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
             return ContextHandler.this.getResourcePaths(path);
         }
 
-        @Override
         public void log(Exception exception, String msg)
         {
             _logger.warn(msg, exception);
@@ -2682,34 +2681,6 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         public String getServerInfo()
         {
             return ContextHandler.getServerInfo();
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public Servlet getServlet(String name) throws ServletException
-        {
-            return null;
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public Enumeration<String> getServletNames()
-        {
-            return Collections.enumeration(Collections.EMPTY_LIST);
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.0")
-        public Enumeration<Servlet> getServlets()
-        {
-            return Collections.enumeration(Collections.EMPTY_LIST);
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public void log(Exception exception, String msg)
-        {
-            LOG.warn(msg, exception);
         }
 
         @Override
