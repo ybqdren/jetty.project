@@ -1,6 +1,10 @@
-package org.eclipse.jetty12.server;
+package org.eclipse.jetty12.server.handler;
 
 import java.nio.file.Path;
+
+import org.eclipse.jetty12.server.Handler;
+import org.eclipse.jetty12.server.Request;
+import org.eclipse.jetty12.server.Response;
 
 public class ContextHandler<R extends ScopedRequest> extends Handler.Convertor<Request, R>
 {

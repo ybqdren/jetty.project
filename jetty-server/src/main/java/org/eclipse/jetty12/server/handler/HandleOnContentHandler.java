@@ -1,4 +1,8 @@
-package org.eclipse.jetty12.server;
+package org.eclipse.jetty12.server.handler;
+
+import org.eclipse.jetty12.server.Handler;
+import org.eclipse.jetty12.server.Request;
+import org.eclipse.jetty12.server.Response;
 
 public class HandleOnContentHandler extends Handler.Wrapper<Request>
 {

@@ -19,7 +19,7 @@ import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import org.eclipse.jetty.server.ServletPathMapping;
-import org.eclipse.jetty12.server.ContextHandler;
+import org.eclipse.jetty12.server.handler.ContextHandler;
 
 public class ServletContextContext implements ServletContext
 {

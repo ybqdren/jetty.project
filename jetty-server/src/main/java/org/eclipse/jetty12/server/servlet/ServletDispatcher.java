@@ -10,7 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.server.ServletPathMapping;
-import org.eclipse.jetty12.server.ContextHandler;
+import org.eclipse.jetty12.server.handler.ContextHandler;
 
 public class ServletDispatcher implements RequestDispatcher
 {

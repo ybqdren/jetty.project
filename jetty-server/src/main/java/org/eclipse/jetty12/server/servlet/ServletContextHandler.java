@@ -2,9 +2,9 @@ package org.eclipse.jetty12.server.servlet;
 
 import jakarta.servlet.ServletContext;
 import org.eclipse.jetty.server.ServletPathMapping;
-import org.eclipse.jetty12.server.ContextHandler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
+import org.eclipse.jetty12.server.handler.ContextHandler;
 
 public class ServletContextHandler extends ContextHandler<ServletScopedRequest>
 {

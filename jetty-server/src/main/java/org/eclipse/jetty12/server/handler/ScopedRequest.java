@@ -1,6 +1,7 @@
-package org.eclipse.jetty12.server;
+package org.eclipse.jetty12.server.handler;
 
-import org.eclipse.jetty12.server.ContextHandler.Context;
+import org.eclipse.jetty12.server.Request;
+import org.eclipse.jetty12.server.handler.ContextHandler.Context;
 
 public class ScopedRequest extends Request.Wrapper
 {

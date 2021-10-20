@@ -25,13 +25,13 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.eclipse.jetty.server.ServletPathMapping;
-import org.eclipse.jetty12.server.ContextHandler;
 import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.ScopedRequest;
+import org.eclipse.jetty12.server.handler.ContextHandler;
+import org.eclipse.jetty12.server.handler.ScopedRequest;
 
 public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
-    private final HttpServletRequest _httpServletRequest;
+    private final MappedHttpServletRequest _httpServletRequest;
     private final HttpServletResponse _httpServletResponse;
     private final ServletPathMapping _servletPathMapping;
 
@@ -43,7 +43,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         _servletPathMapping = mapping;
     }
 
-    public HttpServletRequest getHttpServletRequest()
+    public MappedHttpServletRequest getHttpServletRequest()
     {
         return _httpServletRequest;
     }
@@ -83,7 +83,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         // implement the state machine from HttpChannelState and HttpChannel
     }
 
-    private class MappedHttpServletRequest implements HttpServletRequest
+    class MappedHttpServletRequest implements HttpServletRequest
     {
         ServletScopedRequest getServletScopedRequest()
         {
