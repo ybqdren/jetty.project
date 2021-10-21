@@ -1,3 +1,16 @@
+//
+// ========================================================================
+// Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+// ========================================================================
+//
+
 package org.eclipse.jetty12.server.servlet;
 
 import java.io.BufferedReader;
@@ -12,6 +25,7 @@ import java.util.Map;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
@@ -25,6 +39,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.eclipse.jetty.server.HttpChannelState;
+import org.eclipse.jetty12.server.MetaConnection;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.handler.ContextHandler;
 import org.eclipse.jetty12.server.handler.ScopedRequest;
@@ -149,9 +164,65 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     class MappedHttpServletRequest implements HttpServletRequest
     {
+
+        public void setSessionManager(SessionHandler sessionHandler)
+        {
+            // TODO
+        }
+
+        public void setSession(Object o)
+        {
+            // TODO
+        }
+
         ServletScopedRequest getServletScopedRequest()
         {
             return ServletScopedRequest.this;
+        }
+
+        @Override
+        public String getRequestId()
+        {
+            return getId();
+        }
+
+        @Override
+        public String getProtocolRequestId()
+        {
+            return getChannel().getStream().getId();
+        }
+
+        @Override
+        public ServletConnection getServletConnection()
+        {
+            // TODO cache the results
+            final MetaConnection metaConnection = getMetaConnection();
+            return new ServletConnection()
+            {
+                @Override
+                public String getConnectionId()
+                {
+                    return metaConnection.getId();
+                }
+
+                @Override
+                public String getProtocol()
+                {
+                    return metaConnection.getProtocol();
+                }
+
+                @Override
+                public String getProtocolConnectionId()
+                {
+                    return metaConnection.getConnection().toString(); // TODO getId
+                }
+
+                @Override
+                public boolean isSecure()
+                {
+                    return metaConnection.isSecure();
+                }
+            };
         }
 
         @Override
@@ -175,31 +246,31 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getHeader(String name)
         {
-            return getMetaData().getFields().get(name);
+            return ServletScopedRequest.this.getHeaders().get(name);
         }
 
         @Override
         public Enumeration<String> getHeaders(String name)
         {
-            return null;
+            return ServletScopedRequest.this.getHeaders().getValues(name);
         }
 
         @Override
         public Enumeration<String> getHeaderNames()
         {
-            return null;
+            return ServletScopedRequest.this.getHeaders().getFieldNames();
         }
 
         @Override
         public int getIntHeader(String name)
         {
-            return 0;
+            return (int)ServletScopedRequest.this.getHeaders().getLongField(name);
         }
 
         @Override
         public String getMethod()
         {
-            return getMetaData().getMethod();
+            return getMethod();
         }
 
         @Override
@@ -223,7 +294,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getQueryString()
         {
-            return ServletScopedRequest.this.getMetaData().getURI().getQuery();
+            return ServletScopedRequest.this.getURI().getQuery();
         }
 
         @Override
@@ -253,8 +324,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getRequestURI()
         {
-            ServletScopedRequest.this.getMetaData().getURIString();
-            return null;
+            return ServletScopedRequest.this.getURI().toString();
         }
 
         @Override
@@ -301,12 +371,6 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
         @Override
         public boolean isRequestedSessionIdFromURL()
-        {
-            return false;
-        }
-
-        @Override
-        public boolean isRequestedSessionIdFromUrl()
         {
             return false;
         }
@@ -493,12 +557,6 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
         @Override
         public RequestDispatcher getRequestDispatcher(String path)
-        {
-            return null;
-        }
-
-        @Override
-        public String getRealPath(String path)
         {
             return null;
         }

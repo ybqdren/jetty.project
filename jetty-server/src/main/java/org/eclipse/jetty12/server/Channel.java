@@ -1,11 +1,28 @@
+//
+// ========================================================================
+// Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+// ========================================================================
+//
+
 package org.eclipse.jetty12.server;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.Callback;
@@ -22,27 +39,43 @@ import org.eclipse.jetty.util.Callback;
 public class Channel extends AttributesMap
 {
     private final Handler<Request> _server;
-    private final Transport _transport;
+    private final MetaConnection _metaConnection;
     private final ChannelRequest _request;
     private final ChannelResponse _response;
-    private Exchange _exchange;
+    private final AtomicInteger _requests = new AtomicInteger();
+    private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
+    private final AtomicReference<BiConsumer<Channel, Throwable>> _onConnectionComplete = new AtomicReference<>();
+    private Stream _stream;
 
-    public Channel(Handler<Request> server, Transport transport)
+    public Channel(Handler<Request> server, MetaConnection metaConnection)
     {
         _server = server;
-        _transport = transport;
-        _request = new ChannelRequest();
-        _response = new ChannelResponse();
+        _metaConnection = metaConnection;
+        _request = new ChannelRequest(); // TODO recycle or once off?
+        _response = new ChannelResponse(); // TODO recycle or once off?
     }
 
-    public Transport getTransport()
+    public MetaConnection getMetaConnection()
     {
-        return _transport;
+        return _metaConnection;
     }
 
-    public Runnable onRequest(Exchange exchange)
+    public Stream getStream()
     {
-        _exchange = exchange;
+        return _stream;
+    }
+
+    public Runnable onRequest(MetaData.Request request, Stream stream)
+    {
+        _requests.incrementAndGet();
+        _request._complete.set(false);
+        _request._metaData = request;
+        _stream = stream;
+        if (_response._headers == null)
+            _response._headers = HttpFields.build();
+        else
+            _response._headers.clear();
+        // TODO add standard response headers.
         return this::handle;
     }
 
@@ -63,22 +96,63 @@ public class Channel extends AttributesMap
 
     public Runnable onRequestComplete(HttpFields trailers)
     {
+        _request._complete.set(true);
         Object consumer = _request._onTrailers.getAndSet(trailers);
         if (consumer != null)
             ((Consumer<HttpFields>)consumer).accept(trailers);
         return null;
     }
 
+    public Runnable onConnectionComplete(Throwable failed)
+    {
+        notifyConnectionComplete(_onConnectionComplete.getAndSet(null), failed);
+        return null;
+    }
+
+    public void whenConnectionComplete(BiConsumer<Channel, Throwable> onComplete)
+    {
+        if (!_onConnectionComplete.compareAndSet(null, onComplete))
+        {
+            _onConnectionComplete.getAndUpdate(l -> (channel, failed) ->
+            {
+                notifyConnectionComplete(l, failed);
+                notifyConnectionComplete(onComplete, failed);
+            });
+        }
+    }
+
+    private void notifyConnectionComplete(BiConsumer<Channel, Throwable> onConnectionComplete, Throwable failed)
+    {
+        if (onConnectionComplete != null)
+        {
+            try
+            {
+                onConnectionComplete.accept(this, failed);
+            }
+            catch (Throwable t)
+            {
+                t.printStackTrace();
+            }
+        }
+    }
+
     private class ChannelRequest extends AttributesMap implements Request
     {
-        final AtomicReference<Runnable> _onContent = new AtomicReference<>();
-        final AtomicReference<Object> _onTrailers = new AtomicReference<>();
-        final AtomicReference<BiConsumer<Request, Throwable>> _onComplete = new AtomicReference<>();
+        private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
+        private final AtomicReference<Object> _onTrailers = new AtomicReference<>();
+        private final AtomicBoolean _complete = new AtomicBoolean();
+        private MetaData.Request _metaData;
 
         @Override
         public String getId()
         {
-            return null;
+            return Integer.toString(_requests.get());
+        }
+
+        @Override
+        public MetaConnection getMetaConnection()
+        {
+            return _metaConnection;
         }
 
         @Override
@@ -88,15 +162,33 @@ public class Channel extends AttributesMap
         }
 
         @Override
-        public MetaData.Request getMetaData()
+        public String getMethod()
         {
-            return _exchange.getMetaData();
+            return _metaData.getMethod();
+        }
+
+        @Override
+        public HttpURI getURI()
+        {
+            return _metaData.getURI();
+        }
+
+        @Override
+        public HttpFields getHeaders()
+        {
+            return _metaData.getFields();
+        }
+
+        @Override
+        public long getContentLength()
+        {
+            return _metaData.getContentLength();
         }
 
         @Override
         public Content readContent()
         {
-            return _exchange.readContent();
+            return _stream.readContent();
         }
 
         @Override
@@ -105,7 +197,7 @@ public class Channel extends AttributesMap
             Runnable task = _onContent.getAndSet(onContentAvailable);
             if (task != null && task != onContentAvailable)
                 throw new IllegalStateException();
-            _exchange.demandContent();
+            _stream.demandContent();
         }
 
         @Override
@@ -119,12 +211,12 @@ public class Channel extends AttributesMap
         @Override
         public void whenComplete(BiConsumer<Request, Throwable> onComplete)
         {
-            if (!_onComplete.compareAndSet(null, onComplete))
+            if (!_onStreamComplete.compareAndSet(null, onComplete))
             {
-                _onComplete.getAndUpdate(l -> (request, failed) ->
+                _onStreamComplete.getAndUpdate(l -> (request, failed) ->
                 {
-                    onComplete(l, failed);
-                    onComplete(onComplete, failed);
+                    notifyStreamComplete(l, failed);
+                    notifyStreamComplete(onComplete, failed);
                 });
             }
         }
@@ -132,24 +224,51 @@ public class Channel extends AttributesMap
         @Override
         public void succeeded()
         {
-            onComplete(_onComplete.getAndSet(null), null);
-            _exchange.succeeded();
+            // Cannot handle trailers after succeeded
+            _onTrailers.set(null);
+
+            // Commit the response
+            _stream.send(_response.commitResponse(), true, Callback.from(() ->
+            {
+                // then ensure the request is complete
+                while (!_complete.get())
+                {
+                    Content content = _stream.readContent();
+                    // if we cannot read to EOF then fail the stream rather than wait for unconsumed content
+                    if (content == null)
+                    {
+                        failed(new IOException("unconsumed input"));
+                        return;
+                    }
+                    // if the input failed, then fail the stream for same reason
+                    if (content instanceof Content.Error)
+                    {
+                        failed(((Content.Error)content).getReason());
+                        return;
+                    }
+                }
+
+                // input must be complete so succeed the stream and notify
+                _stream.succeeded();
+                notifyStreamComplete(_onStreamComplete.getAndSet(null), null);
+            }));
+
         }
 
         @Override
         public void failed(Throwable x)
         {
-            onComplete(_onComplete.getAndSet(null), x == null ? new Throwable() : x);
-            _exchange.failed(x);
+            _stream.failed(x);
+            notifyStreamComplete(_onStreamComplete.getAndSet(null), x == null ? new Throwable() : x);
         }
 
-        private void onComplete(BiConsumer<Request, Throwable> onComplete, Throwable failed)
+        private void notifyStreamComplete(BiConsumer<Request, Throwable> onStreamComplete, Throwable failed)
         {
-            if (onComplete != null)
+            if (onStreamComplete != null)
             {
                 try
                 {
-                    onComplete.accept(_request, failed);
+                    onStreamComplete.accept(_request, failed);
                 }
                 catch (Throwable t)
                 {
@@ -161,17 +280,17 @@ public class Channel extends AttributesMap
         @Override
         public InvocationType getInvocationType()
         {
-            return _exchange.getInvocationType();
+            return _stream.getInvocationType();
         }
     }
 
     private class ChannelResponse implements Response
     {
         private final AtomicReference<BiConsumer<Request, Response>> _onCommit = new AtomicReference<>();
-        int _code;
-        HttpFields.Mutable _fields = HttpFields.build();
-        HttpFields.Mutable _trailers;
-        boolean _committed;
+        private final AtomicBoolean _Committed = new AtomicBoolean();
+        private int _code;
+        private HttpFields.Mutable _headers;
+        private HttpFields.Mutable _trailers;
 
         @Override
         public int getCode()
@@ -188,7 +307,7 @@ public class Channel extends AttributesMap
         @Override
         public HttpFields.Mutable getHttpFields()
         {
-            return _fields;
+            return _headers;
         }
 
         @Override
@@ -202,20 +321,8 @@ public class Channel extends AttributesMap
         @Override
         public void write(boolean last, Callback callback, ByteBuffer... content)
         {
-            MetaData.Response metaData = null;
-            if (!_committed)
-            {
-                onCommit(_onCommit.getAndSet(null));
-                _committed = true;
-                metaData = new MetaData.Response(
-                    Channel.this._exchange.getMetaData().getHttpVersion(),
-                    _code,
-                    null,
-                    _fields.asImmutable(),
-                    -1,
-                    this::takeTrailers);
-            }
-            _exchange.send(metaData, last, callback, content);
+            MetaData.Response metaData = commitResponse();
+            _stream.send(metaData, last, callback, content);
         }
 
         private HttpFields takeTrailers()
@@ -226,7 +333,7 @@ public class Channel extends AttributesMap
         @Override
         public void push(MetaData.Request request)
         {
-            _exchange.push(request);
+            _stream.push(request);
         }
 
         @Override
@@ -236,8 +343,8 @@ public class Channel extends AttributesMap
             {
                 _onCommit.getAndUpdate(l -> (request, response) ->
                 {
-                    onCommit(l);
-                    onCommit(onCommit);
+                    notifyCommit(l);
+                    notifyCommit(onCommit);
                 });
             }
         }
@@ -245,18 +352,34 @@ public class Channel extends AttributesMap
         @Override
         public boolean isCommitted()
         {
-            return _committed;
+            return _Committed.get();
         }
 
         @Override
         public void reset()
         {
             // TODO re-add or don't delete default fields
-            _fields.clear();
+            _headers.clear();
             _code = 0;
         }
 
-        private void onCommit(BiConsumer<Request, Response> onCommit)
+        private MetaData.Response commitResponse()
+        {
+            if (_Committed.compareAndSet(false, true))
+            {
+                notifyCommit(_onCommit.getAndSet(null));
+                return new MetaData.Response(
+                    _request._metaData.getHttpVersion(),
+                    _code,
+                    null,
+                    _headers.asImmutable(),
+                    -1,
+                    _response::takeTrailers);
+            }
+            return null;
+        }
+
+        private void notifyCommit(BiConsumer<Request, Response> onCommit)
         {
             if (onCommit != null)
             {
@@ -271,4 +394,5 @@ public class Channel extends AttributesMap
             }
         }
     }
+
 }

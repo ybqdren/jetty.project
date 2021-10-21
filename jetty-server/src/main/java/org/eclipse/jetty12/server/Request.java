@@ -1,10 +1,23 @@
+//
+// ========================================================================
+// Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+// ========================================================================
+//
+
 package org.eclipse.jetty12.server;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.Callback;
 
@@ -14,7 +27,15 @@ public interface Request extends Attributes, Callback
 
     Channel getChannel();
 
-    MetaData.Request getMetaData();
+    MetaConnection getMetaConnection();
+
+    String getMethod();
+
+    HttpURI getURI();
+
+    HttpFields getHeaders();
+
+    long getContentLength();
 
     Content readContent();
 
@@ -36,78 +57,102 @@ public interface Request extends Attributes, Callback
 
     class Wrapper extends Attributes.Wrapper implements Request
     {
-        private final Request wrapped;
+        private final Request _wrapped;
 
         public Wrapper(Request wrapped)
         {
             super(wrapped);
-            this.wrapped = wrapped;
+            this._wrapped = wrapped;
         }
 
         @Override
         public String getId()
         {
-            return wrapped.getId();
+            return _wrapped.getId();
+        }
+
+        @Override
+        public MetaConnection getMetaConnection()
+        {
+            return _wrapped.getMetaConnection();
         }
 
         @Override
         public Channel getChannel()
         {
-            return wrapped.getChannel();
+            return _wrapped.getChannel();
         }
 
         @Override
-        public MetaData.Request getMetaData()
+        public String getMethod()
         {
-            return wrapped.getMetaData();
+            return _wrapped.getMethod();
+        }
+
+        @Override
+        public HttpURI getURI()
+        {
+            return _wrapped.getURI();
+        }
+
+        @Override
+        public HttpFields getHeaders()
+        {
+            return _wrapped.getHeaders();
+        }
+
+        @Override
+        public long getContentLength()
+        {
+            return _wrapped.getContentLength();
         }
 
         @Override
         public Content readContent()
         {
-            return wrapped.readContent();
+            return _wrapped.readContent();
         }
 
         @Override
         public void demandContent(Runnable onContentAvailable)
         {
-            wrapped.demandContent(onContentAvailable);
+            _wrapped.demandContent(onContentAvailable);
         }
 
         @Override
         public void onTrailers(Consumer<HttpFields> onTrailers)
         {
-            wrapped.onTrailers(onTrailers);
+            _wrapped.onTrailers(onTrailers);
         }
 
         @Override
         public void whenComplete(BiConsumer<Request, Throwable> onComplete)
         {
-            wrapped.whenComplete(onComplete);
+            _wrapped.whenComplete(onComplete);
         }
 
         @Override
         public Request getWrapped()
         {
-            return wrapped;
+            return _wrapped;
         }
 
         @Override
         public void succeeded()
         {
-            wrapped.succeeded();
+            _wrapped.succeeded();
         }
 
         @Override
         public void failed(Throwable x)
         {
-            wrapped.failed(x);
+            _wrapped.failed(x);
         }
 
         @Override
         public InvocationType getInvocationType()
         {
-            return wrapped.getInvocationType();
+            return _wrapped.getInvocationType();
         }
     }
 }

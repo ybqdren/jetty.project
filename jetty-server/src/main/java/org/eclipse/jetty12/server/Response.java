@@ -1,3 +1,16 @@
+//
+// ========================================================================
+// Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+// ========================================================================
+//
+
 package org.eclipse.jetty12.server;
 
 import java.nio.ByteBuffer;
@@ -33,5 +46,75 @@ public interface Response
     default Response getWrapped()
     {
         return null;
+    }
+
+    class Wrapper implements Response
+    {
+        private final Response _wrapped;
+
+        public Wrapper(Response wrapped)
+        {
+            _wrapped = wrapped;
+        }
+
+        @Override
+        public int getCode()
+        {
+            return _wrapped.getCode();
+        }
+
+        @Override
+        public void setCode(int code)
+        {
+            _wrapped.setCode(code);
+        }
+
+        @Override
+        public HttpFields.Mutable getHttpFields()
+        {
+            return _wrapped.getHttpFields();
+        }
+
+        @Override
+        public HttpFields.Mutable getTrailers()
+        {
+            return _wrapped.getTrailers();
+        }
+
+        @Override
+        public void write(boolean last, Callback callback, ByteBuffer... content)
+        {
+            _wrapped.write(last, callback, content);
+        }
+
+        @Override
+        public void push(MetaData.Request request)
+        {
+            _wrapped.push(request);
+        }
+
+        @Override
+        public void whenCommit(BiConsumer<Request, Response> onCommit)
+        {
+            _wrapped.whenCommit(onCommit);
+        }
+
+        @Override
+        public boolean isCommitted()
+        {
+            return _wrapped.isCommitted();
+        }
+
+        @Override
+        public void reset()
+        {
+            _wrapped.reset();
+        }
+
+        @Override
+        public Response getWrapped()
+        {
+            return _wrapped.getWrapped();
+        }
     }
 }
