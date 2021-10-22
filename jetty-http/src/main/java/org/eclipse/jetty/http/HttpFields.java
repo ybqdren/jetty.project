@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -70,6 +71,12 @@ public interface HttpFields extends Iterable<HttpField>
         return new Immutable(fields);
     }
 
+    static Immutable from(HttpFields fields, Function<HttpField, HttpField> mutation)
+    {
+        // TODO is this actually efficient?
+        return new Immutable(fields.stream().map(mutation).filter(Objects::nonNull).toArray(HttpField[]::new));
+    }
+
     Immutable asImmutable();
 
     default String asString()
@@ -99,6 +106,20 @@ public interface HttpFields extends Iterable<HttpField>
         {
             if (f.isSameName(field) && (f.equals(field) || f.contains(field.getValue())))
                 return true;
+        }
+        return false;
+    }
+
+    // TODO is this faster than sepearate calls to contains(HttpField)
+    default boolean contains(HttpField... fields)
+    {
+        for (HttpField f : this)
+        {
+            for (HttpField c : fields)
+            {
+                if (f.isSameName(c) && (f.equals(c) || f.contains(c.getValue())))
+                    return true;
+            }
         }
         return false;
     }

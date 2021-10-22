@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty12.server;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -29,8 +30,55 @@ public interface Content
 
     boolean isLast();
 
-    interface Error extends Content
+    Content EOF = new Content()
     {
-        Throwable getReason();
+        @Override
+        public ByteBuffer getByteBuffer()
+        {
+            return null;
+        }
+
+        @Override
+        public void release()
+        {
+        }
+
+        @Override
+        public boolean isLast()
+        {
+            return true;
+        }
+    };
+
+    class Error implements Content
+    {
+        private final Throwable _cause;
+
+        public Error(Throwable cause)
+        {
+            _cause = cause == null ? new IOException("unknown") : cause;
+        }
+
+        Throwable getCause()
+        {
+            return _cause;
+        }
+
+        @Override
+        public ByteBuffer getByteBuffer()
+        {
+            return null;
+        }
+
+        @Override
+        public void release()
+        {
+        }
+
+        @Override
+        public boolean isLast()
+        {
+            return true;
+        }
     }
 }

@@ -145,6 +145,7 @@ public class HttpField
             return false;
         if (_value == null)
             return false;
+
         if (search.equalsIgnoreCase(_value))
             return true;
 

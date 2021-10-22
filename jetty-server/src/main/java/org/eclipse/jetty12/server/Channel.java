@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty12.server;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,6 +50,11 @@ public class Channel extends AttributesMap
         _metaConnection = metaConnection;
     }
 
+    public Handler<Request> getServer()
+    {
+        return _server;
+    }
+
     public MetaConnection getMetaConnection()
     {
         return _metaConnection;
@@ -64,24 +68,20 @@ public class Channel extends AttributesMap
     public Runnable onRequest(MetaData.Request request, Stream stream)
     {
         _requests.incrementAndGet();
+
+        // TODO wrapping behaviour makes recycling requests kind of pointless, as much of the things that benefit
+        //      from reuse are in the wrappers.   So for example, now in ServletContextHandler, we make the effort
+        //      to recycle the ServletRequestState object and add that to the new request. Likewise, at this level
+        //      we need to determine if some expensive resources are best moved to the channel and referenced by the
+        //      request - eg perhaps AttributeMap?     But then should that reference be volatile and breakable?
         _request = new ChannelRequest(request, stream);
         _response = new ChannelResponse();
         if (_response._headers == null)
             _response._headers = HttpFields.build();
         else
             _response._headers.clear();
-        // TODO add standard response headers.
-        return this::handle;
-    }
 
-    private void handle()
-    {
-        if (!_server.handle(_request, _response))
-        {
-            _response.reset();
-            _response.setStatus(404);
-            _request.succeeded();
-        }
+        return this::handle;
     }
 
     public Runnable onContentAvailable()
@@ -113,6 +113,16 @@ public class Channel extends AttributesMap
                 notifyConnectionComplete(l, failed);
                 notifyConnectionComplete(onComplete, failed);
             });
+        }
+    }
+
+    private void handle()
+    {
+        if (!_server.handle(_request, _response))
+        {
+            _response.reset();
+            _response.setStatus(404);
+            _request.succeeded();
         }
     }
 
@@ -242,27 +252,17 @@ public class Channel extends AttributesMap
             // Cannot handle trailers after succeeded
             _onTrailers.set(null);
 
-            // Commit the response
+            // Commit and complete the response
+            // TODO do we need to be able to ask the response if it is complete? or is it just simpler and less racy
+            //      to do an empty last send like below?
             s.send(_response.commitResponse(), true, Callback.from(() ->
             {
                 // then ensure the request is complete
-                while (!_complete.get())
+                Throwable failed = s.consumeAll();
+                if (failed != null)
                 {
-                    Content content = s.readContent();
-                    // if we cannot read to EOF then fail the stream rather than wait for unconsumed content
-                    if (content == null)
-                    {
-                        failed(new IOException("unconsumed input"));
-                        return;
-                    }
-                    // if the input failed, then fail the stream for same reason
-                    if (content instanceof Content.Error)
-                    {
-                        Throwable x = ((Content.Error)content).getReason();
-                        s.failed(x);
-                        notifyStreamComplete(_onStreamComplete.getAndSet(null), x);
-                        return;
-                    }
+                    s.failed(failed);
+                    notifyStreamComplete(_onStreamComplete.getAndSet(null), failed);
                 }
 
                 // input must be complete so succeed the stream and notify
@@ -274,6 +274,8 @@ public class Channel extends AttributesMap
         @Override
         public void failed(Throwable x)
         {
+            // This is equivalent to the previous HttpTransport.abort(Throwable), so we don't need to do much clean up
+            // as channel will be shutdown and thrown away.
             Stream s = _stream.getAndSet(null);
             if (s == null)
                 throw new IllegalStateException("completed");

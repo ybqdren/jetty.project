@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty12.server;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.eclipse.jetty.http.MetaData;
@@ -35,4 +36,21 @@ public interface Stream extends Callback
     boolean isComplete();
 
     void upgrade(org.eclipse.jetty.io.Connection connection);
+
+    default Throwable consumeAll()
+    {
+        while (!isComplete())
+        {
+            Content content = readContent();
+
+            // if we cannot read to EOF then fail the stream rather than wait for unconsumed content
+            if (content == null)
+                return new IOException("Content not consumed");
+
+            // if the input failed, then fail the stream for same reason
+            if (content instanceof Content.Error)
+                return ((Content.Error)content).getCause();
+        }
+        return null;
+    }
 }
