@@ -15,6 +15,7 @@ package org.eclipse.jetty12.server.servlet;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.Collection;
@@ -29,6 +30,7 @@ import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
@@ -38,39 +40,44 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
-import org.eclipse.jetty.server.HttpChannelState;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty12.server.MetaConnection;
 import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.handler.ContextHandler;
+import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.handler.ScopedRequest;
 
 public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
-    private final State _state = new State();
-    private final ServletContext _servletContext;
-    private final MappedHttpServletRequest _httpServletRequest;
-    private final HttpServletResponse _httpServletResponse;
-    private ServletHandler.MappedServlet _mappedServlet;
+    final ServletRequestState _servletRequestState;
+    final MutableHttpServletRequest _httpServletRequest;
+    final HttpServletResponse _httpServletResponse;
+    final ServletHandler.MappedServlet _mappedServlet;
 
-    protected ServletScopedRequest(ContextHandler.Context context,
-                                   ServletContext servletContext,
-                                   Request wrapped,
-                                   String pathInContext,
-                                   ServletHandler.MappedServlet mappedServlet)
+    protected ServletScopedRequest(
+        ServletRequestState servletRequestState,
+        Request request,
+        Response response,
+        String pathInContext,
+        ServletHandler.MappedServlet mappedServlet)
     {
-        super(context, wrapped, pathInContext);
-        _servletContext = servletContext;
-        _httpServletRequest = new MappedHttpServletRequest();
-        _httpServletResponse = null;
+        super(servletRequestState.getServletContextContext().getContext(), request, pathInContext);
+        _servletRequestState = servletRequestState;
+        _httpServletRequest = new MutableHttpServletRequest();
+        _httpServletResponse = new MutableHttpServletResponse(response);
         _mappedServlet = mappedServlet;
     }
 
-    void remap(ServletHandler.MappedServlet mappedServlet)
+    ServletRequestState getServletRequestState()
     {
-        _mappedServlet = mappedServlet;
+        return _servletRequestState;
     }
 
-    public MappedHttpServletRequest getHttpServletRequest()
+    public HttpServletRequest getHttpServletRequest()
+    {
+        return _httpServletRequest;
+    }
+
+    public MutableHttpServletRequest getMutableHttpServletRequest()
     {
         return _httpServletRequest;
     }
@@ -89,8 +96,8 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     {
         while (httpServletRequest != null)
         {
-            if (httpServletRequest instanceof MappedHttpServletRequest)
-                return ((MappedHttpServletRequest)httpServletRequest).getServletScopedRequest();
+            if (httpServletRequest instanceof ServletRequestState)
+                return ((ServletRequestState)httpServletRequest).getServletScopedRequest();
             if (httpServletRequest instanceof HttpServletRequestWrapper)
                 httpServletRequest = (HttpServletRequest)((HttpServletRequestWrapper)httpServletRequest).getRequest();
             else
@@ -102,69 +109,11 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     @Override
     public void run()
     {
-        handle();
+        _servletRequestState.handle();
     }
 
-    public void handle()
+    public class MutableHttpServletRequest implements HttpServletRequest
     {
-        // implement the state machine from HttpChannelState and HttpChannel
-        // Note that sendError may already have been called before we are handling for the first time.
-
-        HttpChannelState.Action action = _state.handling();
-        loop: while (true)
-        {
-            try
-            {
-                switch (action)
-                {
-                    case COMPLETE:
-                        succeeded();
-                        break loop;
-
-                    case WAIT:
-                        break;
-
-                    case DISPATCH:
-                        _mappedServlet.handle(_httpServletRequest, _httpServletResponse);
-                        break;
-
-                    // TODO etc.
-                    default:
-                        break;
-                }
-            }
-            catch (Throwable failure)
-            {
-                // TODO
-            }
-
-            action = _state.unhandle();
-        }
-    }
-
-    private static class State extends HttpChannelState
-    {
-        public State()
-        {
-            super(null);
-        }
-
-        @Override
-        public Action handling()
-        {
-            return super.handling();
-        }
-
-        @Override
-        protected Action unhandle()
-        {
-            return super.unhandle();
-        }
-    }
-
-    class MappedHttpServletRequest implements HttpServletRequest
-    {
-
         public void setSessionManager(SessionHandler sessionHandler)
         {
             // TODO
@@ -175,28 +124,23 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
             // TODO
         }
 
-        ServletScopedRequest getServletScopedRequest()
-        {
-            return ServletScopedRequest.this;
-        }
-
         @Override
         public String getRequestId()
         {
-            return getId();
+            return ServletScopedRequest.this.getId();
         }
 
         @Override
         public String getProtocolRequestId()
         {
-            return getChannel().getStream().getId();
+            return ServletScopedRequest.this.getChannel().getStream().getId();
         }
 
         @Override
         public ServletConnection getServletConnection()
         {
             // TODO cache the results
-            final MetaConnection metaConnection = getMetaConnection();
+            final MetaConnection metaConnection = ServletScopedRequest.this.getMetaConnection();
             return new ServletConnection()
             {
                 @Override
@@ -276,7 +220,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getPathInfo()
         {
-            return _mappedServlet.getServletPathMapping().getPathInfo();
+            return ServletScopedRequest.this._mappedServlet.getServletPathMapping().getPathInfo();
         }
 
         @Override
@@ -336,7 +280,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getServletPath()
         {
-            return _mappedServlet.getServletPathMapping().getServletPath();
+            return ServletScopedRequest.this._mappedServlet.getServletPathMapping().getServletPath();
         }
 
         @Override
@@ -432,7 +376,6 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void setCharacterEncoding(String env) throws UnsupportedEncodingException
         {
-
         }
 
         @Override
@@ -588,7 +531,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public ServletContext getServletContext()
         {
-            return _servletContext;
+            return _servletRequestState.getServletContext();
         }
 
         @Override
@@ -623,6 +566,223 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
         @Override
         public DispatcherType getDispatcherType()
+        {
+            return null;
+        }
+    }
+
+    class MutableHttpServletResponse implements HttpServletResponse
+    {
+        private final Response _response;
+
+        MutableHttpServletResponse(Response response)
+        {
+            _response = response;
+        }
+
+        @Override
+        public void addCookie(Cookie cookie)
+        {
+
+        }
+
+        @Override
+        public boolean containsHeader(String name)
+        {
+            return false;
+        }
+
+        @Override
+        public String encodeURL(String url)
+        {
+            return null;
+        }
+
+        @Override
+        public String encodeRedirectURL(String url)
+        {
+            return null;
+        }
+
+        @Override
+        public void sendError(int sc, String msg) throws IOException
+        {
+            _servletRequestState.sendError(sc, msg);
+        }
+
+        @Override
+        public void sendError(int sc) throws IOException
+        {
+            sendError(sc, null);
+        }
+
+        @Override
+        public void sendRedirect(String location) throws IOException
+        {
+
+        }
+
+        @Override
+        public void setDateHeader(String name, long date)
+        {
+
+        }
+
+        @Override
+        public void addDateHeader(String name, long date)
+        {
+
+        }
+
+        @Override
+        public void setHeader(String name, String value)
+        {
+
+        }
+
+        @Override
+        public void addHeader(String name, String value)
+        {
+
+        }
+
+        @Override
+        public void setIntHeader(String name, int value)
+        {
+
+        }
+
+        @Override
+        public void addIntHeader(String name, int value)
+        {
+
+        }
+
+        @Override
+        public void setStatus(int sc)
+        {
+            _response.setStatus(sc);
+        }
+
+        @Override
+        public int getStatus()
+        {
+            return 0;
+        }
+
+        @Override
+        public String getHeader(String name)
+        {
+            return null;
+        }
+
+        @Override
+        public Collection<String> getHeaders(String name)
+        {
+            return null;
+        }
+
+        @Override
+        public Collection<String> getHeaderNames()
+        {
+            return null;
+        }
+
+        @Override
+        public String getCharacterEncoding()
+        {
+            return null;
+        }
+
+        @Override
+        public String getContentType()
+        {
+            return null;
+        }
+
+        @Override
+        public ServletOutputStream getOutputStream() throws IOException
+        {
+            return null;
+        }
+
+        @Override
+        public PrintWriter getWriter() throws IOException
+        {
+            return null;
+        }
+
+        @Override
+        public void setCharacterEncoding(String charset)
+        {
+
+        }
+
+        @Override
+        public void setContentLength(int len)
+        {
+
+        }
+
+        @Override
+        public void setContentLengthLong(long len)
+        {
+
+        }
+
+        @Override
+        public void setContentType(String type)
+        {
+
+        }
+
+        @Override
+        public void setBufferSize(int size)
+        {
+
+        }
+
+        @Override
+        public int getBufferSize()
+        {
+            return 0;
+        }
+
+        @Override
+        public void flushBuffer() throws IOException
+        {
+            // TODO deal with writer
+            Callback blocker = null; // TODO
+            _response.write(false, blocker);
+        }
+
+        @Override
+        public void resetBuffer()
+        {
+            if (!_response.isCommitted())
+                _response.reset();
+        }
+
+        @Override
+        public boolean isCommitted()
+        {
+            return _response.isCommitted();
+        }
+
+        @Override
+        public void reset()
+        {
+            if (!_response.isCommitted())
+                _response.reset();
+        }
+
+        @Override
+        public void setLocale(Locale loc)
+        {
+        }
+
+        @Override
+        public Locale getLocale()
         {
             return null;
         }

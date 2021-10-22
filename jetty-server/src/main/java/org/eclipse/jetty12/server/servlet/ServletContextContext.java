@@ -44,6 +44,16 @@ public class ServletContextContext implements ServletContext
         _servletHandler = servletHandler;
     }
 
+    ContextHandler.Context getContext()
+    {
+        return _context;
+    }
+
+    ServletHandler getServletHandler()
+    {
+        return _servletHandler;
+    }
+
     @Override
     public String getContextPath()
     {

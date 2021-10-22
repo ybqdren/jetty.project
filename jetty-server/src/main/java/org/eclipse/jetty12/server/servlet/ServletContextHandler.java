@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty12.server.servlet;
 
-import jakarta.servlet.ServletContext;
 import org.eclipse.jetty12.server.Channel;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
@@ -22,14 +21,14 @@ import org.eclipse.jetty12.server.handler.ContextHandler;
 public class ServletContextHandler extends ContextHandler<ServletScopedRequest>
 {
     private ServletHandler _servletHandler;
-    private ServletContext _servletContext;
+    private ServletContextContext _servletContextContext;
 
     @Override
     protected void doStart() throws Exception
     {
         super.doStart();
         getContainedBeans(ServletHandler.class).stream().findFirst().ifPresent(sh -> _servletHandler = sh);
-        _servletContext = new ServletContextContext(getContext(), _servletHandler);
+        _servletContextContext = new ServletContextContext(getContext(), _servletHandler);
     }
 
     @Override
@@ -50,18 +49,21 @@ public class ServletContextHandler extends ContextHandler<ServletScopedRequest>
         if (mappedServlet == null)
             return null;
 
-        // Get a servlet request wrapper, possibly from a cached version in the channel attributes.
+        // Get a servlet request, possibly from a cached version in the channel attributes.
+        // TODO there is a little bit of effort here to recycle the ServletRequest, but not the underlying jetty request.
+        //      the servlet request is still a heavy weight object with state, input streams, cookie caches etc. so it is
+        //      probably worth while.
         Channel channel = request.getChannel();
-        ServletScopedRequest servletScopedRequest = (ServletScopedRequest)channel.getAttribute(ServletScopedRequest.class.getName());
-        if (servletScopedRequest == null)
+        ServletRequestState servletRequestState = (ServletRequestState)channel.getAttribute(ServletRequestState.class.getName());
+        if (servletRequestState == null)
         {
-            servletScopedRequest = new ServletScopedRequest(getContext(), _servletContext, request, pathInContext, mappedServlet);
+            servletRequestState = new ServletRequestState(_servletContextContext);
             if (channel.getMetaConnection().isPersistent())
-                channel.setAttribute(ServletScopedRequest.class.getName(), servletScopedRequest);
+                channel.setAttribute(ServletRequestState.class.getName(), servletRequestState);
         }
-        else
-            servletScopedRequest.remap(mappedServlet);
 
+        ServletScopedRequest servletScopedRequest = new ServletScopedRequest(servletRequestState, request, response, pathInContext, mappedServlet);
+        servletRequestState.setServletScopedRequest(servletScopedRequest);
         return servletScopedRequest;
     }
 }

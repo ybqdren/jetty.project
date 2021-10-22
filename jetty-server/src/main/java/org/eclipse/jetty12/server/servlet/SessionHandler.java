@@ -21,7 +21,7 @@ public class SessionHandler extends Handler.Wrapper<ServletScopedRequest>
     @Override
     public boolean handle(ServletScopedRequest request, Response response)
     {
-        ServletScopedRequest.MappedHttpServletRequest servletRequest = request.getHttpServletRequest();
+        ServletScopedRequest.MutableHttpServletRequest servletRequest = request.getMutableHttpServletRequest();
 
         // TODO servletRequest can be mutable, so we can add session stuff to it
         servletRequest.setSessionManager(this);

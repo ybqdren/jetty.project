@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty12.server.servlet;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Response;
 
@@ -21,7 +22,7 @@ public class SecurityHandler extends Handler.Wrapper<ServletScopedRequest>
     @Override
     public boolean handle(ServletScopedRequest request, Response response)
     {
-        ServletScopedRequest.MappedHttpServletRequest servletRequest = request.getHttpServletRequest();
+        HttpServletRequest servletRequest = request.getHttpServletRequest();
 
         // if we match some security constraint, we can respond here
         if (servletRequest.getServletPath().startsWith("/secret"))

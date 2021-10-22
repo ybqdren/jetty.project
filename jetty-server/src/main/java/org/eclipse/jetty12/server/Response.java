@@ -27,7 +27,7 @@ public interface Response
 {
     int getCode();
 
-    void setCode(int code);
+    void setStatus(int code);
 
     HttpFields.Mutable getHttpFields();
 
@@ -64,9 +64,9 @@ public interface Response
         }
 
         @Override
-        public void setCode(int code)
+        public void setStatus(int code)
         {
-            _wrapped.setCode(code);
+            _wrapped.setStatus(code);
         }
 
         @Override

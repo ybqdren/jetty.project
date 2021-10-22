@@ -40,19 +40,15 @@ public class Channel extends AttributesMap
 {
     private final Handler<Request> _server;
     private final MetaConnection _metaConnection;
-    private final ChannelRequest _request;
-    private final ChannelResponse _response;
     private final AtomicInteger _requests = new AtomicInteger();
-    private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
     private final AtomicReference<BiConsumer<Channel, Throwable>> _onConnectionComplete = new AtomicReference<>();
-    private Stream _stream;
+    private ChannelRequest _request;
+    private ChannelResponse _response;
 
     public Channel(Handler<Request> server, MetaConnection metaConnection)
     {
         _server = server;
         _metaConnection = metaConnection;
-        _request = new ChannelRequest(); // TODO recycle or once off?
-        _response = new ChannelResponse(); // TODO recycle or once off?
     }
 
     public MetaConnection getMetaConnection()
@@ -62,15 +58,14 @@ public class Channel extends AttributesMap
 
     public Stream getStream()
     {
-        return _stream;
+        return _request.stream();
     }
 
     public Runnable onRequest(MetaData.Request request, Stream stream)
     {
         _requests.incrementAndGet();
-        _request._complete.set(false);
-        _request._metaData = request;
-        _stream = stream;
+        _request = new ChannelRequest(request, stream);
+        _response = new ChannelResponse();
         if (_response._headers == null)
             _response._headers = HttpFields.build();
         else
@@ -84,7 +79,7 @@ public class Channel extends AttributesMap
         if (!_server.handle(_request, _response))
         {
             _response.reset();
-            _response.setCode(404);
+            _response.setStatus(404);
             _request.succeeded();
         }
     }
@@ -138,11 +133,27 @@ public class Channel extends AttributesMap
 
     private class ChannelRequest extends AttributesMap implements Request
     {
+        private final AtomicReference<Stream> _stream;
+        private final MetaData.Request _metaData;
         private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
         private final AtomicReference<Object> _onTrailers = new AtomicReference<>();
+        private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
         private final AtomicBoolean _complete = new AtomicBoolean();
-        private MetaData.Request _metaData;
 
+        private ChannelRequest(MetaData.Request metaData, Stream stream)
+        {
+            _stream = new AtomicReference<>(stream);
+            _metaData = metaData;
+        }
+
+        Stream stream()
+        {
+            Stream s = _stream.get();
+            if (s == null)
+                throw new IllegalStateException();
+            return s;
+        }
+        
         @Override
         public String getId()
         {
@@ -188,7 +199,7 @@ public class Channel extends AttributesMap
         @Override
         public Content readContent()
         {
-            return _stream.readContent();
+            return stream().readContent();
         }
 
         @Override
@@ -197,7 +208,7 @@ public class Channel extends AttributesMap
             Runnable task = _onContent.getAndSet(onContentAvailable);
             if (task != null && task != onContentAvailable)
                 throw new IllegalStateException();
-            _stream.demandContent();
+            stream().demandContent();
         }
 
         @Override
@@ -224,16 +235,20 @@ public class Channel extends AttributesMap
         @Override
         public void succeeded()
         {
+            Stream s = _stream.getAndSet(null);
+            if (s == null)
+                throw new IllegalStateException("completed");
+
             // Cannot handle trailers after succeeded
             _onTrailers.set(null);
 
             // Commit the response
-            _stream.send(_response.commitResponse(), true, Callback.from(() ->
+            s.send(_response.commitResponse(), true, Callback.from(() ->
             {
                 // then ensure the request is complete
                 while (!_complete.get())
                 {
-                    Content content = _stream.readContent();
+                    Content content = s.readContent();
                     // if we cannot read to EOF then fail the stream rather than wait for unconsumed content
                     if (content == null)
                     {
@@ -243,22 +258,26 @@ public class Channel extends AttributesMap
                     // if the input failed, then fail the stream for same reason
                     if (content instanceof Content.Error)
                     {
-                        failed(((Content.Error)content).getReason());
+                        Throwable x = ((Content.Error)content).getReason();
+                        s.failed(x);
+                        notifyStreamComplete(_onStreamComplete.getAndSet(null), x);
                         return;
                     }
                 }
 
                 // input must be complete so succeed the stream and notify
-                _stream.succeeded();
+                s.succeeded();
                 notifyStreamComplete(_onStreamComplete.getAndSet(null), null);
             }));
-
         }
 
         @Override
         public void failed(Throwable x)
         {
-            _stream.failed(x);
+            Stream s = _stream.getAndSet(null);
+            if (s == null)
+                throw new IllegalStateException("completed");
+            s.failed(x);
             notifyStreamComplete(_onStreamComplete.getAndSet(null), x == null ? new Throwable() : x);
         }
 
@@ -280,7 +299,7 @@ public class Channel extends AttributesMap
         @Override
         public InvocationType getInvocationType()
         {
-            return _stream.getInvocationType();
+            return stream().getInvocationType();
         }
     }
 
@@ -299,7 +318,7 @@ public class Channel extends AttributesMap
         }
 
         @Override
-        public void setCode(int code)
+        public void setStatus(int code)
         {
             _code = code;
         }
@@ -322,7 +341,7 @@ public class Channel extends AttributesMap
         public void write(boolean last, Callback callback, ByteBuffer... content)
         {
             MetaData.Response metaData = commitResponse();
-            _stream.send(metaData, last, callback, content);
+            _request.stream().send(metaData, last, callback, content);
         }
 
         private HttpFields takeTrailers()
@@ -333,7 +352,7 @@ public class Channel extends AttributesMap
         @Override
         public void push(MetaData.Request request)
         {
-            _stream.push(request);
+            _request.stream().push(request);
         }
 
         @Override
@@ -394,5 +413,4 @@ public class Channel extends AttributesMap
             }
         }
     }
-
 }
