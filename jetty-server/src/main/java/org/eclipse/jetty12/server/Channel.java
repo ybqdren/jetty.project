@@ -91,7 +91,6 @@ public class Channel extends AttributesMap
 
     public Runnable onRequestComplete(HttpFields trailers)
     {
-        _request._complete.set(true);
         Object consumer = _request._onTrailers.getAndSet(trailers);
         if (consumer != null)
             ((Consumer<HttpFields>)consumer).accept(trailers);
@@ -148,7 +147,6 @@ public class Channel extends AttributesMap
         private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
         private final AtomicReference<Object> _onTrailers = new AtomicReference<>();
         private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
-        private final AtomicBoolean _complete = new AtomicBoolean();
 
         private ChannelRequest(MetaData.Request metaData, Stream stream)
         {

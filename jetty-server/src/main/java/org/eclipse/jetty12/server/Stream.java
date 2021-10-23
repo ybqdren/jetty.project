@@ -39,18 +39,24 @@ public interface Stream extends Callback
 
     default Throwable consumeAll()
     {
-        while (!isComplete())
+        while (true)
         {
+            // We can always just read again here as EOF and Error content will be persistently returned.
             Content content = readContent();
 
             // if we cannot read to EOF then fail the stream rather than wait for unconsumed content
             if (content == null)
                 return new IOException("Content not consumed");
 
+            // Always release any returned content. This is a noop for EOF and Error content.
+            content.release();
+
             // if the input failed, then fail the stream for same reason
             if (content instanceof Content.Error)
                 return ((Content.Error)content).getCause();
+
+            if (content.isLast())
+                return null;
         }
-        return null;
     }
 }
