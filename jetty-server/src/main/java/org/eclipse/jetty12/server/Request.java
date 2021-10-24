@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty12.server;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.eclipse.jetty.http.HttpFields;
@@ -42,8 +41,6 @@ public interface Request extends Attributes, Callback
     void demandContent(Runnable onContentAvailable);
 
     void onTrailers(Consumer<HttpFields> onTrailers);
-
-    void whenComplete(BiConsumer<Request, Throwable> onComplete);
 
     default Request getWrapped()
     {
@@ -123,12 +120,6 @@ public interface Request extends Attributes, Callback
         public void onTrailers(Consumer<HttpFields> onTrailers)
         {
             _wrapped.onTrailers(onTrailers);
-        }
-
-        @Override
-        public void whenComplete(BiConsumer<Request, Throwable> onComplete)
-        {
-            _wrapped.whenComplete(onComplete);
         }
 
         @Override

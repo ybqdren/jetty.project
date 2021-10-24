@@ -40,6 +40,7 @@ public class Channel extends AttributesMap
     private final Handler<Request> _server;
     private final MetaConnection _metaConnection;
     private final AtomicInteger _requests = new AtomicInteger();
+    private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
     private final AtomicReference<BiConsumer<Channel, Throwable>> _onConnectionComplete = new AtomicReference<>();
     private ChannelRequest _request;
     private ChannelResponse _response;
@@ -89,18 +90,31 @@ public class Channel extends AttributesMap
         return _request._onContent.getAndSet(null);
     }
 
+    // TODO would trailers be better delivered via a special Content?
     public Runnable onRequestComplete(HttpFields trailers)
     {
         Object consumer = _request._onTrailers.getAndSet(trailers);
-        if (consumer != null)
-            ((Consumer<HttpFields>)consumer).accept(trailers);
-        return null;
+        if (consumer == null || trailers == null)
+            return null;
+        return () -> ((Consumer<HttpFields>)consumer).accept(trailers);
     }
 
     public Runnable onConnectionComplete(Throwable failed)
     {
         notifyConnectionComplete(_onConnectionComplete.getAndSet(null), failed);
         return null;
+    }
+
+    public void whenStreamComplete(BiConsumer<Request, Throwable> onComplete)
+    {
+        if (!_onStreamComplete.compareAndSet(null, onComplete))
+        {
+            _onStreamComplete.getAndUpdate(l -> (request, failed) ->
+            {
+                notifyStreamComplete(l, failed);
+                notifyStreamComplete(onComplete, failed);
+            });
+        }
     }
 
     public void whenConnectionComplete(BiConsumer<Channel, Throwable> onComplete)
@@ -125,6 +139,21 @@ public class Channel extends AttributesMap
         }
     }
 
+    private void notifyStreamComplete(BiConsumer<Request, Throwable> onStreamComplete, Throwable failed)
+    {
+        if (onStreamComplete != null)
+        {
+            try
+            {
+                onStreamComplete.accept(_request, failed);
+            }
+            catch (Throwable t)
+            {
+                t.printStackTrace();
+            }
+        }
+    }
+
     private void notifyConnectionComplete(BiConsumer<Channel, Throwable> onConnectionComplete, Throwable failed)
     {
         if (onConnectionComplete != null)
@@ -146,7 +175,6 @@ public class Channel extends AttributesMap
         private final MetaData.Request _metaData;
         private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
         private final AtomicReference<Object> _onTrailers = new AtomicReference<>();
-        private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
 
         private ChannelRequest(MetaData.Request metaData, Stream stream)
         {
@@ -223,21 +251,10 @@ public class Channel extends AttributesMap
         public void onTrailers(Consumer<HttpFields> onTrailers)
         {
             Object trailers = _onTrailers.getAndSet(onTrailers);
+            if (trailers instanceof Consumer)
+                throw new IllegalStateException("Trailer consumer already set");
             if (trailers != null)
                 onTrailers.accept((HttpFields)trailers);
-        }
-
-        @Override
-        public void whenComplete(BiConsumer<Request, Throwable> onComplete)
-        {
-            if (!_onStreamComplete.compareAndSet(null, onComplete))
-            {
-                _onStreamComplete.getAndUpdate(l -> (request, failed) ->
-                {
-                    notifyStreamComplete(l, failed);
-                    notifyStreamComplete(onComplete, failed);
-                });
-            }
         }
 
         @Override
@@ -279,21 +296,6 @@ public class Channel extends AttributesMap
                 throw new IllegalStateException("completed");
             s.failed(x);
             notifyStreamComplete(_onStreamComplete.getAndSet(null), x == null ? new Throwable() : x);
-        }
-
-        private void notifyStreamComplete(BiConsumer<Request, Throwable> onStreamComplete, Throwable failed)
-        {
-            if (onStreamComplete != null)
-            {
-                try
-                {
-                    onStreamComplete.accept(_request, failed);
-                }
-                catch (Throwable t)
-                {
-                    t.printStackTrace();
-                }
-            }
         }
 
         @Override
