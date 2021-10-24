@@ -57,6 +57,12 @@ class ServletRequestState extends HttpChannelState
                         _servletScopedRequest._mappedServlet.handle(_servletScopedRequest.getHttpServletRequest(), _servletScopedRequest.getHttpServletResponse());
                         break;
 
+                    case READ_CALLBACK:
+                        // TODO need to actually do a readContent here so that we can run interceptors and check there really
+                        //      is data... but ultimately we do:
+                        _servletScopedRequest._readListener.onDataAvailable();
+                        break;
+
                     // TODO etc.
                     default:
                         break;

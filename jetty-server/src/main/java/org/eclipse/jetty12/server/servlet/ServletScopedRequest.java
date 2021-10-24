@@ -25,6 +25,7 @@ import java.util.Map;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
@@ -41,6 +42,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty12.server.Content;
 import org.eclipse.jetty12.server.MetaConnection;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
@@ -52,6 +54,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     final MutableHttpServletRequest _httpServletRequest;
     final HttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
+    ReadListener _readListener;
 
     protected ServletScopedRequest(
         ServletRequestState servletRequestState,
@@ -110,6 +113,12 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     public void run()
     {
         _servletRequestState.handle();
+    }
+
+    private Runnable onContentAvailable()
+    {
+        // TODO not sure onReadReady is right method or at least could be renamed.
+        return _servletRequestState.onReadReady() ? this : null;
     }
 
     public class MutableHttpServletRequest implements HttpServletRequest
@@ -396,10 +405,55 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
             return null;
         }
 
+        private Content _content;
+
         @Override
         public ServletInputStream getInputStream() throws IOException
         {
-            return null;
+            // TODO the stateful saving rather than create each call!
+            return new ServletInputStream()
+            {
+                @Override
+                public boolean isFinished()
+                {
+                    Content content = _content;
+                    return content != null && content.isLast();
+                }
+
+                @Override
+                public boolean isReady()
+                {
+                    if (_content == null)
+                    {
+                        _content = readContent();
+                        if (_content == null)
+                        {
+                            if (_readListener != null)
+                                demandContent(ServletScopedRequest.this::onContentAvailable);
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+
+                @Override
+                public void setReadListener(ReadListener readListener)
+                {
+                    _readListener = readListener;
+                }
+
+                @Override
+                public int read() throws IOException
+                {
+                    // TODO this is just the async version
+                    if (_content == null)
+                        _content = readContent();
+                    if (_content != null & _content.hasRemaining())
+                        return _content.getByteBuffer().get();
+                    throw new IOException();
+                }
+            };
         }
 
         @Override

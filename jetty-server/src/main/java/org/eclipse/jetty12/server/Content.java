@@ -30,6 +30,12 @@ public interface Content
 
     boolean isLast();
 
+    default boolean hasRemaining()
+    {
+        ByteBuffer b = getByteBuffer();
+        return b != null && b.hasRemaining();
+    }
+
     Content EOF = new Content()
     {
         @Override
