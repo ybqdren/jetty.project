@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpURI;
@@ -40,8 +41,8 @@ public class Channel extends AttributesMap
     private final Handler<Request> _server;
     private final MetaConnection _metaConnection;
     private final AtomicInteger _requests = new AtomicInteger();
-    private final AtomicReference<BiConsumer<Request, Throwable>> _onStreamComplete = new AtomicReference<>();
-    private final AtomicReference<BiConsumer<Channel, Throwable>> _onConnectionComplete = new AtomicReference<>();
+    private final AtomicReference<Consumer<Throwable>> _onConnectionClose = new AtomicReference<>();
+    private final AtomicReference<Stream> _stream = new AtomicReference<>();
     private ChannelRequest _request;
     private ChannelResponse _response;
 
@@ -68,6 +69,9 @@ public class Channel extends AttributesMap
 
     public Runnable onRequest(MetaData.Request request, Stream stream)
     {
+        if (!_stream.compareAndSet(null, stream))
+            throw new IllegalStateException("Stream pending");
+
         _requests.incrementAndGet();
 
         // TODO wrapping behaviour makes recycling requests kind of pointless, as much of the things that benefit
@@ -75,7 +79,7 @@ public class Channel extends AttributesMap
         //      to recycle the ServletRequestState object and add that to the new request. Likewise, at this level
         //      we need to determine if some expensive resources are best moved to the channel and referenced by the
         //      request - eg perhaps AttributeMap?     But then should that reference be volatile and breakable?
-        _request = new ChannelRequest(request, stream);
+        _request = new ChannelRequest(request);
         _response = new ChannelResponse();
         if (_response._headers == null)
             _response._headers = HttpFields.build();
@@ -99,32 +103,54 @@ public class Channel extends AttributesMap
         return () -> ((Consumer<HttpFields>)consumer).accept(trailers);
     }
 
-    public Runnable onConnectionComplete(Throwable failed)
+    public Runnable onConnectionClose(Throwable failed)
     {
-        notifyConnectionComplete(_onConnectionComplete.getAndSet(null), failed);
+        notifyConnectionClose(_onConnectionClose.getAndSet(null), failed);
         return null;
     }
 
-    public void whenStreamComplete(BiConsumer<Request, Throwable> onComplete)
+    public void whenStreamComplete(Consumer<Throwable> onComplete)
     {
-        if (!_onStreamComplete.compareAndSet(null, onComplete))
-        {
-            _onStreamComplete.getAndUpdate(l -> (request, failed) ->
+        onStreamEvent(s ->
+            new Stream.Wrapper(s)
             {
-                notifyStreamComplete(l, failed);
-                notifyStreamComplete(onComplete, failed);
+                @Override
+                public void succeeded()
+                {
+                    super.succeeded();
+                    onComplete.accept(null);
+                }
+
+                @Override
+                public void failed(Throwable x)
+                {
+                    super.failed(x);
+                    onComplete.accept(x);
+                }
             });
-        }
     }
 
-    public void whenConnectionComplete(BiConsumer<Channel, Throwable> onComplete)
+    public void onStreamEvent(UnaryOperator<Stream> onStreamEvent)
     {
-        if (!_onConnectionComplete.compareAndSet(null, onComplete))
+        _stream.getAndUpdate(s ->
         {
-            _onConnectionComplete.getAndUpdate(l -> (channel, failed) ->
+            if (s == null)
+                throw new IllegalStateException("No active stream");
+            s = onStreamEvent.apply(s);
+            if (s == null)
+                throw new IllegalArgumentException("Cannot remove stream");
+            return s;
+        });
+    }
+
+    public void whenConnectionComplete(Consumer<Throwable> onComplete)
+    {
+        if (!_onConnectionClose.compareAndSet(null, onComplete))
+        {
+            _onConnectionClose.getAndUpdate(l -> (failed) ->
             {
-                notifyConnectionComplete(l, failed);
-                notifyConnectionComplete(onComplete, failed);
+                notifyConnectionClose(l, failed);
+                notifyConnectionClose(onComplete, failed);
             });
         }
     }
@@ -139,28 +165,13 @@ public class Channel extends AttributesMap
         }
     }
 
-    private void notifyStreamComplete(BiConsumer<Request, Throwable> onStreamComplete, Throwable failed)
-    {
-        if (onStreamComplete != null)
-        {
-            try
-            {
-                onStreamComplete.accept(_request, failed);
-            }
-            catch (Throwable t)
-            {
-                t.printStackTrace();
-            }
-        }
-    }
-
-    private void notifyConnectionComplete(BiConsumer<Channel, Throwable> onConnectionComplete, Throwable failed)
+    private void notifyConnectionClose(Consumer<Throwable> onConnectionComplete, Throwable failed)
     {
         if (onConnectionComplete != null)
         {
             try
             {
-                onConnectionComplete.accept(this, failed);
+                onConnectionComplete.accept(failed);
             }
             catch (Throwable t)
             {
@@ -171,14 +182,12 @@ public class Channel extends AttributesMap
 
     private class ChannelRequest extends AttributesMap implements Request
     {
-        private final AtomicReference<Stream> _stream;
         private final MetaData.Request _metaData;
         private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
         private final AtomicReference<Object> _onTrailers = new AtomicReference<>();
 
-        private ChannelRequest(MetaData.Request metaData, Stream stream)
+        private ChannelRequest(MetaData.Request metaData)
         {
-            _stream = new AtomicReference<>(stream);
             _metaData = metaData;
         }
 
@@ -274,15 +283,11 @@ public class Channel extends AttributesMap
             {
                 // then ensure the request is complete
                 Throwable failed = s.consumeAll();
-                if (failed != null)
-                {
-                    s.failed(failed);
-                    notifyStreamComplete(_onStreamComplete.getAndSet(null), failed);
-                }
-
                 // input must be complete so succeed the stream and notify
-                s.succeeded();
-                notifyStreamComplete(_onStreamComplete.getAndSet(null), null);
+                if (failed == null)
+                    s.succeeded();
+                else
+                    s.failed(failed);
             }));
         }
 
@@ -295,7 +300,6 @@ public class Channel extends AttributesMap
             if (s == null)
                 throw new IllegalStateException("completed");
             s.failed(x);
-            notifyStreamComplete(_onStreamComplete.getAndSet(null), x == null ? new Throwable() : x);
         }
 
         @Override

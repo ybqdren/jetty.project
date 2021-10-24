@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.util.Callback;
 
 public interface Stream extends Callback
@@ -57,6 +58,76 @@ public interface Stream extends Callback
 
             if (content.isLast())
                 return null;
+        }
+    }
+
+    class Wrapper implements Stream
+    {
+        private final Stream _wrapped;
+
+        public Wrapper(Stream wrapped)
+        {
+            _wrapped = wrapped;
+        }
+
+        public String getId()
+        {
+            return _wrapped.getId();
+        }
+
+        public Content readContent()
+        {
+            return _wrapped.readContent();
+        }
+
+        public void demandContent()
+        {
+            _wrapped.demandContent();
+        }
+
+        public void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content)
+        {
+            _wrapped.send(response, last, callback, content);
+        }
+
+        public boolean isPushSupported()
+        {
+            return _wrapped.isPushSupported();
+        }
+
+        public void push(MetaData.Request request)
+        {
+            _wrapped.push(request);
+        }
+
+        public boolean isComplete()
+        {
+            return _wrapped.isComplete();
+        }
+
+        public void upgrade(Connection connection)
+        {
+            _wrapped.upgrade(connection);
+        }
+
+        public Throwable consumeAll()
+        {
+            return _wrapped.consumeAll();
+        }
+
+        public void succeeded()
+        {
+            _wrapped.succeeded();
+        }
+
+        public void failed(Throwable x)
+        {
+            _wrapped.failed(x);
+        }
+
+        public InvocationType getInvocationType()
+        {
+            return _wrapped.getInvocationType();
         }
     }
 }
