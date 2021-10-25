@@ -37,4 +37,19 @@ public class ScopedRequest extends Request.Wrapper
     {
         return _pathInContext;
     }
+
+    @Override
+    public Object getAttribute(String name)
+    {
+        // return some hidden attributes for requestLog
+        switch (name)
+        {
+            case "o.e.j.s.h.ScopedRequest.contextPath":
+                return _context.getContextPath();
+            case "o.e.j.s.h.ScopedRequest.pathInContext":
+                return _pathInContext;
+            default:
+                return super.getAttribute(name);
+        }
+    }
 }

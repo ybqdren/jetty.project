@@ -16,7 +16,6 @@ package org.eclipse.jetty12.server;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
@@ -93,15 +92,12 @@ public class Channel extends AttributesMap
                 new Stream.Wrapper(s)
                 {
                     MetaData.Response _responseMeta;
-                    LongAdder _content = new LongAdder(); // TODO should we count this here or elsewhere?
 
                     @Override
                     public void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content)
                     {
                         if (response != null)
                             _responseMeta = response;
-                        for (ByteBuffer b : content)
-                            _content.add(b.remaining());
                         super.send(response, last, callback, content);
                     }
 
@@ -109,6 +105,14 @@ public class Channel extends AttributesMap
                     public void succeeded()
                     {
                         super.succeeded();
+
+                        Request wrapper = _request.getWrapper();
+                        // TODO is this untyped method for getting get wrapped attributes workable? efficient? fragile?
+                        Object bytesRead = wrapper.getAttribute("o.e.j.s.h.StatsHandler.bytesRead");
+                        Object bytesWritten = wrapper.getAttribute("o.e.j.s.h.StatsHandler.bytesWritten");
+                        Object contextPath = wrapper.getAttribute("o.e.j.s.h.ScopedRequest.contextPath");
+                        Object servlet = wrapper.getAttribute("o.e.j.s.s.ServletScopedRequest.servlet");
+
                         // TODO use the _content in a real log.
                         // TODO do we need to log any wrapped/servlet values?? how to log:
                         //      contextPath???
@@ -165,6 +169,10 @@ public class Channel extends AttributesMap
 
     public void onStreamEvent(UnaryOperator<Stream> onStreamEvent)
     {
+        // TODO we can intercept stream events with this wrapper approach.
+        //      The alternative would be to have a listener mechanism and for the channel to explicitly call all
+        //      listeners prior to calling the stream... however, this will not see any direct calls made to the
+        //      stream (eg sendProcessing).
         _stream.getAndUpdate(s ->
         {
             if (s == null)
@@ -220,15 +228,29 @@ public class Channel extends AttributesMap
         }
     }
 
-    private class ChannelRequest extends AttributesMap implements Request
+    private class ChannelRequest extends AttributesMap implements Request.Base
     {
         private final MetaData.Request _metaData;
         private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
         private final AtomicReference<Object> _onTrailers = new AtomicReference<>();
 
+        private Request _wrapper = this;
+
         private ChannelRequest(MetaData.Request metaData)
         {
             _metaData = metaData;
+        }
+
+        @Override
+        public void setWrapper(Request wrapper)
+        {
+            _wrapper = wrapper;
+        }
+
+        @Override
+        public Request getWrapper()
+        {
+            return _wrapper;
         }
 
         Stream stream()

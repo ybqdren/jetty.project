@@ -15,6 +15,7 @@ package org.eclipse.jetty12.server.handler;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.Callback;
@@ -41,6 +42,9 @@ public class StatsHandler extends Handler.Wrapper<Request>
             return "SomeConnectionStatsObject";
         });
 
+        final LongAdder bytesRead = new LongAdder();
+        final LongAdder bytesWritten = new LongAdder();
+
         request.getChannel().onStreamEvent(s -> new Stream.Wrapper(s)
         {
             @Override
@@ -53,7 +57,7 @@ public class StatsHandler extends Handler.Wrapper<Request>
 
                 for (ByteBuffer b : content)
                 {
-                    // TODO count write stats here
+                    bytesWritten.add(b.remaining());
                 }
 
                 super.send(response, last, callback, content);
@@ -62,8 +66,9 @@ public class StatsHandler extends Handler.Wrapper<Request>
             @Override
             public Content readContent()
             {
-                // TODO count content read
-                return super.readContent();
+                Content content =  super.readContent();
+                bytesRead.add(content.remaining());
+                return content;
             }
 
             @Override
@@ -83,7 +88,23 @@ public class StatsHandler extends Handler.Wrapper<Request>
 
         try
         {
-            return super.handle(request, response);
+            return super.handle(new Request.Wrapper(request)
+            {
+                @Override
+                public Object getAttribute(String name)
+                {
+                    // return hidden attributes for requestLog
+                    switch (name)
+                    {
+                        case "o.e.j.s.h.StatsHandler.bytesRead":
+                            return bytesRead;
+                        case "o.e.j.s.h.StatsHandler.bytesWritten":
+                            return bytesWritten;
+                        default:
+                            return super.getAttribute(name);
+                    }
+                }
+            }, response);
         }
         finally
         {

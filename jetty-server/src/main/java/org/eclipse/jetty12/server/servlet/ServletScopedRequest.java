@@ -74,6 +74,21 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         _mappedServlet = mappedServlet;
     }
 
+    @Override
+    public Object getAttribute(String name)
+    {
+        // return hidden attributes for request logging
+        switch (name)
+        {
+            case "o.e.j.s.s.ServletScopedRequest.servlet":
+                return _mappedServlet.getServletPathMapping().getServletName();
+            case "o.e.j.s.s.ServletScopedRequest.url-pattern":
+                return _mappedServlet.getServletPathMapping().getPattern();
+            default:
+                return super.getAttribute(name);
+        }
+    }
+
     ServletRequestState getServletRequestState()
     {
         return _servletRequestState;

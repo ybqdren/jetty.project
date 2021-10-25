@@ -47,14 +47,30 @@ public interface Request extends Attributes, Callback
         return null;
     }
 
+    Request getWrapper();
+
+    default Request unwrap()
+    {
+        Request r = this;
+        while (true)
+        {
+            Request w = r.getWrapper();
+            if (w == null)
+                return r;
+            r = w;
+        }
+    }
+
     class Wrapper extends Attributes.Wrapper implements Request
     {
         private final Request _wrapped;
 
-        public Wrapper(Request wrapped)
+        protected Wrapper(Request wrapped)
         {
             super(wrapped);
             this._wrapped = wrapped;
+            Request base = wrapped.unwrap();
+            ((Base)base).setWrapper(this);
         }
 
         @Override
@@ -140,5 +156,16 @@ public interface Request extends Attributes, Callback
         {
             return _wrapped.getInvocationType();
         }
+
+        @Override
+        public Request getWrapper()
+        {
+            return _wrapped.getWrapper();
+        }
+    }
+
+    interface Base extends Request
+    {
+        void setWrapper(Request wrapper);
     }
 }
