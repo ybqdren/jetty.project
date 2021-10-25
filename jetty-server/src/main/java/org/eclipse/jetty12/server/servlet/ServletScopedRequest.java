@@ -34,6 +34,7 @@ import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
@@ -41,7 +42,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
-import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.util.SharedBlockingCallback;
+import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
 import org.eclipse.jetty12.server.Content;
 import org.eclipse.jetty12.server.MetaConnection;
 import org.eclipse.jetty12.server.Request;
@@ -411,6 +415,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         public ServletInputStream getInputStream() throws IOException
         {
             // TODO the stateful saving rather than create each call!
+            //      in reality this will be the HttpInput class
             return new ServletInputStream()
             {
                 @Override
@@ -627,6 +632,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     class MutableHttpServletResponse implements HttpServletResponse
     {
+        private final SharedBlockingCallback _blocker = new SharedBlockingCallback();
         private final Response _response;
 
         MutableHttpServletResponse(Response response)
@@ -637,13 +643,13 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void addCookie(Cookie cookie)
         {
-
+            // TODO
         }
 
         @Override
         public boolean containsHeader(String name)
         {
-            return false;
+            return _response.getHttpFields().contains(name);
         }
 
         @Override
@@ -661,7 +667,26 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void sendError(int sc, String msg) throws IOException
         {
-            _servletRequestState.sendError(sc, msg);
+            switch (sc)
+            {
+                case -1:
+                    _servletRequestState.getServletScopedRequest().getChannel().getStream().failed(new IOException(msg));
+                    break;
+
+                case HttpStatus.PROCESSING_102:
+                    try (Blocker blocker = _blocker.acquire())
+                    {
+                        // TODO static MetaData
+                        _servletRequestState.getServletScopedRequest().getChannel().getStream()
+                            .send(new MetaData.Response(null, 102, null), false, blocker);
+                    }
+                    break;
+
+                default:
+                    // This is just a state change
+                    _servletRequestState.sendError(sc, msg);
+                    break;
+            }
         }
 
         @Override
@@ -673,13 +698,13 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void sendRedirect(String location) throws IOException
         {
-
+            // TODO
         }
 
         @Override
         public void setDateHeader(String name, long date)
         {
-
+            _response.getHttpFields().putDateField(name, date);
         }
 
         @Override
@@ -691,25 +716,27 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void setHeader(String name, String value)
         {
-
+            _response.getHttpFields().put(name, value);
         }
 
         @Override
         public void addHeader(String name, String value)
         {
-
+            _response.getHttpFields().add(name, value);
         }
 
         @Override
         public void setIntHeader(String name, int value)
         {
-
+            // TODO do we need int versions?
+            _response.getHttpFields().putLongField(name, value);
         }
 
         @Override
         public void addIntHeader(String name, int value)
         {
-
+            // TODO do we need a native version?
+            _response.getHttpFields().add(name, Integer.toString(value));
         }
 
         @Override
@@ -757,7 +784,45 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public ServletOutputStream getOutputStream() throws IOException
         {
-            return null;
+            // TODO this will be done in HttpOutput
+            return new ServletOutputStream()
+            {
+                @Override
+                public boolean isReady()
+                {
+                    return false;
+                }
+
+                @Override
+                public void setWriteListener(WriteListener writeListener)
+                {
+                    // TODO
+                }
+
+                @Override
+                public void flush() throws IOException
+                {
+                    try (Blocker blocker = _blocker.acquire())
+                    {
+                        _response.write(false, blocker);
+                    }
+                }
+
+                @Override
+                public void close() throws IOException
+                {
+                    try (Blocker blocker = _blocker.acquire())
+                    {
+                        _response.write(true, blocker);
+                    }
+                }
+
+                @Override
+                public void write(int b) throws IOException
+                {
+                    // TODO
+                }
+            };
         }
 
         @Override
@@ -805,14 +870,16 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void flushBuffer() throws IOException
         {
-            // TODO deal with writer
-            Callback blocker = null; // TODO
-            _response.write(false, blocker);
+            try (Blocker blocker = _blocker.acquire())
+            {
+                _response.write(false, blocker);
+            }
         }
 
         @Override
         public void resetBuffer()
         {
+            // TODO I don't think this is right... maybe just a HttpWriter reset
             if (!_response.isCommitted())
                 _response.reset();
         }
