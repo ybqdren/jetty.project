@@ -24,6 +24,8 @@ public interface Stream extends Callback
 {
     String getId();
 
+    long getTimeStamp(); // TODO should this be moved to MetaData.Request?
+
     Content readContent();
 
     void demandContent();
@@ -73,6 +75,12 @@ public interface Stream extends Callback
         public String getId()
         {
             return _wrapped.getId();
+        }
+
+        @Override
+        public long getTimeStamp()
+        {
+            return _wrapped.getTimeStamp();
         }
 
         public Content readContent()

@@ -65,8 +65,29 @@ public class StatsHandler extends Handler.Wrapper<Request>
                 // TODO count content read
                 return super.readContent();
             }
+
+            @Override
+            public void succeeded()
+            {
+                super.succeeded();
+                // TODO request duration stats collection
+            }
+
+            @Override
+            public void failed(Throwable x)
+            {
+                // TODO abort stats collection
+                super.failed(x);
+            }
         });
 
-        return super.handle(request, response);
+        try
+        {
+            return super.handle(request, response);
+        }
+        finally
+        {
+            // TODO initial dispatch duration stats collected here.
+        }
     }
 }

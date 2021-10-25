@@ -110,7 +110,11 @@ public class Channel extends AttributesMap
                     {
                         super.succeeded();
                         // TODO use the _content in a real log.
-                        // TODO do we need to log any wrapped/servlet values
+                        // TODO do we need to log any wrapped/servlet values?? how to log:
+                        //      contextPath???
+                        //      remote user
+                        //      request duration?
+                        //      bytes read/written
                         requestLog.accept(request, _responseMeta);
                     }
                 });
