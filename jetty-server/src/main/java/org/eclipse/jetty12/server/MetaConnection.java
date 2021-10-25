@@ -17,8 +17,9 @@ import java.net.SocketAddress;
 
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.util.Attributes;
 
-public interface MetaConnection
+public interface MetaConnection extends Attributes
 {
     String getId();
 
@@ -36,12 +37,13 @@ public interface MetaConnection
 
     SocketAddress getLocal();
 
-    class Wrapper implements MetaConnection
+    class Wrapper extends Attributes.Wrapper implements MetaConnection
     {
         private final MetaConnection _wrapped;
 
         public Wrapper(MetaConnection wrapped)
         {
+            super(wrapped);
             _wrapped = wrapped;
         }
 

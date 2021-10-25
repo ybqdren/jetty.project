@@ -27,7 +27,7 @@ public interface Handler<R extends Request>
     {
     }
 
-    abstract class Convertor<R extends Request, N extends Request> extends Abstract<R>
+    abstract class Processor<R extends Request, N extends Request> extends Abstract<R>
     {
         private Handler<N> _next;
 
@@ -43,7 +43,7 @@ public interface Handler<R extends Request>
         }
     }
 
-    class Wrapper<R extends Request> extends Convertor<R, R>
+    class Wrapper<R extends Request> extends Processor<R, R>
     {
         @Override
         public boolean handle(R request, Response response)

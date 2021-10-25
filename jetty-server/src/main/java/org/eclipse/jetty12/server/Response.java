@@ -25,7 +25,7 @@ import org.eclipse.jetty.util.Callback;
  */
 public interface Response
 {
-    int getCode();
+    int getStatus();
 
     void setStatus(int code);
 
@@ -37,7 +37,7 @@ public interface Response
 
     void push(MetaData.Request request);
 
-    void whenCommit(BiConsumer<Request, Response> onCommit);
+    void whenCommitting(BiConsumer<Request, Response> onCommit);
 
     boolean isCommitted();
 
@@ -58,9 +58,9 @@ public interface Response
         }
 
         @Override
-        public int getCode()
+        public int getStatus()
         {
-            return _wrapped.getCode();
+            return _wrapped.getStatus();
         }
 
         @Override
@@ -94,9 +94,9 @@ public interface Response
         }
 
         @Override
-        public void whenCommit(BiConsumer<Request, Response> onCommit)
+        public void whenCommitting(BiConsumer<Request, Response> onCommit)
         {
-            _wrapped.whenCommit(onCommit);
+            _wrapped.whenCommitting(onCommit);
         }
 
         @Override

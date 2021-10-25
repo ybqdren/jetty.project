@@ -21,19 +21,70 @@ import java.nio.ByteBuffer;
  * It allows EOF and Error flows to be unified with content data. This allows
  * the semantics of multiple methods like flush, close, onError, etc. to be
  * included in the read/write APIs.
+ *
+ * TODO this is probably better as a concrete class
  */
 public interface Content
 {
     ByteBuffer getByteBuffer();
 
-    void release();
+    default void release()
+    {
+    }
 
-    boolean isLast();
+    default boolean isLast()
+    {
+        return false;
+    }
+
+    default int remaining()
+    {
+        ByteBuffer b = getByteBuffer();
+        return b == null ? 0 : b.remaining();
+    }
 
     default boolean hasRemaining()
     {
         ByteBuffer b = getByteBuffer();
         return b != null && b.hasRemaining();
+    }
+
+    default boolean isEmpty()
+    {
+        return !hasRemaining();
+    }
+
+    default int fill(byte[] buffer, int offset, int length)
+    {
+        ByteBuffer b = getByteBuffer();
+        if (b == null || !b.hasRemaining())
+            return 0;
+        length = Math.min(length, b.remaining());
+        b.get(buffer, offset, length);
+        return length;
+    }
+
+    static Content from(ByteBuffer buffer)
+    {
+        return () -> buffer;
+    }
+
+    static Content from(ByteBuffer buffer, boolean last)
+    {
+        return new Content()
+        {
+            @Override
+            public ByteBuffer getByteBuffer()
+            {
+                return buffer;
+            }
+
+            @Override
+            public boolean isLast()
+            {
+                return last;
+            }
+        };
     }
 
     Content EOF = new Content()

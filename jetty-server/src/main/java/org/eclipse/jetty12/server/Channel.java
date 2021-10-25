@@ -14,9 +14,9 @@
 package org.eclipse.jetty12.server;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
@@ -38,7 +38,7 @@ import org.eclipse.jetty.util.Callback;
  */
 public class Channel extends AttributesMap
 {
-    private final Handler<Request> _server;
+    private final Server _server;
     private final MetaConnection _metaConnection;
     private final AtomicInteger _requests = new AtomicInteger();
     private final AtomicReference<Consumer<Throwable>> _onConnectionClose = new AtomicReference<>();
@@ -46,7 +46,7 @@ public class Channel extends AttributesMap
     private ChannelRequest _request;
     private ChannelResponse _response;
 
-    public Channel(Handler<Request> server, MetaConnection metaConnection)
+    public Channel(Server server, MetaConnection metaConnection)
     {
         _server = server;
         _metaConnection = metaConnection;
@@ -85,6 +85,35 @@ public class Channel extends AttributesMap
             _response._headers = HttpFields.build();
         else
             _response._headers.clear();
+
+        // Mock request log
+        BiConsumer<MetaData.Request, MetaData.Response> requestLog = _server.getBean(BiConsumer.class);
+        if (requestLog != null)
+            onStreamEvent(s ->
+                new Stream.Wrapper(s)
+                {
+                    MetaData.Response _responseMeta;
+                    LongAdder _content = new LongAdder(); // TODO should we count this here or elsewhere?
+
+                    @Override
+                    public void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content)
+                    {
+                        if (response != null)
+                            _responseMeta = response;
+                        for (ByteBuffer b : content)
+                            _content.add(b.remaining());
+                        super.send(response, last, callback, content);
+                    }
+
+                    @Override
+                    public void succeeded()
+                    {
+                        super.succeeded();
+                        // TODO use the _content in a real log.
+                        // TODO do we need to log any wrapped/servlet values
+                        requestLog.accept(request, _responseMeta);
+                    }
+                });
 
         return this::handle;
     }
@@ -159,9 +188,16 @@ public class Channel extends AttributesMap
     {
         if (!_server.handle(_request, _response))
         {
-            _response.reset();
-            _response.setStatus(404);
-            _request.succeeded();
+            if (_response.isCommitted())
+            {
+                _request.failed(new IllegalStateException("Not Completed"));
+            }
+            else
+            {
+                _response.reset();
+                _response.setStatus(404);
+                _request.succeeded();
+            }
         }
     }
 
@@ -271,7 +307,7 @@ public class Channel extends AttributesMap
         {
             Stream s = _stream.getAndSet(null);
             if (s == null)
-                throw new IllegalStateException("completed");
+                throw new IllegalStateException("stream completed");
 
             // Cannot handle trailers after succeeded
             _onTrailers.set(null);
@@ -294,6 +330,7 @@ public class Channel extends AttributesMap
         @Override
         public void failed(Throwable x)
         {
+            // TODO should we send a 500 if we are not committed?
             // This is equivalent to the previous HttpTransport.abort(Throwable), so we don't need to do much clean up
             // as channel will be shutdown and thrown away.
             Stream s = _stream.getAndSet(null);
@@ -309,16 +346,19 @@ public class Channel extends AttributesMap
         }
     }
 
+    private static final BiConsumer<Request, Response> UNCOMMITTED = (req, res) -> {};
+    private static final BiConsumer<Request, Response> COMMITTED = (req, res) -> {};
+
     private class ChannelResponse implements Response
     {
-        private final AtomicReference<BiConsumer<Request, Response>> _onCommit = new AtomicReference<>();
-        private final AtomicBoolean _Committed = new AtomicBoolean();
+        private final AtomicReference<BiConsumer<Request, Response>> _onCommit = new AtomicReference<>(UNCOMMITTED);
         private int _code;
+        private HttpFields.Immutable _committed;
         private HttpFields.Mutable _headers;
         private HttpFields.Mutable _trailers;
 
         @Override
-        public int getCode()
+        public int getStatus()
         {
             return _code;
         }
@@ -346,8 +386,7 @@ public class Channel extends AttributesMap
         @Override
         public void write(boolean last, Callback callback, ByteBuffer... content)
         {
-            MetaData.Response metaData = commitResponse();
-            _request.stream().send(metaData, last, callback, content);
+            _request.stream().send(commitResponse(), last, callback, content);
         }
 
         private HttpFields takeTrailers()
@@ -362,27 +401,35 @@ public class Channel extends AttributesMap
         }
 
         @Override
-        public void whenCommit(BiConsumer<Request, Response> onCommit)
+        public void whenCommitting(BiConsumer<Request, Response> onCommit)
         {
-            if (!_onCommit.compareAndSet(null, onCommit))
+            _onCommit.getAndUpdate(l ->
             {
-                _onCommit.getAndUpdate(l -> (request, response) ->
+                if (l == COMMITTED)
+                    throw new IllegalStateException("Committed");
+
+                if (l == UNCOMMITTED)
+                    return onCommit;
+
+                return (request, response) ->
                 {
                     notifyCommit(l);
                     notifyCommit(onCommit);
-                });
-            }
+                };
+            });
         }
 
         @Override
         public boolean isCommitted()
         {
-            return _Committed.get();
+            return _onCommit.get() == COMMITTED;
         }
 
         @Override
         public void reset()
         {
+            if (isCommitted())
+                throw new IllegalStateException("Committed");
             // TODO re-add or don't delete default fields
             _headers.clear();
             _code = 0;
@@ -390,18 +437,20 @@ public class Channel extends AttributesMap
 
         private MetaData.Response commitResponse()
         {
-            if (_Committed.compareAndSet(false, true))
-            {
-                notifyCommit(_onCommit.getAndSet(null));
-                return new MetaData.Response(
-                    _request._metaData.getHttpVersion(),
-                    _code,
-                    null,
-                    _headers.asImmutable(),
-                    -1,
-                    _response::takeTrailers);
-            }
-            return null;
+            BiConsumer<Request, Response> committed = _onCommit.getAndSet(COMMITTED);
+            if (committed == COMMITTED)
+                return null;
+
+            if (committed != UNCOMMITTED)
+                notifyCommit(committed);
+
+            return new MetaData.Response(
+                _request._metaData.getHttpVersion(),
+                _code,
+                null,
+                _headers.asImmutable(),
+                -1,
+                _response::takeTrailers);
         }
 
         private void notifyCommit(BiConsumer<Request, Response> onCommit)

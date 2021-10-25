@@ -47,11 +47,6 @@ public interface Request extends Attributes, Callback
         return null;
     }
 
-    default <R> R as(Class<R> type)
-    {
-        return (type.isInstance(this) ? (R)this : null);
-    }
-
     class Wrapper extends Attributes.Wrapper implements Request
     {
         private final Request _wrapped;
