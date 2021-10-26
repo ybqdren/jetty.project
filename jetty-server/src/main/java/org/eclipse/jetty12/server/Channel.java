@@ -82,8 +82,9 @@ public class Channel extends AttributesMap
         _response = new ChannelResponse();
 
         // Mock request log
-        BiConsumer<MetaData.Request, MetaData.Response> requestLog = _server.getBean(BiConsumer.class);
+        RequestLog requestLog = _server.getRequestLog();
         if (requestLog != null)
+        {
             onStreamEvent(s ->
                 new Stream.Wrapper(s)
                 {
@@ -100,24 +101,11 @@ public class Channel extends AttributesMap
                     @Override
                     public void succeeded()
                     {
+                        requestLog.log(_request.getWrapper(), request, _responseMeta);
                         super.succeeded();
-
-                        Request wrapper = _request.getWrapper();
-                        // TODO is this untyped method for getting get wrapped attributes workable? efficient? fragile?
-                        Object bytesRead = wrapper.getAttribute("o.e.j.s.h.StatsHandler.bytesRead");
-                        Object bytesWritten = wrapper.getAttribute("o.e.j.s.h.StatsHandler.bytesWritten");
-                        Object contextPath = wrapper.getAttribute("o.e.j.s.h.ScopedRequest.contextPath");
-                        Object servlet = wrapper.getAttribute("o.e.j.s.s.ServletScopedRequest.servlet");
-
-                        // TODO use the _content in a real log.
-                        // TODO do we need to log any wrapped/servlet values?? how to log:
-                        //      contextPath???
-                        //      remote user
-                        //      request duration?
-                        //      bytes read/written
-                        requestLog.accept(request, _responseMeta);
                     }
                 });
+        }
 
         return this::handle;
     }

@@ -15,4 +15,8 @@ package org.eclipse.jetty12.server;
 
 public class Server extends Handler.Wrapper<Request>
 {
+    public RequestLog getRequestLog()
+    {
+        return new RequestLog();
+    }
 }

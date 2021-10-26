@@ -24,6 +24,12 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Processor<R
     private static final ThreadLocal<Context> __context = new ThreadLocal<>();
     private Context _context;
 
+    // TODO need 2 level classloaders for API and app
+    //      Probably will need support for loaders in XmlConfiguration also
+    //      is this a job for JPMS modules?  Or shall we go OSGi :)
+    private ClassLoader _apiLoader;
+    private ClassLoader _contextLoader;
+
     public Context getContext()
     {
         return _context;

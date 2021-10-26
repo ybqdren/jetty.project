@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server.servlet;
+package org.eclipse.jetty12.server.servlet6;
 
 import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Response;

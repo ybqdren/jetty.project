@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server.servlet;
+package org.eclipse.jetty12.server.servlet6;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -44,6 +44,9 @@ import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.server.AsyncContextEvent;
+import org.eclipse.jetty.server.AsyncContextState;
+import org.eclipse.jetty.server.HttpChannelState;
 import org.eclipse.jetty.util.SharedBlockingCallback;
 import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
 import org.eclipse.jetty12.server.ConnectionMetaData;
@@ -80,6 +83,10 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         // return hidden attributes for request logging
         switch (name)
         {
+            case "o.e.j.s.s.ServletScopedRequest.request":
+                return _httpServletRequest;
+            case "o.e.j.s.s.ServletScopedRequest.response":
+                return _httpServletResponse;
             case "o.e.j.s.s.ServletScopedRequest.servlet":
                 return _mappedServlet.getServletPathMapping().getServletName();
             case "o.e.j.s.s.ServletScopedRequest.url-pattern":
@@ -142,6 +149,8 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     public class MutableHttpServletRequest implements HttpServletRequest
     {
+        private AsyncContextState _async;
+
         public void setSessionManager(SessionHandler sessionHandler)
         {
             // TODO
@@ -611,19 +620,31 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public AsyncContext startAsync() throws IllegalStateException
         {
-            return null;
+            HttpChannelState state = _servletRequestState;
+            if (_async == null)
+                _async = new AsyncContextState(state);
+            // TODO adapt to new context and base Request
+            AsyncContextEvent event = new AsyncContextEvent(null, _async, state, null, this, _httpServletResponse);
+            state.startAsync(event);
+            return _async;
         }
 
         @Override
         public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException
         {
-            return null;
+            HttpChannelState state = _servletRequestState;
+            if (_async == null)
+                _async = new AsyncContextState(state);
+            // TODO adapt to new context and base Request
+            AsyncContextEvent event = new AsyncContextEvent(null, _async, state, null, servletRequest, servletResponse);
+            state.startAsync(event);
+            return _async;
         }
 
         @Override
         public boolean isAsyncStarted()
         {
-            return false;
+            return _servletRequestState.isAsyncStarted();
         }
 
         @Override
