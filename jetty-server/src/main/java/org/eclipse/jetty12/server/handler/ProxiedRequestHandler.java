@@ -16,8 +16,8 @@ package org.eclipse.jetty12.server.handler;
 import java.net.SocketAddress;
 
 import org.eclipse.jetty.http.HttpURI;
+import org.eclipse.jetty12.server.ConnectionMetaData;
 import org.eclipse.jetty12.server.Handler;
-import org.eclipse.jetty12.server.MetaConnection;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
@@ -26,7 +26,7 @@ public class ProxiedRequestHandler extends Handler.Wrapper<Request>
     @Override
     public boolean handle(Request request, Response response)
     {
-        MetaConnection proxiedFor = new MetaConnection.Wrapper(request.getMetaConnection())
+        ConnectionMetaData proxiedFor = new ConnectionMetaData.Wrapper(request.getConnectionMetaData())
         {
             @Override
             public boolean isSecure()
@@ -60,7 +60,7 @@ public class ProxiedRequestHandler extends Handler.Wrapper<Request>
             }
 
             @Override
-            public MetaConnection getMetaConnection()
+            public ConnectionMetaData getConnectionMetaData()
             {
                 return proxiedFor;
             }

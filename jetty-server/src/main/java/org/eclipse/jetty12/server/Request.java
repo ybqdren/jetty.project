@@ -26,7 +26,7 @@ public interface Request extends Attributes, Callback
 
     Channel getChannel();
 
-    MetaConnection getMetaConnection();
+    ConnectionMetaData getConnectionMetaData();
 
     String getMethod();
 
@@ -80,9 +80,9 @@ public interface Request extends Attributes, Callback
         }
 
         @Override
-        public MetaConnection getMetaConnection()
+        public ConnectionMetaData getConnectionMetaData()
         {
-            return _wrapped.getMetaConnection();
+            return _wrapped.getConnectionMetaData();
         }
 
         @Override

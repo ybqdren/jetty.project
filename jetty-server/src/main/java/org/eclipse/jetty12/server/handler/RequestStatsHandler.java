@@ -25,19 +25,19 @@ import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.Stream;
 
-public class StatsHandler extends Handler.Wrapper<Request>
+public class RequestStatsHandler extends Handler.Wrapper<Request>
 {
     private ConcurrentHashMap<String, Object> _connectionStats = new ConcurrentHashMap<>();
 
     @Override
     public boolean handle(Request request, Response response)
     {
-        Object connectionStats = _connectionStats.computeIfAbsent(request.getMetaConnection().getId(), id ->
+        Object connectionStats = _connectionStats.computeIfAbsent(request.getConnectionMetaData().getId(), id ->
         {
             request.getChannel().whenConnectionComplete(x ->
             {
                 // complete connections stats
-                _connectionStats.remove(request.getMetaConnection().getId());
+                _connectionStats.remove(request.getConnectionMetaData().getId());
             });
             return "SomeConnectionStatsObject";
         });
@@ -90,6 +90,7 @@ public class StatsHandler extends Handler.Wrapper<Request>
         {
             return super.handle(new Request.Wrapper(request)
             {
+                // TODO make this wrapper optional. Only needed if requestLog asks for these attributes.
                 @Override
                 public Object getAttribute(String name)
                 {

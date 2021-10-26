@@ -1,12 +1,19 @@
 package org.eclipse.jetty12.server.servlet;
 
+import java.net.CookieStore;
+
 import jakarta.servlet.ServletContext;
 import org.eclipse.jetty.server.HttpChannelState;
+import org.eclipse.jetty.server.HttpInput;
+import org.eclipse.jetty.server.HttpWriter;
 
 class ServletRequestState extends HttpChannelState
 {
     private final ServletContextContext _servletContextContext;
     private ServletScopedRequest _servletScopedRequest;
+    private HttpInput _httpInput; // TODO
+    private HttpWriter _httpWriter; // TODO
+    private CookieStore _cookieCache; // TODO
 
     ServletRequestState(ServletContextContext servletContextContext)
     {
@@ -61,6 +68,10 @@ class ServletRequestState extends HttpChannelState
                         // TODO need to actually do a readContent here so that we can run interceptors and check there really
                         //      is data... but ultimately we do:
                         _servletScopedRequest._readListener.onDataAvailable();
+                        break;
+
+                    case SEND_ERROR:
+                        // TODO send error
                         break;
 
                     // TODO etc.

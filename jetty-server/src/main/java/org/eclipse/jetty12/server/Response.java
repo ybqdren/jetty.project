@@ -29,7 +29,7 @@ public interface Response
 
     void setStatus(int code);
 
-    HttpFields.Mutable getHttpFields();
+    HttpFields.Mutable getHeaders();
 
     HttpFields.Mutable getTrailers();
 
@@ -70,9 +70,9 @@ public interface Response
         }
 
         @Override
-        public HttpFields.Mutable getHttpFields()
+        public HttpFields.Mutable getHeaders()
         {
-            return _wrapped.getHttpFields();
+            return _wrapped.getHeaders();
         }
 
         @Override

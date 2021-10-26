@@ -41,7 +41,7 @@ public class ServletHandler extends Handler.Abstract<ServletScopedRequest>
     {
         MappedServlet mappedServlet = request.getMappedServlet();
         if (mappedServlet == null)
-            return false; // TODO or 404?
+            return false; // TODO or 404 or ISE?
 
         request.getServletRequestState().handle();
         return true;

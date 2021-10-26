@@ -46,8 +46,8 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.SharedBlockingCallback;
 import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
+import org.eclipse.jetty12.server.ConnectionMetaData;
 import org.eclipse.jetty12.server.Content;
-import org.eclipse.jetty12.server.MetaConnection;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.handler.ScopedRequest;
@@ -168,31 +168,31 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         public ServletConnection getServletConnection()
         {
             // TODO cache the results
-            final MetaConnection metaConnection = ServletScopedRequest.this.getMetaConnection();
+            final ConnectionMetaData connectionMetaData = ServletScopedRequest.this.getConnectionMetaData();
             return new ServletConnection()
             {
                 @Override
                 public String getConnectionId()
                 {
-                    return metaConnection.getId();
+                    return connectionMetaData.getId();
                 }
 
                 @Override
                 public String getProtocol()
                 {
-                    return metaConnection.getProtocol();
+                    return connectionMetaData.getProtocol();
                 }
 
                 @Override
                 public String getProtocolConnectionId()
                 {
-                    return metaConnection.getConnection().toString(); // TODO getId
+                    return connectionMetaData.getConnection().toString(); // TODO getId
                 }
 
                 @Override
                 public boolean isSecure()
                 {
-                    return metaConnection.isSecure();
+                    return connectionMetaData.isSecure();
                 }
             };
         }
@@ -664,7 +664,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public boolean containsHeader(String name)
         {
-            return _response.getHttpFields().contains(name);
+            return _response.getHeaders().contains(name);
         }
 
         @Override
@@ -719,7 +719,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void setDateHeader(String name, long date)
         {
-            _response.getHttpFields().putDateField(name, date);
+            _response.getHeaders().putDateField(name, date);
         }
 
         @Override
@@ -731,27 +731,27 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public void setHeader(String name, String value)
         {
-            _response.getHttpFields().put(name, value);
+            _response.getHeaders().put(name, value);
         }
 
         @Override
         public void addHeader(String name, String value)
         {
-            _response.getHttpFields().add(name, value);
+            _response.getHeaders().add(name, value);
         }
 
         @Override
         public void setIntHeader(String name, int value)
         {
             // TODO do we need int versions?
-            _response.getHttpFields().putLongField(name, value);
+            _response.getHeaders().putLongField(name, value);
         }
 
         @Override
         public void addIntHeader(String name, int value)
         {
             // TODO do we need a native version?
-            _response.getHttpFields().add(name, Integer.toString(value));
+            _response.getHeaders().add(name, Integer.toString(value));
         }
 
         @Override
@@ -763,13 +763,13 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public int getStatus()
         {
-            return 0;
+            return _response.getStatus();
         }
 
         @Override
         public String getHeader(String name)
         {
-            return null;
+            return _response.getHeaders().get(name);
         }
 
         @Override

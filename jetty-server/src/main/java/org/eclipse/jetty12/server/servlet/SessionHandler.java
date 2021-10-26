@@ -13,8 +13,13 @@
 
 package org.eclipse.jetty12.server.servlet;
 
+import java.nio.ByteBuffer;
+
+import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Response;
+import org.eclipse.jetty12.server.Stream;
 
 public class SessionHandler extends Handler.Wrapper<ServletScopedRequest>
 {
@@ -26,6 +31,33 @@ public class SessionHandler extends Handler.Wrapper<ServletScopedRequest>
         // TODO servletRequest can be mutable, so we can add session stuff to it
         servletRequest.setSessionManager(this);
         servletRequest.setSession(null);
+
+        request.getChannel().onStreamEvent(s ->
+            new Stream.Wrapper(s)
+            {
+                @Override
+                public void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content)
+                {
+                    if (response != null)
+                    {
+                        // commit session to data store
+                    }
+                }
+
+                @Override
+                public void succeeded()
+                {
+                    super.succeeded();
+                    // exit session
+                }
+
+                @Override
+                public void failed(Throwable x)
+                {
+                    super.failed(x);
+                    // exit session
+                }
+            });
 
         return super.handle(request, response);
     }

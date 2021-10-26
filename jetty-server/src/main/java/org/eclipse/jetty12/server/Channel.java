@@ -38,17 +38,17 @@ import org.eclipse.jetty.util.Callback;
 public class Channel extends AttributesMap
 {
     private final Server _server;
-    private final MetaConnection _metaConnection;
+    private final ConnectionMetaData _connectionMetaData;
     private final AtomicInteger _requests = new AtomicInteger();
     private final AtomicReference<Consumer<Throwable>> _onConnectionClose = new AtomicReference<>();
     private final AtomicReference<Stream> _stream = new AtomicReference<>();
     private ChannelRequest _request;
     private ChannelResponse _response;
 
-    public Channel(Server server, MetaConnection metaConnection)
+    public Channel(Server server, ConnectionMetaData connectionMetaData)
     {
         _server = server;
-        _metaConnection = metaConnection;
+        _connectionMetaData = connectionMetaData;
     }
 
     public Handler<Request> getServer()
@@ -56,9 +56,9 @@ public class Channel extends AttributesMap
         return _server;
     }
 
-    public MetaConnection getMetaConnection()
+    public ConnectionMetaData getMetaConnection()
     {
-        return _metaConnection;
+        return _connectionMetaData;
     }
 
     public Stream getStream()
@@ -80,10 +80,6 @@ public class Channel extends AttributesMap
         //      request - eg perhaps AttributeMap?     But then should that reference be volatile and breakable?
         _request = new ChannelRequest(request);
         _response = new ChannelResponse();
-        if (_response._headers == null)
-            _response._headers = HttpFields.build();
-        else
-            _response._headers.clear();
 
         // Mock request log
         BiConsumer<MetaData.Request, MetaData.Response> requestLog = _server.getBean(BiConsumer.class);
@@ -148,6 +144,7 @@ public class Channel extends AttributesMap
 
     public void whenStreamComplete(Consumer<Throwable> onComplete)
     {
+        // TODO would a dedicated listener interface be better than this wrapping
         onStreamEvent(s ->
             new Stream.Wrapper(s)
             {
@@ -268,9 +265,9 @@ public class Channel extends AttributesMap
         }
 
         @Override
-        public MetaConnection getMetaConnection()
+        public ConnectionMetaData getConnectionMetaData()
         {
-            return _metaConnection;
+            return _connectionMetaData;
         }
 
         @Override
@@ -378,7 +375,7 @@ public class Channel extends AttributesMap
     private class ChannelResponse implements Response
     {
         private final AtomicReference<BiConsumer<Request, Response>> _onCommit = new AtomicReference<>(UNCOMMITTED);
-        private int _code;
+        private int _status;
         private HttpFields.Immutable _committed;
         private HttpFields.Mutable _headers;
         private HttpFields.Mutable _trailers;
@@ -386,17 +383,17 @@ public class Channel extends AttributesMap
         @Override
         public int getStatus()
         {
-            return _code;
+            return _status;
         }
 
         @Override
         public void setStatus(int code)
         {
-            _code = code;
+            _status = code;
         }
 
         @Override
-        public HttpFields.Mutable getHttpFields()
+        public HttpFields.Mutable getHeaders()
         {
             return _headers;
         }
@@ -458,7 +455,7 @@ public class Channel extends AttributesMap
                 throw new IllegalStateException("Committed");
             // TODO re-add or don't delete default fields
             _headers.clear();
-            _code = 0;
+            _status = 0;
         }
 
         private MetaData.Response commitResponse()
@@ -472,7 +469,7 @@ public class Channel extends AttributesMap
 
             return new MetaData.Response(
                 _request._metaData.getHttpVersion(),
-                _code,
+                _status,
                 null,
                 _headers.asImmutable(),
                 -1,

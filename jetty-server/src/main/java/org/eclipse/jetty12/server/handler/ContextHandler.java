@@ -58,6 +58,7 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Processor<R
         if (scoped == null)
             return false; // TODO 404? 500? Error dispatch ???
 
+        // TODO make the lambda part of the scope request to save allocation
         _context.run(() -> next.handle(scoped, response));
         return true;
     }
