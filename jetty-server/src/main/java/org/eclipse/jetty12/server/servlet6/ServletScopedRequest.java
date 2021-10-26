@@ -479,7 +479,10 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
                     if (_content == null)
                         _content = readContent();
                     if (_content != null & _content.hasRemaining())
+                    {
+                        // TODO if last byte release the _content
                         return _content.getByteBuffer().get();
+                    }
                     throw new IOException();
                 }
             };
@@ -706,7 +709,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
             switch (sc)
             {
                 case -1:
-                    _servletRequestState.getServletScopedRequest().getChannel().getStream().failed(new IOException(msg));
+                    _servletRequestState.getServletScopedRequest().failed(new IOException(msg));
                     break;
 
                 case HttpStatus.PROCESSING_102:

@@ -335,7 +335,7 @@ public class Channel extends AttributesMap
                     s.succeeded();
                 else
                     s.failed(failed);
-            }));
+            }, s::failed));
         }
 
         @Override
