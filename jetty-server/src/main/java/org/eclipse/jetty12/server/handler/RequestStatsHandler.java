@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.statistic.CounterStatistic;
+import org.eclipse.jetty.util.statistic.SampleStatistic;
 import org.eclipse.jetty12.server.Content;
 import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
@@ -28,6 +30,10 @@ import org.eclipse.jetty12.server.Stream;
 public class RequestStatsHandler extends Handler.Wrapper<Request>
 {
     private ConcurrentHashMap<String, Object> _connectionStats = new ConcurrentHashMap<>();
+
+    private final CounterStatistic _requestStats = new CounterStatistic();
+    private final SampleStatistic _requestTimeStats = new SampleStatistic();
+    private final SampleStatistic _handleTimeStats = new SampleStatistic();
 
     @Override
     public boolean handle(Request request, Response response)
@@ -45,6 +51,7 @@ public class RequestStatsHandler extends Handler.Wrapper<Request>
         final LongAdder bytesRead = new LongAdder();
         final LongAdder bytesWritten = new LongAdder();
 
+        _requestStats.increment();
         request.getChannel().onStreamEvent(s -> new Stream.Wrapper(s)
         {
             @Override
@@ -74,14 +81,16 @@ public class RequestStatsHandler extends Handler.Wrapper<Request>
             @Override
             public void succeeded()
             {
+                _requestStats.decrement();
+                _requestTimeStats.record(System.currentTimeMillis() - getNanoTimeStamp());
                 super.succeeded();
-                // TODO request duration stats collection
             }
 
             @Override
             public void failed(Throwable x)
             {
-                // TODO abort stats collection
+                _requestStats.decrement();
+                _requestTimeStats.record(System.nanoTime() - getNanoTimeStamp());
                 super.failed(x);
             }
         });
@@ -109,6 +118,7 @@ public class RequestStatsHandler extends Handler.Wrapper<Request>
         }
         finally
         {
+            _handleTimeStats.record(System.nanoTime() - request.getChannel().getStream().getNanoTimeStamp());
             // TODO initial dispatch duration stats collected here.
         }
     }

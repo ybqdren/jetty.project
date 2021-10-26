@@ -24,11 +24,11 @@ public interface Stream extends Callback
 {
     String getId();
 
-    long getTimeStamp(); // TODO should this be moved to MetaData.Request?
+    long getNanoTimeStamp();
 
     Content readContent();
 
-    void demandContent();
+    void demandContent(); // Calls back on Channel#onDataAvailable
 
     void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content);
 
@@ -72,15 +72,15 @@ public interface Stream extends Callback
             _wrapped = wrapped;
         }
 
-        public String getId()
+        public final String getId()
         {
             return _wrapped.getId();
         }
 
         @Override
-        public long getTimeStamp()
+        public final long getNanoTimeStamp()
         {
-            return _wrapped.getTimeStamp();
+            return _wrapped.getNanoTimeStamp();
         }
 
         public Content readContent()
@@ -98,7 +98,7 @@ public interface Stream extends Callback
             _wrapped.send(response, last, callback, content);
         }
 
-        public boolean isPushSupported()
+        public final boolean isPushSupported()
         {
             return _wrapped.isPushSupported();
         }
@@ -108,7 +108,7 @@ public interface Stream extends Callback
             _wrapped.push(request);
         }
 
-        public boolean isComplete()
+        public final boolean isComplete()
         {
             return _wrapped.isComplete();
         }
@@ -118,7 +118,7 @@ public interface Stream extends Callback
             _wrapped.upgrade(connection);
         }
 
-        public Throwable consumeAll()
+        public final Throwable consumeAll()
         {
             return _wrapped.consumeAll();
         }

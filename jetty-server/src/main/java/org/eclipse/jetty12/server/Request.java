@@ -74,7 +74,7 @@ public interface Request extends Attributes, Callback
         }
 
         @Override
-        public String getId()
+        public final String getId()
         {
             return _wrapped.getId();
         }
@@ -86,7 +86,7 @@ public interface Request extends Attributes, Callback
         }
 
         @Override
-        public Channel getChannel()
+        public final Channel getChannel()
         {
             return _wrapped.getChannel();
         }
@@ -134,9 +134,15 @@ public interface Request extends Attributes, Callback
         }
 
         @Override
-        public Request getWrapped()
+        public final Request getWrapped()
         {
             return _wrapped;
+        }
+
+        @Override
+        public final Request getWrapper()
+        {
+            return _wrapped.getWrapper();
         }
 
         @Override
@@ -157,11 +163,6 @@ public interface Request extends Attributes, Callback
             return _wrapped.getInvocationType();
         }
 
-        @Override
-        public Request getWrapper()
-        {
-            return _wrapped.getWrapper();
-        }
     }
 
     interface Base extends Request
