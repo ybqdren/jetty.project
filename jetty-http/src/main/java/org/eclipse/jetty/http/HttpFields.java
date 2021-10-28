@@ -79,6 +79,15 @@ public interface HttpFields extends Iterable<HttpField>
 
     Immutable asImmutable();
 
+    /**
+     * Switch the current HttpFields to read-only state.
+     * @return A read-only HttpFields, either an Immutable or a Mutable that is switched to read-only state.
+     */
+    default HttpFields toReadOnly()
+    {
+        return asImmutable();
+    }
+
     default String asString()
     {
         StringBuilder buffer = new StringBuilder();
@@ -531,6 +540,7 @@ public interface HttpFields extends Iterable<HttpField>
     {
         private HttpField[] _fields;
         private int _size;
+        private boolean _readOnly;
 
         /**
          * Initialize an empty HttpFields.
@@ -615,7 +625,7 @@ public interface HttpFields extends Iterable<HttpField>
          */
         public Mutable add(String name, String value)
         {
-            if (value != null)
+            if (!_readOnly && value != null)
                 return add(new HttpField(name, value));
             return this;
         }
@@ -644,7 +654,7 @@ public interface HttpFields extends Iterable<HttpField>
 
         public Mutable add(HttpField field)
         {
-            if (field != null)
+            if (!_readOnly && field != null)
             {
                 if (_size == _fields.length)
                     _fields = Arrays.copyOf(_fields, _size * 2);
@@ -655,6 +665,9 @@ public interface HttpFields extends Iterable<HttpField>
 
         public Mutable add(HttpFields fields)
         {
+            if (_readOnly)
+                return this;
+
             if (_fields == null)
                 _fields = new HttpField[fields.size() + 4];
             else if (_size + fields.size() >= _fields.length)
@@ -693,6 +706,9 @@ public interface HttpFields extends Iterable<HttpField>
          */
         public Mutable addCSV(HttpHeader header, String... values)
         {
+            if (_readOnly)
+                return this;
+
             QuotedCSV existing = null;
             for (HttpField f : this)
             {
@@ -719,6 +735,8 @@ public interface HttpFields extends Iterable<HttpField>
          */
         public Mutable addCSV(String name, String... values)
         {
+            if (_readOnly)
+                return this;
             QuotedCSV existing = null;
             for (HttpField f : this)
             {
@@ -754,9 +772,17 @@ public interface HttpFields extends Iterable<HttpField>
             return new Immutable(Arrays.copyOf(_fields, _size));
         }
 
+        @Override
+        public HttpFields toReadOnly()
+        {
+            _readOnly = true;
+            return this;
+        }
+
         public Mutable clear()
         {
-            _size = 0;
+            if (!_readOnly)
+                _size = 0;
             return this;
         }
 
@@ -770,6 +796,9 @@ public interface HttpFields extends Iterable<HttpField>
          */
         public void ensureField(HttpField field)
         {
+            if (_readOnly)
+                return;
+
             // Is the field value multi valued?
             if (field.getValue().indexOf(',') < 0)
             {
@@ -969,7 +998,7 @@ public interface HttpFields extends Iterable<HttpField>
                 @Override
                 public void remove()
                 {
-                    if (_size == 0)
+                    if (_size == 0 || _readOnly)
                         throw new IllegalStateException();
                     Mutable.this.remove(--_index);
                 }
@@ -1418,7 +1447,7 @@ public interface HttpFields extends Iterable<HttpField>
             @Override
             public void remove()
             {
-                if (_current < 0)
+                if (_current < 0 || _readOnly)
                     throw new IllegalStateException();
                 Mutable.this.remove(_current);
                 _cursor = _current;
@@ -1428,7 +1457,7 @@ public interface HttpFields extends Iterable<HttpField>
             @Override
             public void set(HttpField field)
             {
-                if (_current < 0)
+                if (_current < 0 || _readOnly)
                     throw new IllegalStateException();
                 if (field == null)
                     remove();

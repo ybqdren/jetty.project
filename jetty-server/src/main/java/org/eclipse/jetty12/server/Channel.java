@@ -362,11 +362,14 @@ public class Channel extends AttributesMap
 
     private class ChannelResponse implements Response
     {
+        // TODO are all these atomics worth while?
+        //      Multiple atomics are rarely race-free (eg _onCommit COMMITTED, but _headers not yet Immutable)
+        //      Would we be better to synchronise??
+        //      Or maybe just not be thread safe?
         private final AtomicReference<BiConsumer<Request, Response>> _onCommit = new AtomicReference<>(UNCOMMITTED);
+        private final HttpFields.Mutable _headers = HttpFields.build(); // TODO init
+        private final AtomicReference<HttpFields> _trailers = new AtomicReference<>();
         private int _status;
-        private HttpFields.Immutable _committed;
-        private HttpFields.Mutable _headers;
-        private HttpFields.Mutable _trailers;
 
         @Override
         public int getStatus()
@@ -377,7 +380,8 @@ public class Channel extends AttributesMap
         @Override
         public void setStatus(int code)
         {
-            _status = code;
+            if (!isCommitted())
+                _status = code;
         }
 
         @Override
@@ -389,20 +393,31 @@ public class Channel extends AttributesMap
         @Override
         public HttpFields.Mutable getTrailers()
         {
-            if (_trailers == null)
-                _trailers = HttpFields.build();
-            return _trailers;
+            HttpFields trailers = _trailers.updateAndGet(t ->
+            {
+                // TODO check if trailers allowed in version and transport?
+                if (t == null)
+                    return HttpFields.build();
+                return t;
+            });
+
+            if (trailers instanceof HttpFields.Mutable)
+                return (HttpFields.Mutable)trailers;
+            return null;
+        }
+
+        private HttpFields takeTrailers()
+        {
+            HttpFields trailers = _trailers.get();
+            if (trailers != null)
+                trailers.toReadOnly();
+            return trailers;
         }
 
         @Override
         public void write(boolean last, Callback callback, ByteBuffer... content)
         {
             _request.stream().send(commitResponse(), last, callback, content);
-        }
-
-        private HttpFields takeTrailers()
-        {
-            return _trailers == null ? null : _trailers.asImmutable();
         }
 
         @Override
@@ -441,8 +456,10 @@ public class Channel extends AttributesMap
         {
             if (isCommitted())
                 throw new IllegalStateException("Committed");
-            // TODO re-add or don't delete default fields
-            _headers.clear();
+            _headers.clear(); // TODO re-add or don't delete default fields
+            HttpFields trailers = _trailers.get();
+            if (trailers instanceof HttpFields.Mutable)
+                ((HttpFields.Mutable)trailers).clear();
             _status = 0;
         }
 
@@ -459,7 +476,7 @@ public class Channel extends AttributesMap
                 _request._metaData.getHttpVersion(),
                 _status,
                 null,
-                _headers.asImmutable(),
+                _headers.toReadOnly(),
                 -1,
                 _response::takeTrailers);
         }

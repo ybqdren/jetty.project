@@ -29,6 +29,8 @@ public interface Response
 
     void setStatus(int code);
 
+    // TODO do we need getHeaders and getMutableHeaders? or just a way to switch a Mutable HttpFields to be Immutable?
+
     HttpFields.Mutable getHeaders();
 
     HttpFields.Mutable getTrailers();
