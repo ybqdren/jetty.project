@@ -24,7 +24,7 @@ import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
-public class GzipHandler extends Handler.Wrapper<Request>
+public class GzipHandler extends Handler.Nested
 {
     private static final HttpField ACCEPT_GZIP = new HttpField(HttpHeader.ACCEPT, "gzip");
     private static final HttpField CONTENT_ENCODING_GZIP = new HttpField(HttpHeader.CONTENT_ENCODING, "gzip");

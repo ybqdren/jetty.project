@@ -18,15 +18,19 @@ import java.nio.ByteBuffer;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty12.server.Handler;
+import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.Stream;
 
-public class SessionHandler extends Handler.Wrapper<ServletScopedRequest>
+public class SessionHandler extends Handler.Nested
 {
     @Override
-    public boolean handle(ServletScopedRequest request, Response response)
+    public boolean handle(Request request, Response response)
     {
-        ServletScopedRequest.MutableHttpServletRequest servletRequest = request.getMutableHttpServletRequest();
+        ServletScopedRequest.MutableHttpServletRequest servletRequest =
+            request.get(ServletScopedRequest.class, ServletScopedRequest::getMutableHttpServletRequest);
+        if (servletRequest == null)
+            return false;
 
         // TODO servletRequest can be mutable, so we can add session stuff to it
         servletRequest.setSessionManager(this);

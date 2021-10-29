@@ -25,6 +25,8 @@ import org.eclipse.jetty.util.Callback;
  */
 public interface Response
 {
+    Request getRequest();
+
     int getStatus();
 
     void setStatus(int code);
@@ -50,6 +52,10 @@ public interface Response
         return null;
     }
 
+    Response getWrapper();
+
+    void setWrapper(Response response);
+
     class Wrapper implements Response
     {
         private final Response _wrapped;
@@ -57,6 +63,7 @@ public interface Response
         public Wrapper(Response wrapped)
         {
             _wrapped = wrapped;
+            _wrapped.setWrapper(this);
         }
 
         @Override
@@ -117,6 +124,24 @@ public interface Response
         public Response getWrapped()
         {
             return _wrapped.getWrapped();
+        }
+
+        @Override
+        public Request getRequest()
+        {
+            return _wrapped.getRequest();
+        }
+
+        @Override
+        public Response getWrapper()
+        {
+            return _wrapped.getWrapper();
+        }
+
+        @Override
+        public void setWrapper(Response response)
+        {
+            _wrapped.setWrapper(response);
         }
     }
 }

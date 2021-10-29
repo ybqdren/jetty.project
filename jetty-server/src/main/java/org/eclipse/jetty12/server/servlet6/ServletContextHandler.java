@@ -18,7 +18,7 @@ import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.handler.ContextHandler;
 
-public class ServletContextHandler extends ContextHandler<ServletScopedRequest>
+public class ServletContextHandler extends ContextHandler
 {
     private ServletHandler _servletHandler;
     private ServletContextContext _servletContextContext;

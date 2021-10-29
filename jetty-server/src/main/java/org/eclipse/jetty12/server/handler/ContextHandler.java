@@ -19,7 +19,7 @@ import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
-public class ContextHandler<R extends ScopedRequest> extends Handler.Nested<Request, R>
+public class ContextHandler extends Handler.Nested
 {
     private static final ThreadLocal<Context> __context = new ThreadLocal<>();
     private Context _context;
@@ -52,7 +52,7 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Nested<Requ
     @Override
     public boolean handle(Request request, Response response)
     {
-        Handler<R> next = getNext();
+        Handler next = getNext();
         if (next == null)
             return false;
 
@@ -60,7 +60,7 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Nested<Requ
         if (pathInContext == null)
             return false;
 
-        R scoped = wrap(request, response, pathInContext);
+        ScopedRequest scoped = wrap(request, response, pathInContext);
         if (scoped == null)
             return false; // TODO 404? 500? Error dispatch ???
 
@@ -69,9 +69,9 @@ public class ContextHandler<R extends ScopedRequest> extends Handler.Nested<Requ
         return true;
     }
 
-    protected R wrap(Request request, Response response, String pathInContext)
+    protected ScopedRequest wrap(Request request, Response response, String pathInContext)
     {
-        return (R)new ScopedRequest(_context, request, pathInContext);
+        return new ScopedRequest(_context, request, pathInContext);
     }
 
     public interface Context

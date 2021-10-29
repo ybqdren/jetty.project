@@ -59,7 +59,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
     final ServletRequestState _servletRequestState;
     final MutableHttpServletRequest _httpServletRequest;
-    final HttpServletResponse _httpServletResponse;
+    final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
     ReadListener _readListener;
 
@@ -150,6 +150,16 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
     public class MutableHttpServletRequest implements HttpServletRequest
     {
         private AsyncContextState _async;
+
+        public HttpServletResponse getHttpServletResponse()
+        {
+            return _httpServletResponse;
+        }
+
+        public MutableHttpServletResponse getMutableHttpServletResponse()
+        {
+            return _httpServletResponse;
+        }
 
         public void setSessionManager(SessionHandler sessionHandler)
         {

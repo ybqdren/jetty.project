@@ -51,7 +51,7 @@ public class Channel extends AttributesMap
         _connectionMetaData = connectionMetaData;
     }
 
-    public Handler<Request> getServer()
+    public Handler getServer()
     {
         return _server;
     }
@@ -213,7 +213,7 @@ public class Channel extends AttributesMap
         }
     }
 
-    private class ChannelRequest extends AttributesMap implements Request.Base
+    private class ChannelRequest extends AttributesMap implements Request
     {
         private final MetaData.Request _metaData;
         private final AtomicReference<Runnable> _onContent = new AtomicReference<>();
@@ -229,6 +229,8 @@ public class Channel extends AttributesMap
         @Override
         public void setWrapper(Request wrapper)
         {
+            if (_wrapper != null && wrapper.getWrapped() != _wrapper)
+                throw new IllegalStateException("B B B Bad rapping!");
             _wrapper = wrapper;
         }
 
@@ -274,6 +276,12 @@ public class Channel extends AttributesMap
         public HttpURI getURI()
         {
             return _metaData.getURI();
+        }
+
+        @Override
+        public String getPath()
+        {
+            return _metaData.getURI().getPath();
         }
 
         @Override
@@ -369,7 +377,29 @@ public class Channel extends AttributesMap
         private final AtomicReference<BiConsumer<Request, Response>> _onCommit = new AtomicReference<>(UNCOMMITTED);
         private final HttpFields.Mutable _headers = HttpFields.build(); // TODO init
         private final AtomicReference<HttpFields> _trailers = new AtomicReference<>();
+        private final ChannelRequest _request = Channel.this._request;
+        private Response _wrapper;
         private int _status;
+
+        @Override
+        public Request getRequest()
+        {
+            return _request.getWrapper();
+        }
+
+        @Override
+        public Response getWrapper()
+        {
+            return _wrapper;
+        }
+
+        @Override
+        public void setWrapper(Response wrapper)
+        {
+            if (_wrapper != null && wrapper.getWrapped() != _wrapper)
+                throw new IllegalStateException("Bbb b bad rapping!");
+            _wrapper = wrapper;
+        }
 
         @Override
         public int getStatus()

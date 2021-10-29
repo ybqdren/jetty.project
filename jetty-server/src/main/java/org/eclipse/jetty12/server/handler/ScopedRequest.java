@@ -33,7 +33,7 @@ public class ScopedRequest extends Request.Wrapper
         return _context;
     }
 
-    public String getPathInContext()
+    public String getPath()
     {
         return _pathInContext;
     }

@@ -19,7 +19,7 @@ import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
-public class RewriteHandler extends Handler.Wrapper<Request>
+public class RewriteHandler extends Handler.Nested
 {
     @Override
     public boolean handle(Request request, Response response)

@@ -19,36 +19,33 @@ import org.eclipse.jetty.util.component.ContainerLifeCycle;
  * The handler API is now asynchronous. If it returns true, then some handler has taken
  * responsibility for calling request succeeded
  */
-public interface Handler<R extends Request>
+public interface Handler
 {
-    boolean handle(R request, Response response);
+    boolean handle(Request request, Response response);
 
-    abstract class Abstract<R extends Request> extends ContainerLifeCycle implements Handler<R>
+    abstract class Abstract extends ContainerLifeCycle implements Handler
     {
     }
 
-    abstract class Nested<R extends Request, N extends Request> extends Abstract<R>
+    class Nested extends Abstract
     {
-        private Handler<N> _next;
+        private Handler _next;
 
-        public Handler<N> getNext()
+        public Handler getNext()
         {
             return _next;
         }
 
-        public void setNext(Handler<N> next)
+        public void setNext(Handler next)
         {
             updateBean(_next, next);
             _next = next;
         }
-    }
 
-    class Wrapper<R extends Request> extends Nested<R, R>
-    {
         @Override
-        public boolean handle(R request, Response response)
+        public boolean handle(Request request, Response response)
         {
-            Handler<R> next = getNext();
+            Handler next = getNext();
             return next != null && next.handle(request, response);
         }
     }
