@@ -16,6 +16,7 @@ package org.eclipse.jetty12.server.servlet6;
 import java.nio.ByteBuffer;
 
 import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.server.session.Session;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Response;
@@ -31,6 +32,11 @@ public class SessionHandler extends Handler.Wrapper<ServletScopedRequest>
         // TODO servletRequest can be mutable, so we can add session stuff to it
         servletRequest.setSessionManager(this);
         servletRequest.setSession(null);
+        
+        checkRequestedSessionId(servletRequest);
+        HttpSession existingSession = request.getSession(false);
+        baseRequest.setSessionHandler(this);
+        baseRequest.setSession(existingSession); //can be null
 
         request.getChannel().onStreamEvent(s ->
             new Stream.Wrapper(s)
@@ -40,22 +46,37 @@ public class SessionHandler extends Handler.Wrapper<ServletScopedRequest>
                 {
                     if (response != null)
                     {
-                        // commit session to data store
+                        // Write out session
+						/*
+						 * Session session = response.getRequest().getSession();
+						 * if (session != null)
+						 * session.getSessionHandler().commit(session);
+						 */
                     }
+                    super.send(response, last, callback, content);
                 }
 
                 @Override
                 public void succeeded()
                 {
                     super.succeeded();
-                    // exit session
+                    // Leave session
+					/*
+					 * Session session = request.getSession(); if (session != null)
+					 * session.getSessionHandler().complete(session);
+					 */
+                    	
                 }
 
                 @Override
                 public void failed(Throwable x)
                 {
                     super.failed(x);
-                    // exit session
+                    //Leave session
+					/*
+					 * Session session = request.getSession(); if (session != null)
+					 * session.getSessionHandler().complete(session);
+					 */
                 }
             });
 

@@ -15,7 +15,6 @@ package org.eclipse.jetty.server;
 
 import java.util.Set;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.jetty.server.session.HouseKeeper;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.util.component.LifeCycle;
@@ -55,7 +54,7 @@ public interface SessionIdManager extends LifeCycle
      * @param created the timestamp for when the session was created
      * @return the new session id
      */
-    public String newSessionId(HttpServletRequest request, long created);
+    public String newSessionId(Request request, long created);
 
     /**
      * @return the unique name of this server instance
@@ -81,7 +80,7 @@ public interface SessionIdManager extends LifeCycle
      * @param request The request that for the session (or null)
      * @return The session id qualified with the worker name
      */
-    public String getExtendedId(String id, HttpServletRequest request);
+    public String getExtendedId(String id, Request request);
 
     /**
      * Change the existing session id.
@@ -91,7 +90,7 @@ public interface SessionIdManager extends LifeCycle
      * @param request the request containing the session
      * @return the new session id
      */
-    public String renewSessionId(String oldId, String oldExtendedId, HttpServletRequest request);
+    public String renewSessionId(String oldId, String oldExtendedId, Request request);
 
     /**
      * Get the set of all session handlers for this node

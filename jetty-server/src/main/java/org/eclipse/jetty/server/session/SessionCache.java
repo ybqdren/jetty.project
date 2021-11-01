@@ -15,7 +15,6 @@ package org.eclipse.jetty.server.session;
 
 import java.util.Set;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.jetty.util.component.LifeCycle;
 
 /**

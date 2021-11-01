@@ -18,6 +18,7 @@ module org.eclipse.jetty.security.jaspi
 
     requires transitive jakarta.security.auth.message;
     requires transitive org.eclipse.jetty.security;
+	requires org.eclipse.jetty.server;
 
     exports org.eclipse.jetty.security.jaspi;
     exports org.eclipse.jetty.security.jaspi.callback;

@@ -107,7 +107,7 @@ public abstract class LoginAuthenticator implements Authenticator
      * @param response the response
      * @return The new session.
      */
-    protected HttpSession renewSession(HttpServletRequest request, HttpServletResponse response)
+    protected HttpSession renewSession(Request request, Response response)
     {
         HttpSession httpSession = request.getSession(false);
 
@@ -125,7 +125,7 @@ public abstract class LoginAuthenticator implements Authenticator
                         String oldId = s.getId();
                         s.renewId(request);
                         s.setAttribute(Session.SESSION_CREATED_SECURE, Boolean.TRUE);
-                        if (s.isIdChanged() && (response instanceof Response))
+                        if (s.isIdChanged())
                             ((Response)response).replaceCookie(s.getSessionHandler().getSessionCookie(s, request.getContextPath(), request.isSecure()));
                         if (LOG.isDebugEnabled())
                             LOG.debug("renew {}->{}", oldId, s.getId());

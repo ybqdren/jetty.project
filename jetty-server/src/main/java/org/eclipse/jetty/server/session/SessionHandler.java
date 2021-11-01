@@ -716,7 +716,7 @@ public class SessionHandler extends ScopedHandler
      * @param request the HttpServletRequest containing the requested session id
      * @return the new <code>HttpSession</code>
      */
-    public HttpSession newHttpSession(HttpServletRequest request)
+    public HttpSession newHttpSession(Request request)
     {
         long created = System.currentTimeMillis();
         String id = _sessionIdManager.newSessionId(request, created);

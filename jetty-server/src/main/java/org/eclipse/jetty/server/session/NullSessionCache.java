@@ -52,12 +52,6 @@ public class NullSessionCache extends AbstractSessionCache
     }
 
     @Override
-    public Session newSession(HttpServletRequest request, SessionData data)
-    {
-        return new Session(getSessionHandler(), request, data);
-    }
-
-    @Override
     public Session doGet(String id)
     {
         //do not cache anything

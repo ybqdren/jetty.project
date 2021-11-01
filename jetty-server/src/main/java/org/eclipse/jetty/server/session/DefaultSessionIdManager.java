@@ -19,8 +19,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SessionIdManager;
 import org.eclipse.jetty.util.StringUtil;
@@ -191,7 +191,7 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
      * Create a new session id if necessary.
      */
     @Override
-    public String newSessionId(HttpServletRequest request, long created)
+    public String newSessionId(Request request, long created)
     {
         if (request == null)
             return newSessionId(created);
@@ -377,7 +377,7 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
      * @return sessionId plus any worker ID.
      */
     @Override
-    public String getExtendedId(String clusterId, HttpServletRequest request)
+    public String getExtendedId(String clusterId, Request request)
     {
         if (!StringUtil.isBlank(_workerName))
         {
@@ -438,7 +438,7 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
      * all SessionManagers.
      */
     @Override
-    public String renewSessionId(String oldClusterId, String oldNodeId, HttpServletRequest request)
+    public String renewSessionId(String oldClusterId, String oldNodeId, Request request)
     {
         //generate a new id
         String newClusterId = newSessionId(request.hashCode());

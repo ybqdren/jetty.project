@@ -149,10 +149,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     public class MutableHttpServletRequest implements HttpServletRequest
     {
-        private AsyncContextState _async;
 
-        public void setSessionManager(SessionHandler sessionHandler)
-        {
             // TODO
         }
 

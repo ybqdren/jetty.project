@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.server.session;
 
-
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -22,12 +21,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 
 import jakarta.servlet.ServletContext;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSessionActivationListener;
 import jakarta.servlet.http.HttpSessionBindingEvent;
 import jakarta.servlet.http.HttpSessionBindingListener;
 import jakarta.servlet.http.HttpSessionEvent;
 import org.eclipse.jetty.io.CyclicTimeout;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -698,7 +697,7 @@ public class Session implements SessionHandler.SessionIf
      *
      * @param request the Request associated with the call to change id.
      */
-    public void renewId(HttpServletRequest request)
+    public void renewId(Request request)
     {
         if (_handler == null)
             throw new IllegalStateException("No session manager for session " + _sessionData.getId());

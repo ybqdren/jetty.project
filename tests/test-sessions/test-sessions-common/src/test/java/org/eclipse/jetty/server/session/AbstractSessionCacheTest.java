@@ -515,7 +515,7 @@ public abstract class AbstractSessionCacheTest
         assertFalse(cache.contains("1234"));
 
         //test remove of session in both store and cache
-        session = cache.newSession(null, "1234", now - 20, TimeUnit.MINUTES.toMillis(10)); //saveOnCreate ensures write to store
+        session = cache.newSession("1234", now - 20, TimeUnit.MINUTES.toMillis(10)); //saveOnCreate ensures write to store
         cache.add("1234", session);
         assertTrue(store.exists("1234"));
         assertTrue(cache.contains("1234"));
@@ -592,7 +592,7 @@ public abstract class AbstractSessionCacheTest
         context.start();
 
         long now = System.currentTimeMillis();
-        cache.newSession(null, "1234", now, TimeUnit.MINUTES.toMillis(10));
+        cache.newSession("1234", now, TimeUnit.MINUTES.toMillis(10));
         assertTrue(store.exists("1234"));
     }
 
@@ -615,7 +615,7 @@ public abstract class AbstractSessionCacheTest
         context.start();
 
         long now = System.currentTimeMillis();
-        cache.newSession(null, "1234", now, TimeUnit.MINUTES.toMillis(10));
+        cache.newSession("1234", now, TimeUnit.MINUTES.toMillis(10));
         assertFalse(store.exists("1234"));
     }
     
