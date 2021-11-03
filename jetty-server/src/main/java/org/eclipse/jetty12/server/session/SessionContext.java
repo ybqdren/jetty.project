@@ -16,6 +16,7 @@ package org.eclipse.jetty12.server.session;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandler.Context;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty12.server.SessionManager;
 
 /**
  * SessionContext
@@ -29,7 +30,7 @@ public class SessionContext
 {
     public static final String NULL_VHOST = "0.0.0.0";
     private ContextHandler.Context _context;
-    private SessionManager _sessionHandler;
+    private SessionManager _sessionManager;
     private String _workerName;
     private String _canonicalContextPath;
     private String _vhost;
@@ -37,7 +38,7 @@ public class SessionContext
     public SessionContext(String workerName, ContextHandler.Context context)
     {
         if (context != null)
-            _sessionHandler = context.getContextHandler().getChildHandlerByClass(SessionManager.class);
+            _sessionManager = context.getContextHandler().getBean(SessionManager.class);
         _workerName = workerName;
         _context = context;
         _canonicalContextPath = canonicalizeContextPath(_context);
@@ -49,9 +50,9 @@ public class SessionContext
         return _workerName;
     }
 
-    public SessionManager getSessionHandler()
+    public SessionManager getSessionManager()
     {
-        return _sessionHandler;
+        return _sessionManager;
     }
 
     public Context getContext()

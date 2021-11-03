@@ -16,6 +16,7 @@ package org.eclipse.jetty12.server.session;
 import java.util.Set;
 
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty12.server.SessionManager;
 
 /**
  * SessionCache
@@ -58,7 +59,7 @@ public interface SessionCache extends LifeCycle
 
     void shutdown();
 
-    SessionManager getSessionHandler();
+    SessionManager getSessionManager();
 
     /**
      * Create an entirely new Session.

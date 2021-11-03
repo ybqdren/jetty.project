@@ -13,6 +13,8 @@
 
 package org.eclipse.jetty12.server.session;
 
+import org.eclipse.jetty12.server.SessionManager;
+
 /**
  * NullSessionDataStoreFactory
  */
@@ -20,7 +22,7 @@ public class NullSessionDataStoreFactory extends AbstractSessionDataStoreFactory
 {
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionManager handler) throws Exception
+    public SessionDataStore getSessionDataStore(SessionManager manager) throws Exception
     {
         return new NullSessionDataStore();
     }

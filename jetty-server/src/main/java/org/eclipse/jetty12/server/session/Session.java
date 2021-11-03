@@ -26,8 +26,8 @@ import jakarta.servlet.http.HttpSessionBindingEvent;
 import jakarta.servlet.http.HttpSessionBindingListener;
 import jakarta.servlet.http.HttpSessionEvent;
 import org.eclipse.jetty.io.CyclicTimeout;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.thread.AutoLock;
+import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +109,7 @@ public class Session
 
         public SessionInactivityTimer()
         {
-            _timer = new CyclicTimeout((getSessionHandler().getScheduler()))
+            _timer = new CyclicTimeout((getSessionManager().getScheduler()))
             {
                 @Override
                 public void onTimeoutExpired()
@@ -118,7 +118,7 @@ public class Session
                         LOG.debug("Timer expired for session {}", getId());
                     long now = System.currentTimeMillis();
                     //handle what to do with the session after the timer expired
-                    getSessionHandler().sessionInactivityTimerExpired(Session.this, now);
+                    getSessionManager().sessionInactivityTimerExpired(Session.this, now);
                     try (AutoLock l = Session.this.lock())
                     {
                         //grab the lock and check what happened to the session: if it didn't get evicted and
@@ -322,42 +322,15 @@ public class Session
         if (newValue == null || !newValue.equals(oldValue))
         {
             if (oldValue != null)
-                unbindValue(name, oldValue);
+                _manager.callUnboundBindingListener(this, name, oldValue);
             if (newValue != null)
-                bindValue(name, newValue);
+                _manager.callBoundBindingListener(this, name, newValue);
 
             if (_manager == null)
                 throw new IllegalStateException("No session manager for session " + _sessionData.getId());
 
             _manager.callSessionAttributeListeners(this, name, oldValue, newValue);
         }
-    }
-
-    /**
-     * Unbind value if value implements {@link HttpSessionBindingListener}
-     * (calls
-     * {@link HttpSessionBindingListener#valueUnbound(HttpSessionBindingEvent)})
-     *
-     * @param name the name with which the object is bound or unbound
-     * @param value the bound value
-     */
-    public void unbindValue(java.lang.String name, Object value)
-    {
-        if (value instanceof HttpSessionBindingListener)
-            ((HttpSessionBindingListener)value).valueUnbound(new HttpSessionBindingEvent(this, name));
-    }
-
-    /**
-     * Bind value if value implements {@link HttpSessionBindingListener} (calls
-     * {@link HttpSessionBindingListener#valueBound(HttpSessionBindingEvent)})
-     *
-     * @param name the name with which the object is bound or unbound
-     * @param value the bound value
-     */
-    public void bindValue(java.lang.String name, Object value)
-    {
-        if (value instanceof HttpSessionBindingListener)
-            ((HttpSessionBindingListener)value).valueBound(new HttpSessionBindingEvent(this, name));
     }
 
     /**
@@ -375,15 +348,11 @@ public class Session
         
         try 
         {
-            HttpSessionEvent event = new HttpSessionEvent(this);
             for (String name : _sessionData.getKeys())
             {
                 Object value = _sessionData.getAttribute(name);
-                if (value instanceof HttpSessionActivationListener)
-                {
-                    HttpSessionActivationListener listener = (HttpSessionActivationListener)value;
-                    listener.sessionDidActivate(event);
-                }
+                
+                _manager.callSessionActivationListener(this, name, value);
             }
         }
         finally
@@ -397,15 +366,10 @@ public class Session
      */
     public void willPassivate()
     {
-        HttpSessionEvent event = new HttpSessionEvent(this);
         for (String name : _sessionData.getKeys())
         {
             Object value = _sessionData.getAttribute(name);
-            if (value instanceof HttpSessionActivationListener)
-            {
-                HttpSessionActivationListener listener = (HttpSessionActivationListener)value;
-                listener.sessionWillPassivate(event);
-            }
+            _manager.callSessionPassivationListener(this, name, value);
         }
     }
 
@@ -433,7 +397,6 @@ public class Session
         }
     }
 
-    @Override
     public long getCreationTime() throws IllegalStateException
     {
         try (AutoLock l = _lock.lock())
@@ -443,7 +406,6 @@ public class Session
         }
     }
 
-    @Override
     public String getId()
     {
         try (AutoLock l = _lock.lock())
@@ -467,7 +429,6 @@ public class Session
         return _sessionData.getVhost();
     }
 
-    @Override
     public long getLastAccessedTime()
     {
         try (AutoLock l = _lock.lock())
@@ -477,7 +438,6 @@ public class Session
         }
     }
 
-    @Override
     public ServletContext getServletContext()
     {
         if (_manager == null)
@@ -485,7 +445,6 @@ public class Session
         return _manager._context;
     }
 
-    @Override
     public void setMaxInactiveInterval(int secs)
     {
         try (AutoLock l = _lock.lock())
@@ -523,59 +482,8 @@ public class Session
 
         try (AutoLock l = _lock.lock())
         {
-            long remaining = _sessionData.getExpiry() - now;
-            long maxInactive = _sessionData.getMaxInactiveMs();
-            int evictionPolicy = getSessionHandler().getSessionCache().getEvictionPolicy();
-
-            if (maxInactive <= 0)
-            {
-                // sessions are immortal, they never expire
-                if (evictionPolicy < SessionCache.EVICT_ON_INACTIVITY)
-                {
-                    // we do not want to evict inactive sessions
-                    time = -1;
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Session {} is immortal && no inactivity eviction", getId());
-                }
-                else
-                {
-                    // sessions are immortal but we want to evict after
-                    // inactivity
-                    time = TimeUnit.SECONDS.toMillis(evictionPolicy);
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Session {} is immortal; evict after {} sec inactivity", getId(), evictionPolicy);
-                }
-            }
-            else
-            {
-                // sessions are not immortal
-                if (evictionPolicy == SessionCache.NEVER_EVICT)
-                {
-                    // timeout is the time remaining until its expiry
-                    time = (remaining > 0 ? remaining : 0);
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Session {} no eviction", getId());
-                }
-                else if (evictionPolicy == SessionCache.EVICT_ON_SESSION_EXIT)
-                {
-                    // session will not remain in the cache, so no timeout
-                    time = -1;
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Session {} evict on exit", getId());
-                }
-                else
-                {
-                    // want to evict on idle: timer is lesser of the session's
-                    // expiration remaining and the time to evict
-                    time = (remaining > 0 ? (Math.min(maxInactive, TimeUnit.SECONDS.toMillis(evictionPolicy))) : 0);
-
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Session {} timer set to lesser of maxInactive={} and inactivityEvict={}", getId(),
-                            maxInactive, evictionPolicy);
-                }
-            }
+            time = getSessionManager().calculateInactivityTimeout(getId(), _sessionData.getExpiry() - now, _sessionData.getMaxInactiveMs());
         }
-
         return time;
     }
 
@@ -638,7 +546,6 @@ public class Session
             throw new IllegalStateException("Invalid for read: id=" + _sessionData.getId() + " not resident");
     }
 
-    @Override
     public Object getAttribute(String name)
     {
         try (AutoLock l = _lock.lock())
@@ -648,7 +555,6 @@ public class Session
         }
     }
 
-    @Override
     public Enumeration<String> getAttributeNames()
     {
         try (AutoLock l = _lock.lock())
@@ -683,7 +589,6 @@ public class Session
         return Collections.unmodifiableSet(_sessionData.getKeys());
     }
 
-    @Override
     public void setAttribute(String name, Object value)
     {
         Object old = null;
@@ -699,7 +604,6 @@ public class Session
         callSessionAttributeListeners(name, value, old);
     }
 
-    @Override
     public void removeAttribute(String name)
     {
         setAttribute(name, null);
@@ -751,7 +655,7 @@ public class Session
             extendedId = getExtendedId();
         }
 
-        String newId = _manager._sessionIdManager.renewSessionId(id, extendedId, request);
+        String newId = _manager.getSessionIdManager().renewSessionId(id, extendedId, request);
 
         try (AutoLock l = _lock.lock())
         {
@@ -767,7 +671,7 @@ public class Session
                     // call to renew, so this
                     // Session object will not have been modified.
                     _sessionData.setId(newId);
-                    setExtendedId(_manager._sessionIdManager.getExtendedId(newId, request));
+                    setExtendedId(_manager.getSessionIdManager().getExtendedId(newId, request));
                     setIdChanged(true);
 
                     _state = State.VALID;
@@ -788,10 +692,8 @@ public class Session
      * Called by users to invalidate a session, or called by the access method
      * as a request enters the session if the session has expired, or called by
      * manager as a result of scavenger expiring session
-     *
-     * @see jakarta.servlet.http.HttpSession#invalidate()
      */
-    @Override
+
     public void invalidate()
     {
         if (_manager == null)
@@ -940,7 +842,6 @@ public class Session
         }
     }
 
-    @Override
     public boolean isNew() throws IllegalStateException
     {
         try (AutoLock l = _lock.lock())
@@ -966,14 +867,7 @@ public class Session
         }
     }
 
-    @Override
-    public Session getSession()
-    {
-        // TODO why is this used
-        return this;
-    }
-
-    protected SessionData getSessionData()
+    public SessionData getSessionData()
     {
         return _sessionData;
     }

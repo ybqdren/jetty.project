@@ -42,6 +42,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+
+import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.AsyncContextEvent;
@@ -150,6 +152,10 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     public class MutableHttpServletRequest implements HttpServletRequest
     {
+        private SessionHandler _sessionHandler;
+        private HttpSession _httpSession;
+        private Session _session;
+        
         public HttpServletResponse getHttpServletResponse()
         {
             return _httpServletResponse;
@@ -162,29 +168,27 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
         public void setSessionManager(SessionHandler sessionHandler)
         {
-            // TODO
+            _sessionHandler = sessionHandler;
         }
 
-        public void setBaseSession(Session o)
+        public void setBaseSession(Session session)
         {
-            // TODO
+            _session = session;
         }
 
         public Session getBaseSession()
         {
-            // TODO
-            return null;
+            return _session;
         }
         
-        public void setHttpSession(HttpSession s)
+        public void setHttpSession(HttpSession httpSession)
         {
-            //TODO
+            _httpSession = httpSession;
         }
         
         public HttpSession getHttpSession()
         {
-            //TODO
-            return null;
+            return _httpSession;
         }
         
         @Override
@@ -349,7 +353,32 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public HttpSession getSession(boolean create)
         {
-            return null;
+            if (_session != null)
+            {
+                if (_sessionHandler != null && !_sessionHandler.isValid(_session))
+                    _session = null;
+                else
+                    return _session.getWrapper();
+            }
+
+            if (!create)
+                return null;
+
+            if (getResponse().isCommitted())
+                throw new IllegalStateException("Response is committed");
+
+            if (_sessionHandler == null)
+                throw new IllegalStateException("No SessionManager");
+
+            _sessionHandler.newHttpSession(this);
+            if (_session == null)
+                throw new IllegalStateException("Create session failed");
+            
+            HttpCookie cookie = _sessionHandler.getSessionCookie(_session, getContextPath(), isSecure());
+            if (cookie != null)
+                _channel.getResponse().replaceCookie(cookie);
+
+            return _session;
         }
 
         @Override

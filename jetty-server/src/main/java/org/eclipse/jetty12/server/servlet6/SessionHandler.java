@@ -15,6 +15,8 @@ package org.eclipse.jetty12.server.servlet6;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashSet;
@@ -23,23 +25,29 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.SessionCookieConfig;
+import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionActivationListener;
 import jakarta.servlet.http.HttpSessionAttributeListener;
 import jakarta.servlet.http.HttpSessionBindingEvent;
+import jakarta.servlet.http.HttpSessionBindingListener;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
-
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty.util.annotation.ManagedAttribute;
+import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.eclipse.jetty.util.thread.Scheduler;
 import org.eclipse.jetty12.server.Handler;
@@ -66,7 +74,80 @@ import org.slf4j.LoggerFactory;
 public class SessionHandler extends Handler.Nested implements SessionManager
 {    
     private static final Logger LOG = LoggerFactory.getLogger(SessionHandler.class);
+
+    public static final EnumSet<SessionTrackingMode> DEFAULT_TRACKING = EnumSet.of(SessionTrackingMode.COOKIE,
+        SessionTrackingMode.URL);
+
+    /**
+     * Session cookie name.
+     * Defaults to <code>JSESSIONID</code>, but can be set with the
+     * <code>org.eclipse.jetty.servlet.SessionCookie</code> context init parameter.
+     */
+    public static final String __SessionCookieProperty = "org.eclipse.jetty.servlet.SessionCookie";
+    public static final String __DefaultSessionCookie = "JSESSIONID";
+
+    /**
+     * Session id path parameter name.
+     * Defaults to <code>jsessionid</code>, but can be set with the
+     * <code>org.eclipse.jetty.servlet.SessionIdPathParameterName</code> context init parameter.
+     * If context init param is "none", or setSessionIdPathParameterName is called with null or "none",
+     * no URL rewriting will be done.
+     */
+    public static final String __SessionIdPathParameterNameProperty = "org.eclipse.jetty.servlet.SessionIdPathParameterName";
+    public static final String __DefaultSessionIdPathParameterName = "jsessionid";
+    public static final String __CheckRemoteSessionEncoding = "org.eclipse.jetty.servlet.CheckingRemoteSessionIdEncoding";
+
+    /**
+     * Session Domain.
+     * If this property is set as a ServletContext InitParam, then it is
+     * used as the domain for session cookies. If it is not set, then
+     * no domain is specified for the session cookie.
+     */
+    public static final String __SessionDomainProperty = "org.eclipse.jetty.servlet.SessionDomain";
+    public static final String __DefaultSessionDomain = null;
+
+    /**
+     * Session Path.
+     * If this property is set as a ServletContext InitParam, then it is
+     * used as the path for the session cookie.  If it is not set, then
+     * the context path is used as the path for the cookie.
+     */
+    public static final String __SessionPathProperty = "org.eclipse.jetty.servlet.SessionPath";
+
+    /**
+     * Session Max Age.
+     * If this property is set as a ServletContext InitParam, then it is
+     * used as the max age for the session cookie.  If it is not set, then
+     * a max age of -1 is used.
+     */
+    public static final String __MaxAgeProperty = "org.eclipse.jetty.servlet.MaxAge";
+
+    public static final Set<SessionTrackingMode> DEFAULT_SESSION_TRACKING_MODES =
+        Collections.unmodifiableSet(
+            new HashSet<>(
+                Arrays.asList(SessionTrackingMode.COOKIE, SessionTrackingMode.URL)));
+
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends EventListener>[] SESSION_LISTENER_TYPES =
+        new Class[]
+            {
+                HttpSessionAttributeListener.class,
+                HttpSessionIdListener.class,
+                HttpSessionListener.class
+            };
     
+    public static String getSessionCookieName(SessionCookieConfig config)
+    {
+        if (config == null || config.getName() == null)
+            return __DefaultSessionCookie;
+        return config.getName();
+    }
+    
+    /**
+     * Setting of max inactive interval for new sessions
+     * -1 means no timeout
+     */
+    private int _dftMaxIdleSecs = -1;
     private boolean _usingURLs;
     private boolean _usingCookies = true;
     private SessionIdManager _sessionIdManager;
@@ -78,6 +159,135 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     private final List<HttpSessionListener> _sessionListeners = new CopyOnWriteArrayList<>();
     private final List<HttpSessionIdListener> _sessionIdListeners = new CopyOnWriteArrayList<>();
     private Set<String> _candidateSessionIdsForExpiry = ConcurrentHashMap.newKeySet();
+    private Scheduler _scheduler;
+    private boolean _ownScheduler = false;
+    private boolean _httpOnly = false;
+    private String _sessionCookie = __DefaultSessionCookie;
+    private String _sessionIdPathParameterName = __DefaultSessionIdPathParameterName;
+    private String _sessionIdPathParameterNamePrefix = ";" + _sessionIdPathParameterName + "=";
+    private String _sessionDomain;
+    private String _sessionPath;
+    private String _sessionComment;
+    private boolean _secureCookies = false;
+    private boolean _secureRequestOnly = true;
+    private int _maxCookieAge = -1;
+    private int _refreshCookieAge;
+    private boolean _checkingRemoteSessionIdEncoding;
+    private Set<SessionTrackingMode> _sessionTrackingModes;
+    private SessionCookieConfig _cookieConfig = new CookieConfig();
+    
+    /**
+     * CookieConfig
+     *
+     * Implementation of the jakarta.servlet.SessionCookieConfig.
+     * SameSite configuration can be achieved by using setComment
+     *
+     * @see HttpCookie
+     */
+    public final class CookieConfig implements SessionCookieConfig
+    {
+        @Override
+        public String getComment()
+        {
+            return _sessionComment;
+        }
+
+        @Override
+        public String getDomain()
+        {
+            return _sessionDomain;
+        }
+
+        @Override
+        public int getMaxAge()
+        {
+            return _maxCookieAge;
+        }
+
+        @Override
+        public String getName()
+        {
+            return _sessionCookie;
+        }
+
+        @Override
+        public String getPath()
+        {
+            return _sessionPath;
+        }
+
+        @Override
+        public boolean isHttpOnly()
+        {
+            return _httpOnly;
+        }
+
+        @Override
+        public boolean isSecure()
+        {
+            return _secureCookies;
+        }
+
+        @Override
+        public void setComment(String comment)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            _sessionComment = comment;
+        }
+
+        @Override
+        public void setDomain(String domain)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            _sessionDomain = domain;
+        }
+
+        @Override
+        public void setHttpOnly(boolean httpOnly)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            _httpOnly = httpOnly;
+        }
+
+        @Override
+        public void setMaxAge(int maxAge)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            _maxCookieAge = maxAge;
+        }
+
+        @Override
+        public void setName(String name)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            if ("".equals(name))
+                throw new IllegalArgumentException("Blank cookie name");
+            if (name != null)
+                Syntax.requireValidRFC2616Token(name, "Bad Session cookie name");
+            _sessionCookie = name;
+        }
+
+        @Override
+        public void setPath(String path)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            _sessionPath = path;
+        }
+
+        @Override
+        public void setSecure(boolean secure)
+        {
+            if (_context != null && _context.getContextHandler().isAvailable())
+                throw new IllegalStateException("CookieConfig cannot be set after ServletContext is started");
+            _secureCookies = secure;
+        }
+    }
     
     public class ServletAPISession implements HttpSession
     {
@@ -97,7 +307,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         @Override
         public long getCreationTime()
         {
-            _session.getCreationTime();
+            return _session.getCreationTime();
         }
 
         @Override
@@ -115,7 +325,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         @Override
         public ServletContext getServletContext()
         {
-            return _session.getServletContext();
+            return _context;
         }
 
         @Override
@@ -152,6 +362,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         public void removeAttribute(String name)
         {
             _session.removeAttribute(name);
+        }
 
         @Override
         public void invalidate()
@@ -165,36 +376,138 @@ public class SessionHandler extends Handler.Nested implements SessionManager
             return _session.isNew();
         }
     }
-    
-        /**
-         * Adds an event listener for session-related events.
-         *
-         * @param listener the session event listener to add
-         * Individual SessionManagers implementations may accept arbitrary listener types,
-         * but they are expected to at least handle HttpSessionActivationListener,
-         * HttpSessionAttributeListener, HttpSessionBindingListener and HttpSessionListener.
-         * @return true if the listener was added
-         * @see #removeEventListener(EventListener)
-         * @see HttpSessionAttributeListener
-         * @see HttpSessionListener
-         * @see HttpSessionIdListener
-         */
-        @Override
-        public boolean addEventListener(EventListener listener)
+
+    public SessionHandler()
+    {
+        setSessionTrackingModes(DEFAULT_SESSION_TRACKING_MODES);
+    }
+
+    /**
+     * Adds an event listener for session-related events.
+     *
+     * @param listener the session event listener to add
+     * Individual SessionManagers implementations may accept arbitrary listener types,
+     * but they are expected to at least handle HttpSessionActivationListener,
+     * HttpSessionAttributeListener, HttpSessionBindingListener and HttpSessionListener.
+     * @return true if the listener was added
+     * @see #removeEventListener(EventListener)
+     * @see HttpSessionAttributeListener
+     * @see HttpSessionListener
+     * @see HttpSessionIdListener
+     */
+    public boolean addEventListener(EventListener listener)
+    {
+        if (super.addEventListener(listener))
         {
-            if (super.addEventListener(listener))
+            if (listener instanceof HttpSessionAttributeListener)
+                _sessionAttributeListeners.add((HttpSessionAttributeListener)listener);
+            if (listener instanceof HttpSessionListener)
+                _sessionListeners.add((HttpSessionListener)listener);
+            if (listener instanceof HttpSessionIdListener)
+                _sessionIdListeners.add((HttpSessionIdListener)listener);
+            return true;
+        }
+        return false;
+    }    
+
+    @Override
+    public boolean removeEventListener(EventListener listener)
+    {
+        if (super.removeEventListener(listener))
+        {
+            if (listener instanceof HttpSessionAttributeListener)
+                _sessionAttributeListeners.remove(listener);
+            if (listener instanceof HttpSessionListener)
+                _sessionListeners.remove(listener);
+            if (listener instanceof HttpSessionIdListener)
+                _sessionIdListeners.remove(listener);
+            return true;
+        }
+        return false;
+    }
+    
+    public long calculateInactivityTimeout(String id, long timeRemaining, long maxInactiveMs)
+    {
+        long time = 0;
+
+        int evictionPolicy = _sessionCache.getEvictionPolicy();
+        if (maxInactiveMs <= 0)
+        {
+            // sessions are immortal, they never expire
+            if (evictionPolicy < SessionCache.EVICT_ON_INACTIVITY)
             {
-                if (listener instanceof HttpSessionAttributeListener)
-                    _sessionAttributeListeners.add((HttpSessionAttributeListener)listener);
-                if (listener instanceof HttpSessionListener)
-                    _sessionListeners.add((HttpSessionListener)listener);
-                if (listener instanceof HttpSessionIdListener)
-                    _sessionIdListeners.add((HttpSessionIdListener)listener);
-                return true;
+                // we do not want to evict inactive sessions
+                time = -1;
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Session {} is immortal && no inactivity eviction", id);
             }
-            return false;
-        }    
-        
+            else
+            {
+                // sessions are immortal but we want to evict after
+                // inactivity
+                time = TimeUnit.SECONDS.toMillis(evictionPolicy);
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Session {} is immortal; evict after {} sec inactivity", id, evictionPolicy);
+            }
+        }
+        else
+        {
+            // sessions are not immortal
+            if (evictionPolicy == SessionCache.NEVER_EVICT)
+            {
+                // timeout is the time remaining until its expiry
+                time = (timeRemaining > 0 ? timeRemaining : 0);
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Session {} no eviction", id);
+            }
+            else if (evictionPolicy == SessionCache.EVICT_ON_SESSION_EXIT)
+            {
+                // session will not remain in the cache, so no timeout
+                time = -1;
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Session {} evict on exit", id);
+            }
+            else
+            {
+                // want to evict on idle: timer is lesser of the session's
+                // expiration remaining and the time to evict
+                time = (timeRemaining > 0 ? (Math.min(maxInactiveMs, TimeUnit.SECONDS.toMillis(evictionPolicy))) : 0);
+
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Session {} timer set to lesser of maxInactive={} and inactivityEvict={}", id,
+                        maxInactiveMs, evictionPolicy);
+            }
+        }
+
+        return time;
+    }
+    
+    /**
+     * @return the session store
+     */
+    public SessionCache getSessionCache()
+    {
+        return _sessionCache;
+    }
+
+    /**
+     * @param cache the session store to use
+     */
+    public void setSessionCache(SessionCache cache)
+    {
+        updateBean(_sessionCache, cache);
+        _sessionCache = cache;
+    }
+
+    /**
+     * @param metaManager The metaManager used for cross context session management.
+     */
+    public void setSessionIdManager(SessionIdManager metaManager)
+    {
+        updateBean(_sessionIdManager, metaManager);
+        _sessionIdManager = metaManager;
+    }
+    
     protected void doStart() throws Exception
     {
         //check if session management is set up, if not set up defaults
@@ -223,7 +536,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
 
             if (_sessionIdManager == null)
             {
-                _sessionIdManager = server.getSessionIdManager();
+                _sessionIdManager = server.getBean(SessionIdManager.class);
                 if (_sessionIdManager == null)
                 {
                     //create a default SessionIdManager and set it as the shared
@@ -235,8 +548,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                     {
                         Thread.currentThread().setContextClassLoader(serverLoader);
                         _sessionIdManager = new DefaultSessionIdManager(server);
-                        server.setSessionIdManager(_sessionIdManager);
-                        server.manage(_sessionIdManager);
+                        server.addBean(_sessionIdManager, true);
                         _sessionIdManager.start();
                     }
                     finally
@@ -365,6 +677,39 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     }
     
     /**
+     * @return the max period of inactivity, after which the session is invalidated, in seconds.
+     * @see #setMaxInactiveInterval(int)
+     */
+    @ManagedAttribute("default maximum time a session may be idle for (in s)")
+    public int getMaxInactiveInterval()
+    {
+        return _dftMaxIdleSecs;
+    }
+
+    /**
+     * Sets the max period of inactivity, after which the session is invalidated, in seconds.
+     *
+     * @param seconds the max inactivity period, in seconds.
+     * @see #getMaxInactiveInterval()
+     */
+    public void setMaxInactiveInterval(int seconds)
+    {
+        _dftMaxIdleSecs = seconds;
+        if (LOG.isDebugEnabled())
+        {
+            if (_dftMaxIdleSecs <= 0)
+                LOG.debug("Sessions created by this manager are immortal (default maxInactiveInterval={})", _dftMaxIdleSecs);
+            else
+                LOG.debug("SessionManager default maxInactiveInterval={}", _dftMaxIdleSecs);
+        }
+    }
+    
+    public void setRefreshCookieAge(int ageInSeconds)
+    {
+        _refreshCookieAge = ageInSeconds;
+    }
+    
+    /**
      * @return whether the session management is handled via URLs.
      */
     public boolean isUsingURLs()
@@ -401,6 +746,64 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         _usingCookies = usingCookies;
     }
     
+    /**
+     * @return True if absolute URLs are check for remoteness before being session encoded.
+     */
+    @ManagedAttribute("check remote session id encoding")
+    public boolean isCheckingRemoteSessionIdEncoding()
+    {
+        return _checkingRemoteSessionIdEncoding;
+    }
+
+    /**
+     * @param remote True if absolute URLs are check for remoteness before being session encoded.
+     */
+    public void setCheckingRemoteSessionIdEncoding(boolean remote)
+    {
+        _checkingRemoteSessionIdEncoding = remote;
+    }
+    
+    /**
+     * @param session the session to test for validity
+     * @return whether the given session is valid, that is, it has not been invalidated.
+     */
+    public boolean isValid(Session session)
+    {
+        return session.isValid();
+    }
+
+    /**
+     * Creates a new <code>HttpSession</code>.
+     *
+     * @param request the HttpServletRequest containing the requested session id
+     */
+    public void newHttpSession(ServletScopedRequest.MutableHttpServletRequest request)
+    {
+        long created = System.currentTimeMillis();
+        String id = _sessionIdManager.newSessionId(request, created);
+        Session session = _sessionCache.newSession(id, created, (_dftMaxIdleSecs > 0 ? _dftMaxIdleSecs * 1000L : -1));
+        session.setExtendedId(_sessionIdManager.getExtendedId(id, request));
+        session.getSessionData().setLastNode(_sessionIdManager.getWorkerName());
+        ServletAPISession apiSession = new ServletAPISession(session);
+
+        try
+        {
+            _sessionCache.add(id, session);
+            request.setBaseSession(session);
+            request.setHttpSession(apiSession);
+
+            _sessionsCreatedStats.increment();
+
+            if (request != null && request.isSecure()request.getConnectionMetaData().isSecure())
+                session.setAttribute(Session.SESSION_CREATED_SECURE, Boolean.TRUE);
+
+            callSessionCreatedListeners(session);
+        }
+        catch (Exception e)
+        {
+            LOG.warn("Unable to add Session {}", id, e);
+        }
+    }
     /**
      * Change the existing session id.
      *
@@ -538,6 +941,22 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                 e);
         }
     }
+    
+    //TODO might not be needed
+    public Scheduler getScheduler()
+    {
+        return _scheduler;
+    }
+
+    /**
+     * Prepare sessions for session manager shutdown
+     *
+     * @throws Exception if unable to shutdown sesssions
+     */
+    protected void shutdownSessions() throws Exception
+    {
+        _sessionCache.shutdown();
+    }
 
     public void callSessionAttributeListeners(Session session, String name, Object old, Object value)
     {
@@ -621,6 +1040,272 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                 l.sessionIdChanged(event, oldId);
             }
         }
+    }
+    
+    public void callUnboundBindingListener(Session session, String name, Object value)
+    {
+        if (value instanceof HttpSessionBindingListener)
+            ((HttpSessionBindingListener)value).valueUnbound(new HttpSessionBindingEvent(session.getWrapper(), name));
+    }
+    
+    public void callBoundBindingListener(Session session, String name, Object value)
+    {
+        if (value instanceof HttpSessionBindingListener)
+            ((HttpSessionBindingListener)value).valueBound(new HttpSessionBindingEvent(session.getWrapper(), name)); 
+    }
+    
+    public void callSessionActivationListener(Session session, String name, Object value)
+    {
+        if (value instanceof HttpSessionActivationListener)
+        {
+            HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
+            HttpSessionActivationListener listener = (HttpSessionActivationListener)value;
+            listener.sessionDidActivate(event);
+        }
+        
+    }
+
+    public void callSessionPassivationListener(Session session, String name, Object value)
+    {
+        if (value instanceof HttpSessionActivationListener)
+        {
+            HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
+            HttpSessionActivationListener listener = (HttpSessionActivationListener)value;
+            listener.sessionWillPassivate(event);
+        }
+    }
+    
+    @ManagedAttribute("domain of the session cookie, or null for the default")
+    public String getSessionDomain()
+    {
+        return _sessionDomain;
+    }
+    
+    @ManagedAttribute("path of the session cookie, or null for default")
+    public String getSessionPath()
+    {
+        return _sessionPath;
+    }    
+    
+    /**
+     * @return the URL path parameter name for session id URL rewriting, by default "jsessionid".
+     * @see #setSessionIdPathParameterName(String)
+     */
+    @ManagedAttribute("name of use for URL session tracking")
+    public String getSessionIdPathParameterName()
+    {
+        return _sessionIdPathParameterName;
+    }
+
+    /**
+     * @return a formatted version of {@link #getSessionIdPathParameterName()}, by default
+     * ";" + sessionIdParameterName + "=", for easier lookup in URL strings.
+     * @see #getSessionIdPathParameterName()
+     */
+    public String getSessionIdPathParameterNamePrefix()
+    {
+        return _sessionIdPathParameterNamePrefix;
+    }
+
+    @ManagedAttribute("if greater the zero, the time in seconds a session cookie will last for")
+    public int getMaxCookieAge()
+    {
+        return _maxCookieAge;
+    }
+    
+    /**
+     * @return true if session cookies should be HTTP-only (Microsoft extension)
+     * @see org.eclipse.jetty.http.HttpCookie#isHttpOnly()
+     */
+    @ManagedAttribute("true if cookies use the http only flag")
+    public boolean getHttpOnly()
+    {
+        return _httpOnly;
+    }
+
+    @ManagedAttribute("time before a session cookie is re-set (in s)")
+    public int getRefreshCookieAge()
+    {
+        return _refreshCookieAge;
+    }
+
+    /**
+     * @return same as SessionCookieConfig.getSecure(). If true, session
+     * cookies are ALWAYS marked as secure. If false, a session cookie is
+     * ONLY marked as secure if _secureRequestOnly == true and it is an HTTPS request.
+     */
+    @ManagedAttribute("if true, secure cookie flag is set on session cookies")
+    public boolean getSecureCookies()
+    {
+        return _secureCookies;
+    }
+
+    @ManagedAttribute("the set session cookie")
+    public String getSessionCookie()
+    {
+        return _sessionCookie;
+    }
+    
+    /**
+     * A session cookie is marked as secure IFF any of the following conditions are true:
+     * <ol>
+     * <li>SessionCookieConfig.setSecure == true</li>
+     * <li>SessionCookieConfig.setSecure == false &amp;&amp; _secureRequestOnly==true &amp;&amp; request is HTTPS</li>
+     * </ol>
+     * According to SessionCookieConfig javadoc, case 1 can be used when:
+     * "... even though the request that initiated the session came over HTTP,
+     * is to support a topology where the web container is front-ended by an
+     * SSL offloading load balancer. In this case, the traffic between the client
+     * and the load balancer will be over HTTPS, whereas the traffic between the
+     * load balancer and the web container will be over HTTP."
+     * <p>
+     * For case 2, you can use _secureRequestOnly to determine if you want the
+     * Servlet Spec 3.0  default behavior when SessionCookieConfig.setSecure==false,
+     * which is:
+     * <cite>
+     * "they shall be marked as secure only if the request that initiated the
+     * corresponding session was also secure"
+     * </cite>
+     * <p>
+     * The default for _secureRequestOnly is true, which gives the above behavior. If
+     * you set it to false, then a session cookie is NEVER marked as secure, even if
+     * the initiating request was secure.
+     *
+     * @param session the session to which the cookie should refer.
+     * @param contextPath the context to which the cookie should be linked.
+     * The client will only send the cookie value when requesting resources under this path.
+     * @param requestIsSecure whether the client is accessing the server over a secure protocol (i.e. HTTPS).
+     * @return if this <code>SessionManager</code> uses cookies, then this method will return a new
+     * {@link Cookie cookie object} that should be set on the client in order to link future HTTP requests
+     * with the <code>session</code>. If cookies are not in use, this method returns <code>null</code>.
+     */
+    public HttpCookie getSessionCookie(HttpSession session, String contextPath, boolean requestIsSecure)
+    {
+        if (isUsingCookies())
+        {
+            SessionCookieConfig cookieConfig = getSessionCookieConfig();
+            String sessionPath = (cookieConfig.getPath() == null) ? contextPath : cookieConfig.getPath();
+            sessionPath = (StringUtil.isEmpty(sessionPath)) ? "/" : sessionPath;
+            String id = getExtendedId(session);
+            HttpCookie cookie = null;
+
+            cookie = new HttpCookie(
+                getSessionCookieName(_cookieConfig),
+                id,
+                cookieConfig.getDomain(),
+                sessionPath,
+                cookieConfig.getMaxAge(),
+                cookieConfig.isHttpOnly(),
+                cookieConfig.isSecure() || (isSecureRequestOnly() && requestIsSecure),
+                HttpCookie.getCommentWithoutAttributes(cookieConfig.getComment()),
+                0,
+                HttpCookie.getSameSiteFromComment(cookieConfig.getComment()));
+
+            return cookie;
+        }
+        return null;
+    }
+    
+    public SessionCookieConfig getSessionCookieConfig()
+    {
+        return _cookieConfig;
+    }
+    
+    /**
+     * @return true if session cookie is to be marked as secure only on HTTPS requests
+     */
+    public boolean isSecureRequestOnly()
+    {
+        return _secureRequestOnly;
+    }
+    
+    /**
+     * HTTPS request. Can be overridden by setting SessionCookieConfig.setSecure(true),
+     * in which case the session cookie will be marked as secure on both HTTPS and HTTP.
+     *
+     * @param secureRequestOnly true to set Session Cookie Config as secure
+     */
+    public void setSecureRequestOnly(boolean secureRequestOnly)
+    {
+        _secureRequestOnly = secureRequestOnly;
+    }
+    
+    /**
+     * Set if Session cookies should use HTTP Only
+     *
+     * @param httpOnly True if cookies should be HttpOnly.
+     * @see HttpCookie
+     */
+    public void setHttpOnly(boolean httpOnly)
+    {
+        _httpOnly = httpOnly;
+    }
+    
+    /**
+     * @return The sameSite setting for session cookies or null for no setting
+     * @see HttpCookie#getSameSite()
+     */
+    
+    @ManagedAttribute("SameSite setting for session cookies")
+    public HttpCookie.SameSite getSameSite()
+    {
+        return HttpCookie.getSameSiteFromComment(_sessionComment);
+    }
+    
+    /**
+     * Set Session cookie sameSite mode.
+     * Currently this is encoded in the session comment until sameSite is supported by {@link SessionCookieConfig}
+     *
+     * @param sameSite The sameSite setting for Session cookies (or null for no sameSite setting)
+     */
+    public void setSameSite(HttpCookie.SameSite sameSite)
+    {
+        // Encode in comment whilst not supported by SessionConfig, so that it can be set/saved in
+        // web.xml and quickstart.
+        // Always pass false for httpOnly as it has it's own setter.
+        _sessionComment = HttpCookie.getCommentWithAttributes(_sessionComment, false, sameSite);
+    }
+    
+    public Set<SessionTrackingMode> getDefaultSessionTrackingModes()
+    {
+        return DEFAULT_SESSION_TRACKING_MODES;
+    }
+
+    public Set<SessionTrackingMode> getEffectiveSessionTrackingModes()
+    {
+        return Collections.unmodifiableSet(_sessionTrackingModes);
+    }
+
+    public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes)
+    {
+        if (sessionTrackingModes != null &&
+            sessionTrackingModes.size() > 1 &&
+            sessionTrackingModes.contains(SessionTrackingMode.SSL))
+        {
+            throw new IllegalArgumentException("sessionTrackingModes specifies a combination of SessionTrackingMode.SSL with a session tracking mode other than SessionTrackingMode.SSL");
+        }
+        _sessionTrackingModes = new HashSet<>(sessionTrackingModes);
+        _usingCookies = _sessionTrackingModes.contains(SessionTrackingMode.COOKIE);
+        _usingURLs = _sessionTrackingModes.contains(SessionTrackingMode.URL);
+    } 
+
+    public void setSessionCookie(String cookieName)
+    {
+        _sessionCookie = cookieName;
+    }
+
+    /**
+     * Sets the session id URL path parameter name.
+     *
+     * @param param the URL path parameter name for session id URL rewriting (null or "none" for no rewriting).
+     * @see #getSessionIdPathParameterName()
+     * @see #getSessionIdPathParameterNamePrefix()
+     */
+    public void setSessionIdPathParameterName(String param)
+    {
+        _sessionIdPathParameterName = (param == null || "none".equals(param)) ? null : param;
+        _sessionIdPathParameterNamePrefix = (param == null || "none".equals(param))
+            ? null : (";" + _sessionIdPathParameterName + "=");
     }
     
     /**
@@ -846,6 +1531,110 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         return null;
     }
 
+    /**
+     * Remove session from manager
+     *
+     * @param id The session to remove
+     * @param invalidate True if {@link HttpSessionListener#sessionDestroyed(HttpSessionEvent)} and
+     * {@link SessionIdManager#expireAll(String)} should be called.
+     * @return if the session was removed
+     */
+    public Session removeSession(String id, boolean invalidate)
+    {
+        try
+        {
+            //Remove the Session object from the session store and any backing data store
+            Session session = _sessionCache.delete(id);
+            if (session != null)
+            {
+                if (invalidate)
+                {
+                    session.beginInvalidate();
+
+                    if (_sessionListeners != null)
+                    {
+                        HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
+                        for (int i = _sessionListeners.size() - 1; i >= 0; i--)
+                        {
+                            _sessionListeners.get(i).sessionDestroyed(event);
+                        }
+                    }
+                }
+            }
+            //TODO if session object is not known to this node, how to get rid of it if no other
+            //node knows about it?
+
+            return session;
+        }
+        catch (Exception e)
+        {
+            LOG.warn("Unable to remove Session", e);
+            return null;
+        }
+    }  
+
+    /**
+     * Each session has a timer that is configured to go off
+     * when either the session has not been accessed for a
+     * configurable amount of time, or the session itself
+     * has passed its expiry.
+     *
+     * If it has passed its expiry, then we will mark it for
+     * scavenging by next run of the HouseKeeper; if it has
+     * been idle longer than the configured eviction period,
+     * we evict from the cache.
+     *
+     * If none of the above are true, then the System timer
+     * is inconsistent and the caller of this method will
+     * need to reset the timer.
+     *
+     * @param session the session
+     * @param now the time at which to check for expiry
+     */
+    public void sessionInactivityTimerExpired(Session session, long now)
+    {
+        if (session == null)
+            return;
+
+        //check if the session is:
+        //1. valid
+        //2. expired
+        //3. idle
+        try (AutoLock lock = session.lock())
+        {
+            if (session.getRequests() > 0)
+                return; //session can't expire or be idle if there is a request in it
+
+            if (LOG.isDebugEnabled())
+                LOG.debug("Inspecting session {}, valid={}", session.getId(), session.isValid());
+
+            if (!session.isValid())
+                return; //do nothing, session is no longer valid
+
+            if (session.isExpiredAt(now))
+            {
+                //instead of expiring the session directly here, accumulate a list of 
+                //session ids that need to be expired. This is an efficiency measure: as
+                //the expiration involves the SessionDataStore doing a delete, it is 
+                //most efficient if it can be done as a bulk operation to eg reduce
+                //roundtrips to the persistent store. Only do this if the HouseKeeper that
+                //does the scavenging is configured to actually scavenge
+                if (_sessionIdManager.getSessionHouseKeeper() != null &&
+                    _sessionIdManager.getSessionHouseKeeper().getIntervalSec() > 0)
+                {
+                    _candidateSessionIdsForExpiry.add(session.getId());
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Session {} is candidate for expiry", session.getId());
+                }
+            }
+            else
+            {
+                //possibly evict the session
+                _sessionCache.checkInactiveSession(session);
+            }
+        }
+    }
+    
     @Override
     public boolean handle(Request request, Response response)
     {

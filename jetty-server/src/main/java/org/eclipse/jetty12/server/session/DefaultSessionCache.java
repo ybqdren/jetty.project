@@ -22,6 +22,7 @@ import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
 import org.eclipse.jetty.util.statistic.CounterStatistic;
+import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,7 +181,7 @@ public class DefaultSessionCache extends AbstractSessionCache
     @Override
     public Session newSession(SessionData data)
     {
-        return new Session(getSessionHandler(), data);
+        return new Session(getSessionManager(), data);
     }
 
     @Override

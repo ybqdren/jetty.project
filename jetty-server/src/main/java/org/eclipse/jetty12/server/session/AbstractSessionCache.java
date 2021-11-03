@@ -24,6 +24,7 @@ import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.thread.AutoLock;
+import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,9 +58,9 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
     protected SessionDataStore _sessionDataStore;
 
     /**
-     * The SessionHandler related to this SessionCache
+     * The SessionManager related to this SessionCache
      */
-    protected final SessionManager _handler;
+    protected final SessionManager _manager;
 
     /**
      * Information about the context to which this SessionCache pertains
@@ -162,16 +163,16 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
      */
     public AbstractSessionCache(SessionManager handler)
     {
-        _handler = handler;
+        _manager = handler;
     }
 
     /**
      * @return the SessionManger
      */
     @Override
-    public SessionManager getSessionHandler()
+    public SessionManager getSessionManager()
     {
-        return _handler;
+        return _manager;
     }
 
     @Override
@@ -188,7 +189,7 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
         if (_sessionDataStore == null)
             throw new IllegalStateException("No session data store configured");
 
-        if (_handler == null)
+        if (_manager == null)
             throw new IllegalStateException("No session manager");
 
         if (_context == null)
@@ -425,7 +426,7 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
 
         try (AutoLock lock = session.lock())
         {
-            if (session.getSessionHandler() == null)
+            if (session.getSessionManager() == null)
                 throw new IllegalStateException("Session " + id + " is not managed");
 
             if (!session.isValid())
@@ -510,7 +511,7 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
 
         try (AutoLock lock = session.lock())
         {
-            if (session.getSessionHandler() == null)
+            if (session.getSessionManager() == null)
                 throw new IllegalStateException("Session " + id + " is not managed");
 
             if (session.isInvalid())

@@ -13,6 +13,8 @@
 
 package org.eclipse.jetty12.server.session;
 
+import org.eclipse.jetty12.server.SessionManager;
+
 /**
  * AbstractSessionCacheFactory
  * 
@@ -28,7 +30,7 @@ public abstract class AbstractSessionCacheFactory implements SessionCacheFactory
     boolean _flushOnResponseCommit;
     boolean _invalidateOnShutdown;
     
-    public abstract SessionCache newSessionCache(SessionManager handler);
+    public abstract SessionCache newSessionCache(SessionManager manager);
 
     public boolean isInvalidateOnShutdown()
     {
@@ -121,9 +123,9 @@ public abstract class AbstractSessionCacheFactory implements SessionCacheFactory
     }
 
     @Override
-    public SessionCache getSessionCache(SessionManager handler)
+    public SessionCache getSessionCache(SessionManager manager)
     {
-        SessionCache cache = newSessionCache(handler);
+        SessionCache cache = newSessionCache(manager);
         cache.setEvictionPolicy(getEvictionPolicy());
         cache.setSaveOnInactiveEviction(isSaveOnInactiveEvict());
         cache.setSaveOnCreate(isSaveOnCreate());

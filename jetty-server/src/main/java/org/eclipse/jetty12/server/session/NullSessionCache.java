@@ -16,6 +16,8 @@ package org.eclipse.jetty12.server.session;
 import java.util.function.Function;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +36,9 @@ public class NullSessionCache extends AbstractSessionCache
     /**
      * @param handler The SessionHandler related to this SessionCache
      */
-    public NullSessionCache(SessionManager handler)
+    public NullSessionCache(SessionManager manager)
     {
-        super(handler);
+        super(manager);
         super.setEvictionPolicy(EVICT_ON_SESSION_EXIT);
     }
 
@@ -48,7 +50,7 @@ public class NullSessionCache extends AbstractSessionCache
     @Override
     public Session newSession(SessionData data)
     {
-        return new Session(getSessionHandler(), data);
+        return new Session(getSessionManager(), data);
     }
 
     @Override

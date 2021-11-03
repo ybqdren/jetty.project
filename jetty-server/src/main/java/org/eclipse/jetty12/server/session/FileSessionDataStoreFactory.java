@@ -15,6 +15,8 @@ package org.eclipse.jetty12.server.session;
 
 import java.io.File;
 
+import org.eclipse.jetty12.server.SessionManager;
+
 /**
  * FileSessionDataStoreFactory
  */
@@ -56,7 +58,7 @@ public class FileSessionDataStoreFactory extends AbstractSessionDataStoreFactory
     }
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionManager handler)
+    public SessionDataStore getSessionDataStore(SessionManager manager)
     {
         FileSessionDataStore fsds = new FileSessionDataStore();
         fsds.setDeleteUnrestorableFiles(isDeleteUnrestorableFiles());

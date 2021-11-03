@@ -13,6 +13,8 @@
 
 package org.eclipse.jetty12.server.session;
 
+import org.eclipse.jetty12.server.SessionManager;
+
 /**
  * JDBCSessionDataStoreFactory
  */
@@ -30,7 +32,7 @@ public class JDBCSessionDataStoreFactory extends AbstractSessionDataStoreFactory
     JDBCSessionDataStore.SessionTableSchema _schema;
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionManager handler)
+    public SessionDataStore getSessionDataStore(SessionManager manager)
     {
         JDBCSessionDataStore ds = new JDBCSessionDataStore();
         ds.setDatabaseAdaptor(_adaptor);

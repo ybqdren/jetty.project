@@ -419,7 +419,14 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
 
         for (SessionManager manager : getSessionManagers())
         {
-            manager.invalidate(id);
+            try
+            {
+                manager.invalidate(id);
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Problem expiring session {} across contexts", id, e);
+            }
         }
     }
 
@@ -430,17 +437,31 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
         //get rid of them
         for (SessionManager manager : getSessionManagers())
         {
-            manager.invalidate(id);
+            try
+            {
+                manager.invalidate(id);
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Problem invalidating session {} across contexts", id, e);
+            }
         }
     }
     
-    public void scavenge() throws Exception
+    public void scavenge()
     {
         //tell all contexts that may have a session object with this id to
         //get rid of them
         for (SessionManager manager : getSessionManagers())
         {
-            manager.scavenge();
+            try
+            {
+                manager.scavenge();
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Problem scavenging sessions across contexts", e);
+            }
         }
     }
 
@@ -454,8 +475,6 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
         //generate a new id
         String newClusterId = newSessionId(request.hashCode());
 
-        //TODO how to handle request for old id whilst id change is happening?
-
         //tell all contexts to update the id 
         for (SessionManager manager : getSessionManagers())
         {
@@ -465,7 +484,7 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
             }
             catch (Exception e)
             {
-                LOG.warn(e);
+                LOG.warn("Problem renewing session id {} to {}", oldClusterId, newClusterId, e);
             }
         }
 

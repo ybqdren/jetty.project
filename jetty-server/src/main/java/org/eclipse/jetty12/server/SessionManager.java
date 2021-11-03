@@ -37,6 +37,16 @@ public interface SessionManager extends LifeCycle
     void callSessionDestroyedListeners(Session session);
     
     void callSessionAttributeListeners(Session session, String name, Object old, Object value);
+    
+    void callUnboundBindingListener(Session session, String name, Object value);
+    
+    void callBoundBindingListener(Session session, String name, Object value);
+    
+    void callSessionActivationListener(Session session, String name, Object value);
+    
+    void callSessionPassivationListener(Session session, String name, Object value);
 
     void scavenge() throws Exception;
+    
+    long calculateInactivityTimeout(String id, long timeRemaining, long maxInactiveMs);
 }
