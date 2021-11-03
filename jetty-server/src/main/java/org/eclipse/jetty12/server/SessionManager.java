@@ -13,29 +13,30 @@
 
 package org.eclipse.jetty12.server;
 
+import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty12.server.session.Session;
 
 /**
  * 
  *
  */
-public interface SessionManager
+public interface SessionManager extends LifeCycle
 {
-    public Session getSession(String id) throws Exception;
+    Session getSession(String id) throws Exception;
     
-    public void invalidate(String id) throws Exception;
+    void invalidate(String id) throws Exception;
     
-    public boolean isIdInUse(String id) throws Exception;
+    boolean isIdInUse(String id) throws Exception;
     
-    public void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
+    void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
     
-    public void scavenge() throws Exception;
+    SessionIdManager getSessionIdManager();
+   
+    void callSessionCreatedListeners(Session session);
     
-    public SessionIdManager getSessionIdManager();
+    void callSessionDestroyedListeners(Session session);
     
-    public void callSessionCreatedListeners(Session session);
-    
-    public void callSessionDestroyedListeners(Session session);
-    
-    public void callSessionAttributeListeners(Session session, String name, Object old, Object value);
+    void callSessionAttributeListeners(Session session, String name, Object old, Object value);
+
+    void scavenge() throws Exception;
 }
