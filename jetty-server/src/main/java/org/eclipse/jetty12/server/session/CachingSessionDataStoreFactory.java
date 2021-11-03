@@ -52,7 +52,7 @@ public class CachingSessionDataStoreFactory extends AbstractSessionDataStoreFact
     }
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionHandler handler) throws Exception
+    public SessionDataStore getSessionDataStore(SessionManager handler) throws Exception
     {
         return new CachingSessionDataStore(_mapFactory.getSessionDataMap(), _sessionStoreFactory.getSessionDataStore(handler));
     }

@@ -15,18 +15,31 @@ package org.eclipse.jetty12.server.servlet6;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.EventListener;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionAttributeListener;
+import jakarta.servlet.http.HttpSessionBindingEvent;
+import jakarta.servlet.http.HttpSessionEvent;
+import jakarta.servlet.http.HttpSessionIdListener;
+import jakarta.servlet.http.HttpSessionListener;
+
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.eclipse.jetty.util.thread.Scheduler;
 import org.eclipse.jetty12.server.Handler;
@@ -54,15 +67,134 @@ public class SessionHandler extends Handler.Nested implements SessionManager
 {    
     private static final Logger LOG = LoggerFactory.getLogger(SessionHandler.class);
     
-    protected boolean _usingURLs;
-    protected boolean _usingCookies = true;
-    protected SessionIdManager _sessionIdManager;
-    protected ClassLoader _loader;
-    protected ContextHandler.Context _context;
-    protected SessionContext _sessionContext;
-    protected SessionCache _sessionCache;
+    private boolean _usingURLs;
+    private boolean _usingCookies = true;
+    private SessionIdManager _sessionIdManager;
+    private ClassLoader _loader;
+    private ContextHandler.Context _context;
+    private SessionContext _sessionContext;
+    private SessionCache _sessionCache;
+    private final List<HttpSessionAttributeListener> _sessionAttributeListeners = new CopyOnWriteArrayList<>();
+    private final List<HttpSessionListener> _sessionListeners = new CopyOnWriteArrayList<>();
+    private final List<HttpSessionIdListener> _sessionIdListeners = new CopyOnWriteArrayList<>();
+    private Set<String> _candidateSessionIdsForExpiry = ConcurrentHashMap.newKeySet();
     
-    @Override
+    public class ServletAPISession implements HttpSession
+    {
+        private Session _session;
+        
+        public ServletAPISession(Session session)
+        {
+            _session = session;
+            _session.setWrapper(this);
+        }
+
+        public Session getSession()
+        {
+            return _session;
+        }
+        
+        @Override
+        public long getCreationTime()
+        {
+            _session.getCreationTime();
+        }
+
+        @Override
+        public String getId()
+        {
+            return _session.getId();
+        }
+
+        @Override
+        public long getLastAccessedTime()
+        {
+            return _session.getLastAccessedTime();
+        }
+
+        @Override
+        public ServletContext getServletContext()
+        {
+            return _session.getServletContext();
+        }
+
+        @Override
+        public void setMaxInactiveInterval(int interval)
+        {
+            _session.setMaxInactiveInterval(interval);
+        }
+
+        @Override
+        public int getMaxInactiveInterval()
+        {
+            return _session.getMaxInactiveInterval();
+        }
+
+        @Override
+        public Object getAttribute(String name)
+        {
+            return _session.getAttribute(name);
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames()
+        {
+            return _session.getAttributeNames();
+        }
+
+        @Override
+        public void setAttribute(String name, Object value)
+        {
+            _session.setAttribute(name, value);
+        }
+
+        @Override
+        public void removeAttribute(String name)
+        {
+            _session.removeAttribute(name);
+
+        @Override
+        public void invalidate()
+        {
+            _session.invalidate();
+        }
+
+        @Override
+        public boolean isNew()
+        {
+            return _session.isNew();
+        }
+    }
+    
+        /**
+         * Adds an event listener for session-related events.
+         *
+         * @param listener the session event listener to add
+         * Individual SessionManagers implementations may accept arbitrary listener types,
+         * but they are expected to at least handle HttpSessionActivationListener,
+         * HttpSessionAttributeListener, HttpSessionBindingListener and HttpSessionListener.
+         * @return true if the listener was added
+         * @see #removeEventListener(EventListener)
+         * @see HttpSessionAttributeListener
+         * @see HttpSessionListener
+         * @see HttpSessionIdListener
+         */
+        @Override
+        public boolean addEventListener(EventListener listener)
+        {
+            if (super.addEventListener(listener))
+            {
+                if (listener instanceof HttpSessionAttributeListener)
+                    _sessionAttributeListeners.add((HttpSessionAttributeListener)listener);
+                if (listener instanceof HttpSessionListener)
+                    _sessionListeners.add((HttpSessionListener)listener);
+                if (listener instanceof HttpSessionIdListener)
+                    _sessionIdListeners.add((HttpSessionIdListener)listener);
+                return true;
+            }
+            return false;
+        }    
+        
     protected void doStart() throws Exception
     {
         //check if session management is set up, if not set up defaults
@@ -164,6 +296,16 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     }
     
     /**
+     * Gets the cross context session id manager
+     *
+     * @return the session id manager
+     */
+    public SessionIdManager getSessionIdManager()
+    {
+        return _sessionIdManager;
+    }
+    
+    /**
      * Get a known existing session
      *
      * @param extendedId The session id, possibly with worker name.
@@ -171,9 +313,9 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      */
     public Session getSession(String extendedId)
     {
+        String id = getSessionIdManager().getId(extendedId);
         try
         {        
-            String id = getSessionIdManager().getId(extendedId);
             Session session = _sessionCache.get(id);
             if (session != null)
             {
@@ -396,6 +538,90 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                 e);
         }
     }
+
+    public void callSessionAttributeListeners(Session session, String name, Object old, Object value)
+    {
+        if (!_sessionAttributeListeners.isEmpty())
+        {
+            HttpSessionBindingEvent event = new HttpSessionBindingEvent(session.getWrapper(), name, old == null ? value : old);
+
+            for (HttpSessionAttributeListener l : _sessionAttributeListeners)
+            {
+                if (old == null)
+                    l.attributeAdded(event);
+                else if (value == null)
+                    l.attributeRemoved(event);
+                else
+                    l.attributeReplaced(event);
+            }
+        }
+    }
+    
+    /**
+     * Call the session lifecycle listeners in the order
+     * they were added.
+     *
+     * @param session the session on which to call the lifecycle listeners
+     */
+    public void callSessionCreatedListeners(Session session)
+    {
+        if (session == null)
+            return;
+
+        if (_sessionListeners != null)
+        {
+            HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
+            for (HttpSessionListener  l : _sessionListeners)
+            {
+                l.sessionCreated(event);
+            }
+        }
+    }
+ 
+    /**
+     * Call the session lifecycle listeners in
+     * the reverse order they were added.
+     *
+     * @param session the session on which to call the lifecycle listeners
+     */
+    public void callSessionDestroyedListeners(Session session)
+    {
+        if (session == null)
+            return;
+
+        if (_sessionListeners != null)
+        {
+            //We annoint the calling thread with
+            //the webapp's classloader because the calling thread may
+            //come from the scavenger, rather than a request thread
+            Runnable r = new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
+                    for (int i = _sessionListeners.size() - 1; i >= 0; i--)
+                    {
+                        _sessionListeners.get(i).sessionDestroyed(event);
+                    }
+                }
+            };
+            _sessionContext.run(r);
+        }
+    }
+
+    public void callSessionIdListeners(Session session, String oldId)
+    {
+        //inform the listeners
+        if (!_sessionIdListeners.isEmpty())
+        {
+            HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
+            for (HttpSessionIdListener l : _sessionIdListeners)
+            {
+                l.sessionIdChanged(event, oldId);
+            }
+        }
+    }
     
     /**
      * Look for a requested session ID in cookies and URI parameters
@@ -410,10 +636,13 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         if (requestedSessionId != null)
         {
             Session session = getSession(requestedSessionId);
+            
+            ServletAPISession apiSession = new ServletAPISession(session);
 
             if (session != null && session.isValid())
             {
                 request.setBaseSession(session);
+                request.setHttpSession(apiSession);
             }
             return;
         }
@@ -637,7 +866,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
 
         //TODO call access here, or from inside checkRequestedSessionId
 
-        HttpCookie cookie = access(servletRequest.getSession(), request.getConnectionMetaData().isSecure());
+        HttpCookie cookie = access(servletRequest.getBaseSession(), request.getConnectionMetaData().isSecure());
 
         // Handle changed ID or max-age refresh, but only if this is not a redispatched request
         if ((cookie != null) &&

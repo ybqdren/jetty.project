@@ -20,7 +20,7 @@ public class NullSessionDataStoreFactory extends AbstractSessionDataStoreFactory
 {
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionHandler handler) throws Exception
+    public SessionDataStore getSessionDataStore(SessionManager handler) throws Exception
     {
         return new NullSessionDataStore();
     }

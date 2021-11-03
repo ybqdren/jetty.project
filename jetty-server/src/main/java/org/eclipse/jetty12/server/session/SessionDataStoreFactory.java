@@ -18,5 +18,5 @@ package org.eclipse.jetty12.server.session;
  */
 public interface SessionDataStoreFactory
 {
-    SessionDataStore getSessionDataStore(SessionHandler handler) throws Exception;
+    SessionDataStore getSessionDataStore(SessionManager handler) throws Exception;
 }

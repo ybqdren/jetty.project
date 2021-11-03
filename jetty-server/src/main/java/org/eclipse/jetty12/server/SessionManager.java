@@ -30,4 +30,12 @@ public interface SessionManager
     public void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
     
     public void scavenge() throws Exception;
+    
+    public SessionIdManager getSessionIdManager();
+    
+    public void callSessionCreatedListeners(Session session);
+    
+    public void callSessionDestroyedListeners(Session session);
+    
+    public void callSessionAttributeListeners(Session session, String name, Object old, Object value);
 }

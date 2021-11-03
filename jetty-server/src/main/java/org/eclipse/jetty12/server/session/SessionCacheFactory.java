@@ -18,5 +18,5 @@ package org.eclipse.jetty12.server.session;
  */
 public interface SessionCacheFactory
 {
-    SessionCache getSessionCache(SessionHandler handler);
+    SessionCache getSessionCache(SessionManager handler);
 }

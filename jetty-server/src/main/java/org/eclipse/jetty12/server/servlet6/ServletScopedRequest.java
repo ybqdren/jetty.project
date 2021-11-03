@@ -47,7 +47,6 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.AsyncContextEvent;
 import org.eclipse.jetty.server.AsyncContextState;
 import org.eclipse.jetty.server.HttpChannelState;
-import org.eclipse.jetty.server.session.Session;
 import org.eclipse.jetty.util.SharedBlockingCallback;
 import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
 import org.eclipse.jetty12.server.ConnectionMetaData;
@@ -55,6 +54,7 @@ import org.eclipse.jetty12.server.Content;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.handler.ScopedRequest;
+import org.eclipse.jetty12.server.session.Session;
 
 public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
@@ -173,6 +173,17 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         public Session getBaseSession()
         {
             // TODO
+            return null;
+        }
+        
+        public void setHttpSession(HttpSession s)
+        {
+            //TODO
+        }
+        
+        public HttpSession getHttpSession()
+        {
+            //TODO
             return null;
         }
         

@@ -59,7 +59,7 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
     /**
      * The SessionHandler related to this SessionCache
      */
-    protected final SessionHandler _handler;
+    protected final SessionManager _handler;
 
     /**
      * Information about the context to which this SessionCache pertains
@@ -158,9 +158,9 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
     public abstract Session doDelete(String id);
 
     /**
-     * @param handler the {@link SessionHandler} to use
+     * @param handler the {@link SessionManager} to use
      */
-    public AbstractSessionCache(SessionHandler handler)
+    public AbstractSessionCache(SessionManager handler)
     {
         _handler = handler;
     }
@@ -169,7 +169,7 @@ public abstract class AbstractSessionCache extends ContainerLifeCycle implements
      * @return the SessionManger
      */
     @Override
-    public SessionHandler getSessionHandler()
+    public SessionManager getSessionHandler()
     {
         return _handler;
     }

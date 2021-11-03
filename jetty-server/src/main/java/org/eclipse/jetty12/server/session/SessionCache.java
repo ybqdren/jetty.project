@@ -58,7 +58,7 @@ public interface SessionCache extends LifeCycle
 
     void shutdown();
 
-    SessionHandler getSessionHandler();
+    SessionManager getSessionHandler();
 
     /**
      * Create an entirely new Session.
