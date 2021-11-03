@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jetty.util.Attributes;
@@ -29,7 +28,7 @@ import org.eclipse.jetty.util.thread.AutoLock;
 public class AttributeContainerMap extends ContainerLifeCycle implements Attributes
 {
     private final AutoLock _lock = new AutoLock();
-    private final Map<String, Object> _map = new HashMap<>();
+    private final Mapped<String, Object> _map = new HashMap<>();
 
     @Override
     public void setAttribute(String name, Object attribute)

@@ -16,7 +16,6 @@ package org.eclipse.jetty.http.spi;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
-import java.util.Map;
 
 import com.sun.net.httpserver.Authenticator;
 import com.sun.net.httpserver.Authenticator.Result;
@@ -115,7 +114,7 @@ public class HttpSpiContextHandler extends ContextHandler
         if (result instanceof Authenticator.Failure)
         {
             int rc = ((Authenticator.Failure)result).getResponseCode();
-            for (Map.Entry<String, List<String>> header : httpExchange.getResponseHeaders().entrySet())
+            for (Mapped.Entry<String, List<String>> header : httpExchange.getResponseHeaders().entrySet())
             {
                 for (String value : header.getValue())
                 {
@@ -127,7 +126,7 @@ public class HttpSpiContextHandler extends ContextHandler
         else if (result instanceof Authenticator.Retry)
         {
             int rc = ((Authenticator.Retry)result).getResponseCode();
-            for (Map.Entry<String, List<String>> header : httpExchange.getResponseHeaders().entrySet())
+            for (Mapped.Entry<String, List<String>> header : httpExchange.getResponseHeaders().entrySet())
             {
                 for (String value : header.getValue())
                 {

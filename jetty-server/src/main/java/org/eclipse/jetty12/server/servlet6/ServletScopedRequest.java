@@ -21,7 +21,6 @@ import java.security.Principal;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Locale;
-import java.util.Map;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
@@ -522,7 +521,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         }
 
         @Override
-        public Map<String, String[]> getParameterMap()
+        public Mapped<String, String[]> getParameterMap()
         {
             return null;
         }

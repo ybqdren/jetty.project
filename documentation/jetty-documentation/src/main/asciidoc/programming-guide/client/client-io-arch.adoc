@@ -89,7 +89,7 @@ On the client side, a `ClientConnectionFactory` implementation is the component 
 
 Applications use `ClientConnector.connect(SocketAddress, Map<String, Object>)` to establish a TCP connection to the server, and must tell `ClientConnector` how to create the `Connection` for that particular TCP connection, and how to notify back the application when the connection creation succeeds or fails.
 
-This is done by passing a link:{javadoc-url}/org/eclipse/jetty/io/ClientConnectionFactory.html[`ClientConnectionFactory`] (that creates `Connection` instances) and a link:{javadoc-url}/org/eclipse/jetty/util/Promise.html[`Promise`] (that is notified of connection creation success or failure) in the context `Map` as follows:
+This is done by passing a link:{javadoc-url}/org/eclipse/jetty/io/ClientConnectionFactory.html[`ClientConnectionFactory`] (that creates `Connection` instances) and a link:{javadoc-url}/org/eclipse/jetty/util/Promise.html[`Promise`] (that is notified of connection creation success or failure) in the context `Mapped` as follows:
 
 [source,java,indent=0]
 ----

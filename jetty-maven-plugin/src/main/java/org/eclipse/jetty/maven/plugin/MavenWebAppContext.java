@@ -20,7 +20,6 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -67,7 +66,7 @@ public class MavenWebAppContext extends WebAppContext
 
     private final List<File> _webInfJars = new ArrayList<>();
 
-    private final Map<String, File> _webInfJarMap = new HashMap<String, File>();
+    private final Mapped<String, File> _webInfJarMap = new HashMap<String, File>();
 
     private List<File> _classpathFiles; // webInfClasses+testClasses+webInfJars
 

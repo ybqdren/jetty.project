@@ -22,7 +22,6 @@ import java.util.EventListener;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -1350,7 +1349,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public Map<String, ? extends FilterRegistration> getFilterRegistrations()
+        public Mapped<String, ? extends FilterRegistration> getFilterRegistrations()
         {
             if (!_enabled)
                 throw new UnsupportedOperationException();
@@ -1379,7 +1378,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public Map<String, ? extends ServletRegistration> getServletRegistrations()
+        public Mapped<String, ? extends ServletRegistration> getServletRegistrations()
         {
             if (!_enabled)
                 throw new UnsupportedOperationException();

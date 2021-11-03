@@ -14,20 +14,21 @@
 package org.eclipse.jetty12.server.handler;
 
 import java.nio.file.Path;
+import java.util.Set;
 
+import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
-public class ContextHandler extends Handler.Nested
+public class ContextHandler extends Handler.Nested implements Attributes
 {
     private static final ThreadLocal<Context> __context = new ThreadLocal<>();
-    private Context _context;
+    private final Attributes _persistentAttributes = new Mapped();
+    private final Context _context = new Context();
 
-    // TODO need 2 level classloaders for API and app
-    //      Probably will need support for loaders in XmlConfiguration also
-    //      is this a job for JPMS modules?  Or shall we go OSGi :)
-    private ClassLoader _apiLoader;
+    private String _contextPath;
+    private Path _resourceBase;
     private ClassLoader _contextLoader;
 
     public Context getContext()
@@ -74,15 +75,65 @@ public class ContextHandler extends Handler.Nested
         return new ScopedRequest(_context, request, pathInContext);
     }
 
-    public interface Context
+    @Override
+    public void setAttribute(String name, Object attribute)
     {
-        String getContextPath();
+        _persistentAttributes.setAttribute(name, attribute);
+    }
 
-        ClassLoader getClassLoader();
+    @Override
+    public Object getAttribute(String name)
+    {
+        return _persistentAttributes.getAttribute(name);
+    }
 
-        Path getResourceBase();
+    @Override
+    public Set<String> getAttributeNameSet()
+    {
+        return _persistentAttributes.getAttributeNameSet();
+    }
 
-        default void run(Runnable task)
+    @Override
+    public void removeAttribute(String name)
+    {
+        _persistentAttributes.removeAttribute(name);
+    }
+
+    @Override
+    public void clearAttributes()
+    {
+        _persistentAttributes.clearAttributes();
+    }
+
+    public class Context extends Attributes.Layer
+    {
+        public Context()
+        {
+            super(_persistentAttributes);
+        }
+
+        @SuppressWarnings("unchecked")
+        public <H extends ContextHandler> H getContextHandler()
+        {
+            return (H)ContextHandler.this;
+        }
+
+        public String getContextPath()
+        {
+            return _contextPath;
+        }
+
+        public ClassLoader getClassLoader()
+        {
+            return _contextLoader;
+        }
+
+        public Path getResourceBase()
+        {
+            return _resourceBase;
+        }
+
+        public void run(Runnable task)
         {
             ClassLoader loader = getClassLoader();
             if (loader == null)

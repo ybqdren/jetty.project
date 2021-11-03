@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import jakarta.servlet.RequestDispatcher;
@@ -1535,7 +1534,7 @@ public class ResponseTest
     {
         private class Context extends ContextHandler.Context
         {
-            private Map<String, Object> _attributes = new HashMap<>();
+            private Mapped<String, Object> _attributes = new HashMap<>();
 
             @Override
             public Object getAttribute(String name)
