@@ -13,7 +13,7 @@
 
 package org.eclipse.jetty12.server;
 
-public class Server extends Handler.Wrapper<Request>
+public class Server extends Handler.Nested
 {
     public RequestLog getRequestLog()
     {

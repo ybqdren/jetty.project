@@ -20,9 +20,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.server.ServletPathMapping;
 import org.eclipse.jetty12.server.Handler;
+import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
-public class ServletHandler extends Handler.Abstract<ServletScopedRequest>
+public class ServletHandler extends Handler.Abstract
 {
     public interface MappedServlet
     {
@@ -37,13 +38,14 @@ public class ServletHandler extends Handler.Abstract<ServletScopedRequest>
     }
 
     @Override
-    public boolean handle(ServletScopedRequest request, Response response)
+    public boolean handle(Request request, Response response)
     {
-        MappedServlet mappedServlet = request.getMappedServlet();
+        ServletScopedRequest servletRequest = request.as(ServletScopedRequest.class);
+        MappedServlet mappedServlet = servletRequest.getMappedServlet();
         if (mappedServlet == null)
             return false; // TODO or 404 or ISE?
 
-        request.getServletRequestState().handle();
+        servletRequest.getServletRequestState().handle();
         return true;
     }
 }

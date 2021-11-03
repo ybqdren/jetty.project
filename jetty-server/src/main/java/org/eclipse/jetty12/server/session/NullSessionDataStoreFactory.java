@@ -11,20 +11,17 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server.handler;
+package org.eclipse.jetty12.server.session;
 
-import org.eclipse.jetty.util.BufferUtil;
-import org.eclipse.jetty12.server.Handler;
-import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.Response;
-
-public class SimpleHandler extends Handler.Abstract
+/**
+ * NullSessionDataStoreFactory
+ */
+public class NullSessionDataStoreFactory extends AbstractSessionDataStoreFactory
 {
+
     @Override
-    public boolean handle(Request request, Response response)
+    public SessionDataStore getSessionDataStore(SessionHandler handler) throws Exception
     {
-        response.setStatus(200);
-        response.write(true, request, BufferUtil.toBuffer("Hello "), BufferUtil.toBuffer("world"));
-        return true;
+        return new NullSessionDataStore();
     }
 }

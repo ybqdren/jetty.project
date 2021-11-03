@@ -11,20 +11,29 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server.handler;
+package org.eclipse.jetty12.server.session;
 
-import org.eclipse.jetty.util.BufferUtil;
-import org.eclipse.jetty12.server.Handler;
-import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.Response;
-
-public class SimpleHandler extends Handler.Abstract
+/**
+ * UnwriteableSessionDataException
+ */
+public class UnwriteableSessionDataException extends Exception
 {
-    @Override
-    public boolean handle(Request request, Response response)
+    private String _id;
+    private SessionContext _sessionContext;
+
+    public UnwriteableSessionDataException(String id, SessionContext contextId, Throwable t)
     {
-        response.setStatus(200);
-        response.write(true, request, BufferUtil.toBuffer("Hello "), BufferUtil.toBuffer("world"));
-        return true;
+        super("Unwriteable session " + id + " for " + contextId, t);
+        _id = id;
+    }
+
+    public String getId()
+    {
+        return _id;
+    }
+
+    public SessionContext getSessionContext()
+    {
+        return _sessionContext;
     }
 }

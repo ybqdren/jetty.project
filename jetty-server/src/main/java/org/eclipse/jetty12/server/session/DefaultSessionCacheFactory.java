@@ -11,20 +11,18 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server.handler;
+package org.eclipse.jetty12.server.session;
 
-import org.eclipse.jetty.util.BufferUtil;
-import org.eclipse.jetty12.server.Handler;
-import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.Response;
-
-public class SimpleHandler extends Handler.Abstract
+/**
+ * DefaultSessionCacheFactory
+ *
+ * Factory for creating new DefaultSessionCaches.
+ */
+public class DefaultSessionCacheFactory extends AbstractSessionCacheFactory
 {
     @Override
-    public boolean handle(Request request, Response response)
+    public SessionCache newSessionCache(SessionHandler handler)
     {
-        response.setStatus(200);
-        response.write(true, request, BufferUtil.toBuffer("Hello "), BufferUtil.toBuffer("world"));
-        return true;
+        return new DefaultSessionCache(handler);
     }
 }

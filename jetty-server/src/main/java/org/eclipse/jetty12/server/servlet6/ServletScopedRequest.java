@@ -47,6 +47,7 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.AsyncContextEvent;
 import org.eclipse.jetty.server.AsyncContextState;
 import org.eclipse.jetty.server.HttpChannelState;
+import org.eclipse.jetty.server.session.Session;
 import org.eclipse.jetty.util.SharedBlockingCallback;
 import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
 import org.eclipse.jetty12.server.ConnectionMetaData;
@@ -59,7 +60,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
     final ServletRequestState _servletRequestState;
     final MutableHttpServletRequest _httpServletRequest;
-    final HttpServletResponse _httpServletResponse;
+    final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
     ReadListener _readListener;
 
@@ -149,15 +150,32 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     public class MutableHttpServletRequest implements HttpServletRequest
     {
-
-            // TODO
+        public HttpServletResponse getHttpServletResponse()
+        {
+            return _httpServletResponse;
         }
 
-        public void setSession(Object o)
+        public MutableHttpServletResponse getMutableHttpServletResponse()
+        {
+            return _httpServletResponse;
+        }
+
+        public void setSessionManager(SessionHandler sessionHandler)
         {
             // TODO
         }
 
+        public void setBaseSession(Session o)
+        {
+            // TODO
+        }
+
+        public Session getBaseSession()
+        {
+            // TODO
+            return null;
+        }
+        
         @Override
         public String getRequestId()
         {

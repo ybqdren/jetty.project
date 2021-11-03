@@ -14,12 +14,13 @@
 package org.eclipse.jetty12.server.servlet6;
 
 import org.eclipse.jetty12.server.Handler;
+import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 
-public class DeferredContentHandler extends Handler.Wrapper<ServletScopedRequest>
+public class DeferredContentHandler extends Handler.Nested
 {
     @Override
-    public boolean handle(ServletScopedRequest request, Response response)
+    public boolean handle(Request request, Response response)
     {
         // If no content or content available, then don't delay dispatch
         if (request.getContentLength() <= 0)

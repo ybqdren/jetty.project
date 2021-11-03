@@ -27,7 +27,7 @@ import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.Stream;
 
-public class RequestStatsHandler extends Handler.Wrapper<Request>
+public class RequestStatsHandler extends Handler.Nested
 {
     private ConcurrentHashMap<String, Object> _connectionStats = new ConcurrentHashMap<>();
 

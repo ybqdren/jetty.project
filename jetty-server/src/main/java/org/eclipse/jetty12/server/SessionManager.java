@@ -11,20 +11,23 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server.handler;
+package org.eclipse.jetty12.server;
 
-import org.eclipse.jetty.util.BufferUtil;
-import org.eclipse.jetty12.server.Handler;
-import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.Response;
+import org.eclipse.jetty12.server.session.Session;
 
-public class SimpleHandler extends Handler.Abstract
+/**
+ * 
+ *
+ */
+public interface SessionManager
 {
-    @Override
-    public boolean handle(Request request, Response response)
-    {
-        response.setStatus(200);
-        response.write(true, request, BufferUtil.toBuffer("Hello "), BufferUtil.toBuffer("world"));
-        return true;
-    }
+    public Session getSession(String id) throws Exception;
+    
+    public void invalidate(String id) throws Exception;
+    
+    public boolean isIdInUse(String id) throws Exception;
+    
+    public void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
+    
+    public void scavenge() throws Exception;
 }

@@ -14,6 +14,7 @@
 package org.eclipse.jetty12.server;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpURI;
@@ -32,6 +33,8 @@ public interface Request extends Attributes, Callback
 
     HttpURI getURI();
 
+    String getPath();
+
     HttpFields getHeaders();
 
     long getContentLength();
@@ -49,6 +52,8 @@ public interface Request extends Attributes, Callback
 
     Request getWrapper();
 
+    void setWrapper(Request request);
+
     default Request unwrap()
     {
         Request r = this;
@@ -61,6 +66,30 @@ public interface Request extends Attributes, Callback
         }
     }
 
+    default <R extends Request> R as(Class<R> type)
+    {
+        Request r = this;
+        while (r != null)
+        {
+            if (type.isInstance(r))
+                return (R)r;
+            r = r.getWrapped();
+        }
+        return null;
+    }
+
+    default <T extends Request, R> R get(Class<T> type, Function<T, R> getter)
+    {
+        Request r = this;
+        while (r != null)
+        {
+            if (type.isInstance(r))
+                return getter.apply((T)r);
+            r = r.getWrapped();
+        }
+        return null;
+    }
+
     class Wrapper extends Attributes.Wrapper implements Request
     {
         private final Request _wrapped;
@@ -69,8 +98,13 @@ public interface Request extends Attributes, Callback
         {
             super(wrapped);
             this._wrapped = wrapped;
-            Request base = wrapped.unwrap();
-            ((Base)base).setWrapper(this);
+            wrapped.setWrapper(this);
+        }
+
+        @Override
+        public void setWrapper(Request request)
+        {
+            _wrapped.setWrapper(request);
         }
 
         @Override
@@ -101,6 +135,12 @@ public interface Request extends Attributes, Callback
         public HttpURI getURI()
         {
             return _wrapped.getURI();
+        }
+
+        @Override
+        public String getPath()
+        {
+            return _wrapped.getPath();
         }
 
         @Override
@@ -163,10 +203,5 @@ public interface Request extends Attributes, Callback
             return _wrapped.getInvocationType();
         }
 
-    }
-
-    interface Base extends Request
-    {
-        void setWrapper(Request wrapper);
     }
 }
