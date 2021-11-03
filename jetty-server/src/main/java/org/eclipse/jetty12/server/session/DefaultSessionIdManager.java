@@ -14,6 +14,7 @@
 package org.eclipse.jetty12.server.session;
 
 import java.security.SecureRandom;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -24,7 +25,6 @@ import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.thread.AutoLock;
-import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Server;
 import org.eclipse.jetty12.server.SessionIdManager;
@@ -481,17 +481,16 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
     public Set<SessionManager> getSessionManagers()
     {
         Set<SessionManager> managers = new HashSet<>();
-        SessionManager[] tmp = _server.getChildHandlersByClass(SessionManager.class);
-        if (tmp != null)
+
+        Collection<SessionManager> tmp = _server.getContainedBeans(SessionManager.class);
+        for (SessionManager sm : tmp)
         {
-            for (Handler h : tmp)
-            {
-                //This method can be called on shutdown when the handlers are STOPPING, so only
-                //check that they are not already stopped
-                if (!h.isStopped() && !h.isFailed())
-                    managers.add((SessionManager)h);
-            }
+            //This method can be called on shutdown when the handlers are STOPPING, so only
+            //check that they are not already stopped
+            if (sm.isRunning())
+                managers.add((SessionManager)sm);
         }
+
         return managers;
     }
 
