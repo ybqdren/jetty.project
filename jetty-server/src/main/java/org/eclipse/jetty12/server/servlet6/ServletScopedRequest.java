@@ -155,7 +155,8 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         private SessionHandler _sessionHandler;
         private HttpSession _httpSession;
         private Session _session;
-        
+        private AsyncContextState _async;
+
         public HttpServletResponse getHttpServletResponse()
         {
             return _httpServletResponse;

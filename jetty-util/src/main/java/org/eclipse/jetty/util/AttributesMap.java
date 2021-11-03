@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jetty.util.component.Dumpable;
 
+@Deprecated
 public class AttributesMap implements Attributes, Dumpable
 {
     private final AtomicReference<ConcurrentMap<String, Object>> _map = new AtomicReference<>();

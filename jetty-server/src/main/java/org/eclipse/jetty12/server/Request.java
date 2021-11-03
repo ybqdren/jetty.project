@@ -66,6 +66,7 @@ public interface Request extends Attributes, Callback
         }
     }
 
+    @SuppressWarnings("unchecked")
     default <R extends Request> R as(Class<R> type)
     {
         Request r = this;
