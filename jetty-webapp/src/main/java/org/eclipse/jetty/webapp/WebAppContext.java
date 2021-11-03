@@ -27,6 +27,7 @@ import java.util.EventListener;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import jakarta.servlet.ServletContext;
@@ -202,7 +203,7 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
     private List<Resource> _extraClasspath;
     private Throwable _unavailableException;
 
-    private Mapped<String, String> _resourceAliases;
+    private Map<String, String> _resourceAliases;
     private boolean _ownClassLoader = false;
     private boolean _configurationDiscovered = true;
     private boolean _allowDuplicateFragmentNames = false;
@@ -343,14 +344,14 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
         _resourceAliases.put(alias, uri);
     }
 
-    public Mapped<String, String> getResourceAliases()
+    public Map<String, String> getResourceAliases()
     {
         if (_resourceAliases == null)
             return null;
         return _resourceAliases;
     }
 
-    public void setResourceAliases(Mapped<String, String> map)
+    public void setResourceAliases(Map<String, String> map)
     {
         _resourceAliases = map;
     }

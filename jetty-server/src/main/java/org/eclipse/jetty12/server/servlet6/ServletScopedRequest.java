@@ -21,6 +21,7 @@ import java.security.Principal;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Locale;
+import java.util.Map;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
@@ -149,6 +150,8 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     public class MutableHttpServletRequest implements HttpServletRequest
     {
+        private AsyncContextState _async;
+
         public HttpServletResponse getHttpServletResponse()
         {
             return _httpServletResponse;
@@ -532,7 +535,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         }
 
         @Override
-        public Mapped<String, String[]> getParameterMap()
+        public Map<String, String[]> getParameterMap()
         {
             return null;
         }

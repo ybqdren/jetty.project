@@ -36,6 +36,42 @@ public class ContextHandler extends Handler.Nested implements Attributes
         return _context;
     }
 
+    public String getContextPath()
+    {
+        return _contextPath;
+    }
+
+    public void setContextPath(String contextPath)
+    {
+        if (isStarted())
+            throw new IllegalStateException(getState());
+        _contextPath = contextPath;
+    }
+
+    public Path getResourceBase()
+    {
+        return _resourceBase;
+    }
+
+    public void setResourceBase(Path resourceBase)
+    {
+        if (isStarted())
+            throw new IllegalStateException(getState());
+        _resourceBase = resourceBase;
+    }
+
+    public ClassLoader getContextLoader()
+    {
+        return _contextLoader;
+    }
+
+    public void setContextLoader(ClassLoader contextLoader)
+    {
+        if (isStarted())
+            throw new IllegalStateException(getState());
+        _contextLoader = contextLoader;
+    }
+
     protected String getPathInContext(Request request)
     {
         String path = request.getURI().getPath();

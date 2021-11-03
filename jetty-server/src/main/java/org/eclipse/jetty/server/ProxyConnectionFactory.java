@@ -24,6 +24,7 @@ import java.nio.channels.ReadPendingException;
 import java.nio.channels.WritePendingException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.jetty.io.AbstractConnection;
 import org.eclipse.jetty.io.Connection;
@@ -764,7 +765,7 @@ public class ProxyConnectionFactory extends DetectorConnectionFactory
         private final EndPoint _endPoint;
         private final SocketAddress _local;
         private final SocketAddress _remote;
-        private Mapped<Integer, byte[]> _tlvs;
+        private Map<Integer, byte[]> _tlvs;
 
         @Deprecated
         public ProxyEndPoint(EndPoint endPoint, InetSocketAddress remote, InetSocketAddress local)

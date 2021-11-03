@@ -13,7 +13,10 @@
 
 package org.eclipse.jetty12.server;
 
-public class Server extends Handler.Nested
+import org.eclipse.jetty.util.component.Container;
+import org.eclipse.jetty.util.component.LifeCycle;
+
+public class Server extends Handler.Nested implements Container, LifeCycle
 {
     public RequestLog getRequestLog()
     {

@@ -210,7 +210,7 @@ At this point you need to design a non-blocking asynchronous API that takes a `C
 
 A simple example of this API design could be the following:
 
-* Wrap the JSON `Mapped` into a `JSONHTTPRequest` parameter so that applications may use more specific HTTP APIs such as `JSONHTTPRequest.getMethod()` rather than a generic `Map.get("method")`
+* Wrap the JSON `Map` into a `JSONHTTPRequest` parameter so that applications may use more specific HTTP APIs such as `JSONHTTPRequest.getMethod()` rather than a generic `Map.get("method")`
 * Provide an equivalent `JSONHTTPResponse` parameter so that applications may use more specific APIs such as `JSONHTTPResponse.setStatus(int)` rather than a generic `Map.put("status", 200)`
 * Provide a `Callback` (or a `CompletableFuture`) parameter so that applications may indicate when the request processing is complete
 

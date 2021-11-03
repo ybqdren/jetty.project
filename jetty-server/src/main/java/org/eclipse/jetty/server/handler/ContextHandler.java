@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -194,7 +195,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
     protected ContextStatus _contextStatus = ContextStatus.NOTSET;
     protected Context _scontext;
     private final AttributesMap _attributes;
-    private final Mapped<String, String> _initParams;
+    private final Map<String, String> _initParams;
     private ClassLoader _classLoader;
     private boolean _contextPathDefault = true;
     private String _defaultRequestCharacterEncoding;
@@ -205,7 +206,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
     private long _stopTimeout;
     private Resource _baseResource;
     private MimeTypes _mimeTypes;
-    private Mapped<String, String> _localeEncodingMap;
+    private Map<String, String> _localeEncodingMap;
     private String[] _welcomeFiles;
     private ErrorHandler _errorHandler;
     private String[] _vhosts; // Host name portion, matching _vconnectors array
@@ -625,7 +626,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      * @return Returns the initParams.
      */
     @ManagedAttribute("Initial Parameter map for the context")
-    public Mapped<String, String> getInitParams()
+    public Map<String, String> getInitParams()
     {
         return _initParams;
     }
@@ -1906,7 +1907,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      *
      * @return a map of all the locale encodings: key is name of the locale and value is the char encoding
      */
-    public Mapped<String, String> getLocaleEncodings()
+    public Map<String, String> getLocaleEncodings()
     {
         if (_localeEncodingMap == null)
             return null;
@@ -2799,7 +2800,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         }
 
         @Override
-        public Mapped<String, ? extends FilterRegistration> getFilterRegistrations()
+        public Map<String, ? extends FilterRegistration> getFilterRegistrations()
         {
             LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getFilterRegistrations()");
             return null;
@@ -2813,7 +2814,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         }
 
         @Override
-        public Mapped<String, ? extends ServletRegistration> getServletRegistrations()
+        public Map<String, ? extends ServletRegistration> getServletRegistrations()
         {
             LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getServletRegistrations()");
             return null;
