@@ -19,4 +19,10 @@ public class Server extends Handler.Nested
     {
         return new RequestLog();
     }
+
+    @Override
+    public Server getServer()
+    {
+        return this;
+    }
 }

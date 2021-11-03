@@ -126,6 +126,9 @@ public class Channel extends AttributesMap
 
     public Runnable onConnectionClose(Throwable failed)
     {
+        Stream stream = _stream.getAndSet(null);
+        if (stream != null)
+            stream.failed(failed);
         notifyConnectionClose(_onConnectionClose.getAndSet(null), failed);
         return null;
     }
