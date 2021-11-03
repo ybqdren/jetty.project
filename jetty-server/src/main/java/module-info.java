@@ -22,6 +22,7 @@ module org.eclipse.jetty.server
     requires static java.naming;
     // Only required if using JMX.
     requires static org.eclipse.jetty.jmx;
+    requires org.eclipse.jetty.util;
 
     exports org.eclipse.jetty.server;
     exports org.eclipse.jetty.server.handler;

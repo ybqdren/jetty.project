@@ -30,5 +30,13 @@ public interface SessionManager extends LifeCycle
     
     void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
     
+    SessionIdManager getSessionIdManager();
+   
+    void callSessionCreatedListeners(Session session);
+    
+    void callSessionDestroyedListeners(Session session);
+    
+    void callSessionAttributeListeners(Session session, String name, Object old, Object value);
+
     void scavenge() throws Exception;
 }

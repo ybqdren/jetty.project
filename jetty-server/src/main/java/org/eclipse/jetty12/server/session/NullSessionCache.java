@@ -34,7 +34,7 @@ public class NullSessionCache extends AbstractSessionCache
     /**
      * @param handler The SessionHandler related to this SessionCache
      */
-    public NullSessionCache(SessionHandler handler)
+    public NullSessionCache(SessionManager handler)
     {
         super(handler);
         super.setEvictionPolicy(EVICT_ON_SESSION_EXIT);

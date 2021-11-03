@@ -29,7 +29,7 @@ public class SessionContext
 {
     public static final String NULL_VHOST = "0.0.0.0";
     private ContextHandler.Context _context;
-    private SessionHandler _sessionHandler;
+    private SessionManager _sessionHandler;
     private String _workerName;
     private String _canonicalContextPath;
     private String _vhost;
@@ -37,7 +37,7 @@ public class SessionContext
     public SessionContext(String workerName, ContextHandler.Context context)
     {
         if (context != null)
-            _sessionHandler = context.getContextHandler().getChildHandlerByClass(SessionHandler.class);
+            _sessionHandler = context.getContextHandler().getChildHandlerByClass(SessionManager.class);
         _workerName = workerName;
         _context = context;
         _canonicalContextPath = canonicalizeContextPath(_context);
@@ -49,7 +49,7 @@ public class SessionContext
         return _workerName;
     }
 
-    public SessionHandler getSessionHandler()
+    public SessionManager getSessionHandler()
     {
         return _sessionHandler;
     }

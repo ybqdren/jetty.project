@@ -28,7 +28,7 @@ public abstract class AbstractSessionCacheFactory implements SessionCacheFactory
     boolean _flushOnResponseCommit;
     boolean _invalidateOnShutdown;
     
-    public abstract SessionCache newSessionCache(SessionHandler handler);
+    public abstract SessionCache newSessionCache(SessionManager handler);
 
     public boolean isInvalidateOnShutdown()
     {
@@ -121,7 +121,7 @@ public abstract class AbstractSessionCacheFactory implements SessionCacheFactory
     }
 
     @Override
-    public SessionCache getSessionCache(SessionHandler handler)
+    public SessionCache getSessionCache(SessionManager handler)
     {
         SessionCache cache = newSessionCache(handler);
         cache.setEvictionPolicy(getEvictionPolicy());

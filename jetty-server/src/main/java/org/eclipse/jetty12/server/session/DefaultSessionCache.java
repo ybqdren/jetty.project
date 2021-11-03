@@ -45,7 +45,7 @@ public class DefaultSessionCache extends AbstractSessionCache
     /**
      * @param manager The SessionHandler related to this SessionCache
      */
-    public DefaultSessionCache(SessionHandler manager)
+    public DefaultSessionCache(SessionManager manager)
     {
         this(manager, new ConcurrentHashMap<>());
     }
@@ -54,7 +54,7 @@ public class DefaultSessionCache extends AbstractSessionCache
      * @param manager The SessionHandler related to this SessionCache
      * @param sessions The session map implementation to use
      */
-    public DefaultSessionCache(SessionHandler manager, ConcurrentMap<String, Session> sessions)
+    public DefaultSessionCache(SessionManager manager, ConcurrentMap<String, Session> sessions)
     {
         super(manager);
         _sessions = Objects.requireNonNull(sessions, "Session Map may not be null");

@@ -30,7 +30,7 @@ public class JDBCSessionDataStoreFactory extends AbstractSessionDataStoreFactory
     JDBCSessionDataStore.SessionTableSchema _schema;
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionHandler handler)
+    public SessionDataStore getSessionDataStore(SessionManager handler)
     {
         JDBCSessionDataStore ds = new JDBCSessionDataStore();
         ds.setDatabaseAdaptor(_adaptor);

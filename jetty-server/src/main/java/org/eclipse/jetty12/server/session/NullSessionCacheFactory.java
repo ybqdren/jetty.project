@@ -65,7 +65,7 @@ public class NullSessionCacheFactory extends AbstractSessionCacheFactory
     }
 
     @Override
-    public SessionCache newSessionCache(SessionHandler handler)
+    public SessionCache newSessionCache(SessionManager handler)
     {
         return new NullSessionCache(handler);
     }
