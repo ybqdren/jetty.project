@@ -11,10 +11,11 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server;
+package org.eclipse.jetty12.server.session;
 
+import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty12.server.session.Session;
+import org.eclipse.jetty12.server.Request;
 
 /**
  * 
@@ -24,11 +25,21 @@ public interface SessionManager extends LifeCycle
 {
     Session getSession(String id) throws Exception;
     
+    Session newSession(Request request, String requestedSessionId);
+    
+    void sessionExpired(Session session, long now);
+    
     void invalidate(String id) throws Exception;
+    
+    void scavenge() throws Exception;
     
     boolean isIdInUse(String id) throws Exception;
     
     void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
+    
+    HttpCookie getSessionCookie(Session session, String contextPath, boolean requestIsSecure);
+    
+    long calculateInactivityTimeout(String id, long timeRemaining, long maxInactiveMs);
     
     SessionIdManager getSessionIdManager();
    
@@ -46,7 +57,4 @@ public interface SessionManager extends LifeCycle
     
     void callSessionPassivationListener(Session session, String name, Object value);
 
-    void scavenge() throws Exception;
-    
-    long calculateInactivityTimeout(String id, long timeRemaining, long maxInactiveMs);
 }

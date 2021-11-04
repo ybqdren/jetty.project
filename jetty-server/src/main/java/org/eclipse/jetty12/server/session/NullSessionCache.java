@@ -17,7 +17,6 @@ import java.util.function.Function;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

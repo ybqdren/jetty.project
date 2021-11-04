@@ -21,7 +21,6 @@ import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.eclipse.jetty.util.thread.Scheduler;
-import org.eclipse.jetty12.server.SessionIdManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

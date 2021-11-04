@@ -57,6 +57,7 @@ import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.handler.ScopedRequest;
 import org.eclipse.jetty12.server.session.Session;
+import org.eclipse.jetty12.server.session.SessionManager;
 
 public class ServletScopedRequest extends ScopedRequest implements Runnable
 {
@@ -152,10 +153,16 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
 
     public class MutableHttpServletRequest implements HttpServletRequest
     {
-        private SessionHandler _sessionHandler;
-        private HttpSession _httpSession;
+        private SessionManager _sessionManager;
         private Session _session;
+        private String _requestedSessionId;
+        private boolean _requestedSessionIdFromCookie = false;
         private AsyncContextState _async;
+        
+        public Request getRequest()
+        {
+            return ServletScopedRequest.this;
+        }
 
         public HttpServletResponse getHttpServletResponse()
         {
@@ -167,9 +174,14 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
             return _httpServletResponse;
         }
 
-        public void setSessionManager(SessionHandler sessionHandler)
+        public void setSessionManager(SessionManager sessionManager)
         {
-            _sessionHandler = sessionHandler;
+            _sessionManager = sessionManager;
+        }
+        
+        public SessionManager getSessionManager()
+        {
+            return _sessionManager;
         }
 
         public void setBaseSession(Session session)
@@ -180,16 +192,6 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         public Session getBaseSession()
         {
             return _session;
-        }
-        
-        public void setHttpSession(HttpSession httpSession)
-        {
-            _httpSession = httpSession;
-        }
-        
-        public HttpSession getHttpSession()
-        {
-            return _httpSession;
         }
         
         @Override
@@ -330,7 +332,12 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public String getRequestedSessionId()
         {
-            return null;
+            return _requestedSessionId;
+        }
+        
+        public void setRequestedSessionId(String requestedSessionId)
+        {
+            _requestedSessionId = requestedSessionId;
         }
 
         @Override
@@ -354,38 +361,39 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public HttpSession getSession(boolean create)
         {
-            if (_session != null)
+            if (_session != null && _session.isValid())
             {
-                if (_sessionHandler != null && !_sessionHandler.isValid(_session))
-                    _session = null;
-                else
-                    return _session.getWrapper();
+                return _session.getWrapper();
             }
+            else
+                _session = null;
 
             if (!create)
                 return null;
 
-            if (getResponse().isCommitted())
+            if (getMutableHttpServletResponse().isCommitted())
                 throw new IllegalStateException("Response is committed");
 
-            if (_sessionHandler == null)
+            if (_sessionManager == null)
                 throw new IllegalStateException("No SessionManager");
 
-            _sessionHandler.newHttpSession(this);
+            _session = _sessionManager.newSession(this.getRequest(), getRequestedSessionId());
             if (_session == null)
                 throw new IllegalStateException("Create session failed");
-            
-            HttpCookie cookie = _sessionHandler.getSessionCookie(_session, getContextPath(), isSecure());
-            if (cookie != null)
-                _channel.getResponse().replaceCookie(cookie);
 
-            return _session;
+            HttpCookie cookie = _sessionManager.getSessionCookie(_session, getContextPath(), isSecure());
+            if (cookie != null)
+                getMutableHttpServletResponse().replaceCookie(cookie);
+
+            return _session.getWrapper();
         }
 
         @Override
         public HttpSession getSession()
         {
-            return null;
+            if (_session == null)
+                return null;
+            return _session.getWrapper();
         }
 
         @Override
@@ -397,19 +405,28 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
         @Override
         public boolean isRequestedSessionIdValid()
         {
-            return false;
+            if (_requestedSessionId == null)
+                return false;
+
+            HttpSession session = getSession(false);
+            return (session != null && _sessionHandler.getSessionIdManager().getId(_requestedSessionId).equals(session.getId()));
         }
 
         @Override
         public boolean isRequestedSessionIdFromCookie()
         {
-            return false;
+            return _requestedSessionIdFromCookie;
+        }
+        
+        public void setRequestedSessionIdFromCookie(boolean requestedSessionIdFromCookie)
+        {
+            _requestedSessionIdFromCookie = requestedSessionIdFromCookie;
         }
 
         @Override
         public boolean isRequestedSessionIdFromURL()
         {
-            return false;
+            return _requestedSessionId != null && !_requestedSessionIdFromCookie;
         }
 
         @Override

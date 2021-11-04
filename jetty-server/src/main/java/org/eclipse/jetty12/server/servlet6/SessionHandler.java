@@ -54,8 +54,6 @@ import org.eclipse.jetty12.server.Handler;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Response;
 import org.eclipse.jetty12.server.Server;
-import org.eclipse.jetty12.server.SessionIdManager;
-import org.eclipse.jetty12.server.SessionManager;
 import org.eclipse.jetty12.server.Stream;
 import org.eclipse.jetty12.server.handler.ContextHandler;
 import org.eclipse.jetty12.server.session.DefaultSessionCache;
@@ -67,6 +65,8 @@ import org.eclipse.jetty12.server.session.SessionCacheFactory;
 import org.eclipse.jetty12.server.session.SessionContext;
 import org.eclipse.jetty12.server.session.SessionDataStore;
 import org.eclipse.jetty12.server.session.SessionDataStoreFactory;
+import org.eclipse.jetty12.server.session.SessionIdManager;
+import org.eclipse.jetty12.server.session.SessionManager;
 import org.eclipse.jetty12.server.session.UnreadableSessionDataException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -776,11 +776,12 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * Creates a new <code>HttpSession</code>.
      *
      * @param request the HttpServletRequest containing the requested session id
+     * @return the new Session
      */
-    public void newHttpSession(ServletScopedRequest.MutableHttpServletRequest request)
-    {
+    public Session newSession(Request request, String requestedSessionId)
+    {   
         long created = System.currentTimeMillis();
-        String id = _sessionIdManager.newSessionId(request, created);
+        String id = _sessionIdManager.newSessionId(request, requestedSessionId, created);
         Session session = _sessionCache.newSession(id, created, (_dftMaxIdleSecs > 0 ? _dftMaxIdleSecs * 1000L : -1));
         session.setExtendedId(_sessionIdManager.getExtendedId(id, request));
         session.getSessionData().setLastNode(_sessionIdManager.getWorkerName());
@@ -789,12 +790,10 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         try
         {
             _sessionCache.add(id, session);
-            request.setBaseSession(session);
-            request.setHttpSession(apiSession);
 
             _sessionsCreatedStats.increment();
 
-            if (request != null && request.isSecure()request.getConnectionMetaData().isSecure())
+            if (request != null && request.getConnectionMetaData().isSecure())
                 session.setAttribute(Session.SESSION_CREATED_SECURE, Boolean.TRUE);
 
             callSessionCreatedListeners(session);
@@ -804,6 +803,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
             LOG.warn("Unable to add Session {}", id, e);
         }
     }
+    
     /**
      * Change the existing session id.
      *
@@ -1179,14 +1179,14 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * {@link Cookie cookie object} that should be set on the client in order to link future HTTP requests
      * with the <code>session</code>. If cookies are not in use, this method returns <code>null</code>.
      */
-    public HttpCookie getSessionCookie(HttpSession session, String contextPath, boolean requestIsSecure)
+    public HttpCookie getSessionCookie(Session session, String contextPath, boolean requestIsSecure)
     {
         if (isUsingCookies())
         {
             SessionCookieConfig cookieConfig = getSessionCookieConfig();
             String sessionPath = (cookieConfig.getPath() == null) ? contextPath : cookieConfig.getPath();
             sessionPath = (StringUtil.isEmpty(sessionPath)) ? "/" : sessionPath;
-            String id = getExtendedId(session);
+            String id = session.getExtendedId();
             HttpCookie cookie = null;
 
             cookie = new HttpCookie(
@@ -1327,7 +1327,6 @@ public class SessionHandler extends Handler.Nested implements SessionManager
             if (session != null && session.isValid())
             {
                 request.setBaseSession(session);
-                request.setHttpSession(apiSession);
             }
             return;
         }
@@ -1591,41 +1590,25 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @param session the session
      * @param now the time at which to check for expiry
      */
-    public void sessionInactivityTimerExpired(Session session, long now)
+    public void sessionExpired(Session session, long now)
     {
         if (session == null)
             return;
 
-        //check if the session is:
-        //1. valid
-        //2. expired
-        //3. idle
         try (AutoLock lock = session.lock())
         {
-            if (session.getRequests() > 0)
-                return; //session can't expire or be idle if there is a request in it
-
-            if (LOG.isDebugEnabled())
-                LOG.debug("Inspecting session {}, valid={}", session.getId(), session.isValid());
-
-            if (!session.isValid())
-                return; //do nothing, session is no longer valid
-
-            if (session.isExpiredAt(now))
+            //instead of expiring the session directly here, accumulate a list of 
+            //session ids that need to be expired. This is an efficiency measure: as
+            //the expiration involves the SessionDataStore doing a delete, it is 
+            //most efficient if it can be done as a bulk operation to eg reduce
+            //roundtrips to the persistent store. Only do this if the HouseKeeper that
+            //does the scavenging is configured to actually scavenge
+            if (_sessionIdManager.getSessionHouseKeeper() != null &&
+                _sessionIdManager.getSessionHouseKeeper().getIntervalSec() > 0)
             {
-                //instead of expiring the session directly here, accumulate a list of 
-                //session ids that need to be expired. This is an efficiency measure: as
-                //the expiration involves the SessionDataStore doing a delete, it is 
-                //most efficient if it can be done as a bulk operation to eg reduce
-                //roundtrips to the persistent store. Only do this if the HouseKeeper that
-                //does the scavenging is configured to actually scavenge
-                if (_sessionIdManager.getSessionHouseKeeper() != null &&
-                    _sessionIdManager.getSessionHouseKeeper().getIntervalSec() > 0)
-                {
-                    _candidateSessionIdsForExpiry.add(session.getId());
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Session {} is candidate for expiry", session.getId());
-                }
+                _candidateSessionIdsForExpiry.add(session.getId());
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Session {} is candidate for expiry", session.getId());
             }
             else
             {
@@ -1658,9 +1641,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         HttpCookie cookie = access(servletRequest.getBaseSession(), request.getConnectionMetaData().isSecure());
 
         // Handle changed ID or max-age refresh, but only if this is not a redispatched request
-        if ((cookie != null) &&
-            (request.getDispatcherType() == DispatcherType.ASYNC ||
-                request.getDispatcherType() == DispatcherType.REQUEST))     
+        if (cookie != null)
             servletRequest.getMutableHttpServletResponse().replaceCookie(cookie);
 
 

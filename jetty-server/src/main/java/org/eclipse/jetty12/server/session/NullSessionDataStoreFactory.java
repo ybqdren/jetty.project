@@ -13,8 +13,6 @@
 
 package org.eclipse.jetty12.server.session;
 
-import org.eclipse.jetty12.server.SessionManager;
-
 /**
  * NullSessionDataStoreFactory
  */

@@ -11,10 +11,10 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty12.server;
+package org.eclipse.jetty12.server.session;
 
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty12.server.session.HouseKeeper;
+import org.eclipse.jetty12.server.Request;
 
 /**
  * Session ID Manager.
@@ -47,11 +47,12 @@ public interface SessionIdManager extends LifeCycle
     /**
      * Create a new Session ID.
      *
-     * @param request the request with the sesion
+     * @param request the request asking for a new session
+     * @param requestedId the session id requested by the session
      * @param created the timestamp for when the session was created
      * @return the new session id
      */
-    public String newSessionId(Request request, long created);
+    public String newSessionId(Request request, String requestedId, long created);
 
     /**
      * @return the unique name of this server instance

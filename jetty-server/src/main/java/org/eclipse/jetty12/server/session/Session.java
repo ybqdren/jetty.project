@@ -28,7 +28,6 @@ import jakarta.servlet.http.HttpSessionEvent;
 import org.eclipse.jetty.io.CyclicTimeout;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty12.server.Request;
-import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * amongst multiple simultaneous requests referring to the same session id.
  *
  * The {@link SessionManager} coordinates the lifecycle of Session objects with
- * the help of the SessionCache.
+ * the help of the SessionCache/SessionDataStore.
  *
  * @see SessionManager
  * @see org.eclipse.jetty.server.SessionIdManager
@@ -52,13 +51,11 @@ public class Session
     private static final Logger LOG = LoggerFactory.getLogger(Session.class);
 
     /**
-     *
+     * Attribute set if the session is secure
      */
     public static final String SESSION_CREATED_SECURE = "org.eclipse.jetty.security.sessionCreatedSecure";
 
     /**
-     * State
-     *
      * Validity states of a session
      */
     public enum State
@@ -66,6 +63,10 @@ public class Session
         VALID, INVALID, INVALIDATING, CHANGING
     }
 
+    /**
+     * State of the session id
+     *
+     */
     public enum IdState
     {
         SET, CHANGING
@@ -105,7 +106,7 @@ public class Session
      */
     public class SessionInactivityTimer
     {
-        protected final CyclicTimeout _timer;
+        private final CyclicTimeout _timer;
 
         public SessionInactivityTimer()
         {
@@ -118,10 +119,22 @@ public class Session
                         LOG.debug("Timer expired for session {}", getId());
                     long now = System.currentTimeMillis();
                     //handle what to do with the session after the timer expired
-                    getSessionManager().sessionInactivityTimerExpired(Session.this, now);
-                    try (AutoLock l = Session.this.lock())
+                    
+                    try (AutoLock lock = Session.this.lock())
                     {
-                        //grab the lock and check what happened to the session: if it didn't get evicted and
+                        if (Session.this.getRequests() > 0)
+                            return; //session can't expire or be idle if there is a request in it
+
+                        if (LOG.isDebugEnabled())
+                            LOG.debug("Inspecting session {}, valid={}", Session.this.getId(), Session.this.isValid());
+
+                        if (!Session.this.isValid())
+                            return; //do nothing, session is no longer valid
+
+                        if (Session.this.isExpiredAt(now))
+                            getSessionManager().sessionExpired(Session.this, now);
+
+                        //check what happened to the session: if it didn't get evicted and
                         //it hasn't expired, we need to reset the timer
                         if (Session.this.isResident() && Session.this.getRequests() <= 0 && Session.this.isValid() &&
                             !Session.this.isExpiredAt(now))
@@ -217,7 +230,7 @@ public class Session
         _extendedId = extendedId;
     }
 
-    protected void cookieSet()
+    public void cookieSet()
     {
         try (AutoLock l = _lock.lock())
         {
@@ -436,13 +449,6 @@ public class Session
             checkValidForRead();
             return _sessionData.getLastAccessed();
         }
-    }
-
-    public ServletContext getServletContext()
-    {
-        if (_manager == null)
-            throw new IllegalStateException("No session manager for session " + _sessionData.getId());
-        return _manager._context;
     }
 
     public void setMaxInactiveInterval(int secs)

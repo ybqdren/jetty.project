@@ -15,8 +15,6 @@ package org.eclipse.jetty12.server.session;
 
 import java.io.File;
 
-import org.eclipse.jetty12.server.SessionManager;
-
 /**
  * FileSessionDataStoreFactory
  */

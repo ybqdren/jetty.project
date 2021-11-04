@@ -16,7 +16,6 @@ package org.eclipse.jetty12.server.session;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandler.Context;
 import org.eclipse.jetty.util.StringUtil;
-import org.eclipse.jetty12.server.SessionManager;
 
 /**
  * SessionContext

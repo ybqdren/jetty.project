@@ -27,8 +27,6 @@ import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty12.server.Request;
 import org.eclipse.jetty12.server.Server;
-import org.eclipse.jetty12.server.SessionIdManager;
-import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,13 +190,12 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
      * Create a new session id if necessary.
      */
     @Override
-    public String newSessionId(Request request, long created)
+    public String newSessionId(Request request, String requestedId, long created)
     {
         if (request == null)
             return newSessionId(created);
 
         // A requested session ID can only be used if it is in use already.
-        String requestedId = request.getRequestedSessionId();
         if (requestedId != null)
         {
             String clusterId = getId(requestedId);
@@ -492,7 +489,6 @@ public class DefaultSessionIdManager extends ContainerLifeCycle implements Sessi
     }
 
     /**
-     * TODO TODO TODO
      * Get SessionManager for every context.
      *
      * @return all SessionManagers that are running

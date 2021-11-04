@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty12.server.session;
 
-import org.eclipse.jetty12.server.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
