@@ -13,9 +13,9 @@
 
 package org.eclipse.jetty12.server.session;
 
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty12.server.handler.ContextHandler;
+import org.eclipse.jetty12.server.handler.ContextHandler.Context;
 
 /**
  * SessionContext
@@ -23,7 +23,7 @@ import org.eclipse.jetty.util.StringUtil;
  * Information about the context to which sessions belong: the Context,
  * the SessionHandler of the context, and the unique name of the node.
  *
- * A SessionHandler is 1:1 with a SessionContext.
+ * A SessionManager is 1:1 with a SessionContext.
  */
 public class SessionContext
 {
@@ -34,12 +34,11 @@ public class SessionContext
     private String _canonicalContextPath;
     private String _vhost;
 
-    public SessionContext(String workerName, ContextHandler.Context context)
+    public SessionContext(SessionManager sessionManager)
     {
-        if (context != null)
-            _sessionManager = context.getContextHandler().getBean(SessionManager.class);
-        _workerName = workerName;
-        _context = context;
+        _sessionManager = sessionManager;
+        _workerName = _sessionManager.getSessionIdManager().getWorkerName();
+        _context = sessionManager.getContext();
         _canonicalContextPath = canonicalizeContextPath(_context);
         _vhost = canonicalizeVHost(_context);
     }
@@ -84,7 +83,7 @@ public class SessionContext
     public void run(Runnable r)
     {
         if (_context != null)
-            _context.getContextHandler().handle(r);
+            _context.run(r);
         else
             r.run();
     }

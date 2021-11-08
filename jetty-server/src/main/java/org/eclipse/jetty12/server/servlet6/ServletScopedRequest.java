@@ -409,7 +409,7 @@ public class ServletScopedRequest extends ScopedRequest implements Runnable
                 return false;
 
             HttpSession session = getSession(false);
-            return (session != null && _sessionHandler.getSessionIdManager().getId(_requestedSessionId).equals(session.getId()));
+            return (session != null && _sessionManager.getSessionIdManager().getId(_requestedSessionId).equals(session.getId()));
         }
 
         @Override

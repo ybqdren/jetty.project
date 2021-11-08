@@ -47,6 +47,8 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
+import org.eclipse.jetty.util.statistic.CounterStatistic;
+import org.eclipse.jetty.util.statistic.SampleStatistic;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.eclipse.jetty.util.thread.Scheduler;
@@ -66,6 +68,7 @@ import org.eclipse.jetty12.server.session.SessionContext;
 import org.eclipse.jetty12.server.session.SessionDataStore;
 import org.eclipse.jetty12.server.session.SessionDataStoreFactory;
 import org.eclipse.jetty12.server.session.SessionIdManager;
+import org.eclipse.jetty12.server.session.SessionInactivityTimer;
 import org.eclipse.jetty12.server.session.SessionManager;
 import org.eclipse.jetty12.server.session.UnreadableSessionDataException;
 import org.slf4j.Logger;
@@ -73,7 +76,7 @@ import org.slf4j.LoggerFactory;
 
 public class SessionHandler extends Handler.Nested implements SessionManager
 {    
-    private static final Logger LOG = LoggerFactory.getLogger(SessionHandler.class);
+    static final Logger LOG = LoggerFactory.getLogger(SessionHandler.class);
 
     public static final EnumSet<SessionTrackingMode> DEFAULT_TRACKING = EnumSet.of(SessionTrackingMode.COOKIE,
         SessionTrackingMode.URL);
@@ -175,6 +178,8 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     private boolean _checkingRemoteSessionIdEncoding;
     private Set<SessionTrackingMode> _sessionTrackingModes;
     private SessionCookieConfig _cookieConfig = new CookieConfig();
+    private final SampleStatistic _sessionTimeStats = new SampleStatistic();
+    private final CounterStatistic _sessionsCreatedStats = new CounterStatistic();
     
     /**
      * CookieConfig
@@ -395,6 +400,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @see HttpSessionListener
      * @see HttpSessionIdListener
      */
+    @Override
     public boolean addEventListener(EventListener listener)
     {
         if (super.addEventListener(listener))
@@ -426,6 +432,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         return false;
     }
     
+    @Override
     public long calculateInactivityTimeout(String id, long timeRemaining, long maxInactiveMs)
     {
         long time = 0;
@@ -483,8 +490,9 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     }
     
     /**
-     * @return the session store
+     * @return the session cache
      */
+    @Override
     public SessionCache getSessionCache()
     {
         return _sessionCache;
@@ -500,12 +508,18 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     }
 
     /**
-     * @param metaManager The metaManager used for cross context session management.
+     * @param sessionIdManager The sessionIdManager used for cross context session management.
      */
-    public void setSessionIdManager(SessionIdManager metaManager)
+    public void setSessionIdManager(SessionIdManager sessionIdManager)
     {
-        updateBean(_sessionIdManager, metaManager);
-        _sessionIdManager = metaManager;
+        updateBean(_sessionIdManager, sessionIdManager);
+        _sessionIdManager = sessionIdManager;
+    }
+    
+    @Override
+    public ContextHandler.Context getContext()
+    {
+        return _context;
     }
     
     protected void doStart() throws Exception
@@ -602,7 +616,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                 _checkingRemoteSessionIdEncoding = Boolean.parseBoolean(tmp);
         }
 
-        _sessionContext = new SessionContext(_sessionIdManager.getWorkerName(), _context);
+        _sessionContext = new SessionContext(this);
         _sessionCache.initialize(_sessionContext);
         super.doStart();
     }
@@ -612,6 +626,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      *
      * @return the session id manager
      */
+    @Override
     public SessionIdManager getSessionIdManager()
     {
         return _sessionIdManager;
@@ -620,9 +635,10 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     /**
      * Get a known existing session
      *
-     * @param extendedId The session id, possibly with worker name.
-     * @return A Session or null if none exists.
+     * @param extendedId The session id, possibly imcluding worker name suffix.
+     * @return the Session matching the id or null if none exists
      */
+    @Override
     public Session getSession(String extendedId)
     {
         String id = getSessionIdManager().getId(extendedId);
@@ -681,6 +697,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @see #setMaxInactiveInterval(int)
      */
     @ManagedAttribute("default maximum time a session may be idle for (in s)")
+    @Override
     public int getMaxInactiveInterval()
     {
         return _dftMaxIdleSecs;
@@ -692,6 +709,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @param seconds the max inactivity period, in seconds.
      * @see #getMaxInactiveInterval()
      */
+    @Override
     public void setMaxInactiveInterval(int seconds)
     {
         _dftMaxIdleSecs = seconds;
@@ -732,6 +750,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @return <code>true</code> if this manager knows about this id
      * @throws Exception if any error occurred
      */
+    @Override
     public boolean isIdInUse(String id) throws Exception
     {
         //Ask the session store
@@ -762,15 +781,6 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     {
         _checkingRemoteSessionIdEncoding = remote;
     }
-    
-    /**
-     * @param session the session to test for validity
-     * @return whether the given session is valid, that is, it has not been invalidated.
-     */
-    public boolean isValid(Session session)
-    {
-        return session.isValid();
-    }
 
     /**
      * Creates a new <code>HttpSession</code>.
@@ -778,6 +788,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @param request the HttpServletRequest containing the requested session id
      * @return the new Session
      */
+    @Override
     public Session newSession(Request request, String requestedSessionId)
     {   
         long created = System.currentTimeMillis();
@@ -797,10 +808,12 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                 session.setAttribute(Session.SESSION_CREATED_SECURE, Boolean.TRUE);
 
             callSessionCreatedListeners(session);
+            return session;
         }
         catch (Exception e)
         {
             LOG.warn("Unable to add Session {}", id, e);
+            return null;
         }
     }
     
@@ -812,6 +825,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @param newId the new session id
      * @param newExtendedId the new session id including worker suffix
      */
+    @Override
     public void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId)
     {
         Session session = null;
@@ -856,6 +870,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      *
      * @param id the session id to invalidate
      */
+    @Override
     public void invalidate(String id)
     {
 
@@ -903,6 +918,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * Called periodically by the HouseKeeper to handle the list of
      * sessions that have expired since the last call to scavenge.
      */
+    @Override
     public void scavenge()
     {
         //don't attempt to scavenge if we are shutting down
@@ -941,12 +957,6 @@ public class SessionHandler extends Handler.Nested implements SessionManager
                 e);
         }
     }
-    
-    //TODO might not be needed
-    public Scheduler getScheduler()
-    {
-        return _scheduler;
-    }
 
     /**
      * Prepare sessions for session manager shutdown
@@ -958,6 +968,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         _sessionCache.shutdown();
     }
 
+    @Override
     public void callSessionAttributeListeners(Session session, String name, Object old, Object value)
     {
         if (!_sessionAttributeListeners.isEmpty())
@@ -982,6 +993,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      *
      * @param session the session on which to call the lifecycle listeners
      */
+    @Override
     public void callSessionCreatedListeners(Session session)
     {
         if (session == null)
@@ -1003,6 +1015,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      *
      * @param session the session on which to call the lifecycle listeners
      */
+    @Override
     public void callSessionDestroyedListeners(Session session)
     {
         if (session == null)
@@ -1029,6 +1042,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         }
     }
 
+    @Override
     public void callSessionIdListeners(Session session, String oldId)
     {
         //inform the listeners
@@ -1042,18 +1056,21 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         }
     }
     
+    @Override
     public void callUnboundBindingListener(Session session, String name, Object value)
     {
         if (value instanceof HttpSessionBindingListener)
             ((HttpSessionBindingListener)value).valueUnbound(new HttpSessionBindingEvent(session.getWrapper(), name));
     }
     
+    @Override
     public void callBoundBindingListener(Session session, String name, Object value)
     {
         if (value instanceof HttpSessionBindingListener)
             ((HttpSessionBindingListener)value).valueBound(new HttpSessionBindingEvent(session.getWrapper(), name)); 
     }
     
+    @Override
     public void callSessionActivationListener(Session session, String name, Object value)
     {
         if (value instanceof HttpSessionActivationListener)
@@ -1065,6 +1082,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         
     }
 
+    @Override
     public void callSessionPassivationListener(Session session, String name, Object value)
     {
         if (value instanceof HttpSessionActivationListener)
@@ -1179,6 +1197,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * {@link Cookie cookie object} that should be set on the client in order to link future HTTP requests
      * with the <code>session</code>. If cookies are not in use, this method returns <code>null</code>.
      */
+    @Override
     public HttpCookie getSessionCookie(Session session, String contextPath, boolean requestIsSecure)
     {
         if (isUsingCookies())
@@ -1483,7 +1502,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * so that any subsequent requests to other servers
      * will see the modifications.
      */
-    public void commit(Session session)
+    protected void commit(Session session)
     {
         if (session == null)
             return;
@@ -1509,7 +1528,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * the session or to refresh a session cookie that may expire.
      * @see #complete(HttpSession)
      */
-    public HttpCookie access(Session session, boolean secure)
+    protected HttpCookie access(Session session, boolean secure)
     {
         long now = System.currentTimeMillis();
 
@@ -1531,48 +1550,6 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     }
 
     /**
-     * Remove session from manager
-     *
-     * @param id The session to remove
-     * @param invalidate True if {@link HttpSessionListener#sessionDestroyed(HttpSessionEvent)} and
-     * {@link SessionIdManager#expireAll(String)} should be called.
-     * @return if the session was removed
-     */
-    public Session removeSession(String id, boolean invalidate)
-    {
-        try
-        {
-            //Remove the Session object from the session store and any backing data store
-            Session session = _sessionCache.delete(id);
-            if (session != null)
-            {
-                if (invalidate)
-                {
-                    session.beginInvalidate();
-
-                    if (_sessionListeners != null)
-                    {
-                        HttpSessionEvent event = new HttpSessionEvent(session.getWrapper());
-                        for (int i = _sessionListeners.size() - 1; i >= 0; i--)
-                        {
-                            _sessionListeners.get(i).sessionDestroyed(event);
-                        }
-                    }
-                }
-            }
-            //TODO if session object is not known to this node, how to get rid of it if no other
-            //node knows about it?
-
-            return session;
-        }
-        catch (Exception e)
-        {
-            LOG.warn("Unable to remove Session", e);
-            return null;
-        }
-    }  
-
-    /**
      * Each session has a timer that is configured to go off
      * when either the session has not been accessed for a
      * configurable amount of time, or the session itself
@@ -1590,6 +1567,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
      * @param session the session
      * @param now the time at which to check for expiry
      */
+    @Override
     public void sessionExpired(Session session, long now)
     {
         if (session == null)
@@ -1618,6 +1596,12 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         }
     }
     
+    @Override
+    public SessionInactivityTimer newSessionInactivityTimer(Session session)
+    {
+        return new SessionInactivityTimer(this, session, _scheduler);
+    }
+
     @Override
     public boolean handle(Request request, Response response)
     {
@@ -1685,4 +1669,50 @@ public class SessionHandler extends Handler.Nested implements SessionManager
 
         return super.handle(request, response);
     }
+    
+    /**
+     * @return total amount of time all sessions remained valid
+     */
+    @ManagedAttribute("total time sessions have remained valid")
+    public long getSessionTimeTotal()
+    {
+        return _sessionTimeStats.getTotal();
+    }
+
+    /**
+     * @return mean amount of time session remained valid
+     */
+    @ManagedAttribute("mean time sessions remain valid (in s)")
+    public double getSessionTimeMean()
+    {
+        return _sessionTimeStats.getMean();
+    }
+
+    /**
+     * @return standard deviation of amount of time session remained valid
+     */
+    @ManagedAttribute("standard deviation a session remained valid (in s)")
+    public double getSessionTimeStdDev()
+    {
+        return _sessionTimeStats.getStdDev();
+    }
+    
+    @ManagedAttribute("number of sessions created by this context")
+    public int getSessionsCreated()
+    {
+        return (int)_sessionsCreatedStats.getCurrent();
+    }
+    
+    /**
+     * Record length of time session has been active. Called when the
+     * session is about to be invalidated.
+     *
+     * @param session the session whose time to record
+     */
+    @Override
+    public void recordSessionTime(Session session)
+    {
+        _sessionTimeStats.record(Math.round((System.currentTimeMillis() - session.getSessionData().getCreated()) / 1000.0));
+    }
+    
 }

@@ -96,92 +96,6 @@ public class Session
     protected final SessionInactivityTimer _sessionInactivityTimer;
 
     /**
-     * SessionInactivityTimer
-     *
-     * Each Session has a timer associated with it that fires whenever it has
-     * been idle (ie not accessed by a request) for a configurable amount of
-     * time, or the Session expires.
-     *
-     * @see SessionCache
-     */
-    public class SessionInactivityTimer
-    {
-        private final CyclicTimeout _timer;
-
-        public SessionInactivityTimer()
-        {
-            _timer = new CyclicTimeout((getSessionManager().getScheduler()))
-            {
-                @Override
-                public void onTimeoutExpired()
-                {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Timer expired for session {}", getId());
-                    long now = System.currentTimeMillis();
-                    //handle what to do with the session after the timer expired
-                    
-                    try (AutoLock lock = Session.this.lock())
-                    {
-                        if (Session.this.getRequests() > 0)
-                            return; //session can't expire or be idle if there is a request in it
-
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("Inspecting session {}, valid={}", Session.this.getId(), Session.this.isValid());
-
-                        if (!Session.this.isValid())
-                            return; //do nothing, session is no longer valid
-
-                        if (Session.this.isExpiredAt(now))
-                            getSessionManager().sessionExpired(Session.this, now);
-
-                        //check what happened to the session: if it didn't get evicted and
-                        //it hasn't expired, we need to reset the timer
-                        if (Session.this.isResident() && Session.this.getRequests() <= 0 && Session.this.isValid() &&
-                            !Session.this.isExpiredAt(now))
-                        {
-                            //session wasn't expired or evicted, we need to reset the timer
-                            SessionInactivityTimer.this.schedule(Session.this.calculateInactivityTimeout(now));
-                        }
-                    }
-                }
-            };
-        }
-
-        /**
-         * @param time the timeout to set; -1 means that the timer will not be
-         * scheduled
-         */
-        public void schedule(long time)
-        {
-            if (time >= 0)
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("(Re)starting timer for session {} at {}ms", getId(), time);
-                _timer.schedule(time, TimeUnit.MILLISECONDS);
-            }
-            else
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Not starting timer for session {}", getId());
-            }
-        }
-
-        public void cancel()
-        {
-            _timer.cancel();
-            if (LOG.isDebugEnabled())
-                LOG.debug("Cancelled timer for session {}", getId());
-        }
-
-        public void destroy()
-        {
-            _timer.destroy();
-            if (LOG.isDebugEnabled())
-                LOG.debug("Destroyed timer for session {}", getId());
-        }
-    }
-
-    /**
      * Create a new session object. The session could be an 
      * entirely new session, or could be being re-inflated from
      * persistent store.
@@ -198,7 +112,7 @@ public class Session
             _newSession = true;
             _sessionData.setDirty(true);
         }
-        _sessionInactivityTimer = new SessionInactivityTimer();
+        _sessionInactivityTimer = handler.newSessionInactivityTimer(this);
     }
 
     @SuppressWarnings("unchecked")

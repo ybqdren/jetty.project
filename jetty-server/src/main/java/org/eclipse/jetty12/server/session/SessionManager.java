@@ -16,6 +16,7 @@ package org.eclipse.jetty12.server.session;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty12.server.Request;
+import org.eclipse.jetty12.server.handler.ContextHandler;
 
 /**
  * 
@@ -41,7 +42,19 @@ public interface SessionManager extends LifeCycle
     
     long calculateInactivityTimeout(String id, long timeRemaining, long maxInactiveMs);
     
+    SessionInactivityTimer newSessionInactivityTimer(Session session);
+    
     SessionIdManager getSessionIdManager();
+    
+    ContextHandler.Context getContext();
+    
+    SessionCache getSessionCache();
+    
+    void setMaxInactiveInterval(int msec);
+    
+    int getMaxInactiveInterval();
+    
+    void callSessionIdListeners(Session session, String oldId);
    
     void callSessionCreatedListeners(Session session);
     
@@ -56,5 +69,14 @@ public interface SessionManager extends LifeCycle
     void callSessionActivationListener(Session session, String name, Object value);
     
     void callSessionPassivationListener(Session session, String name, Object value);
-
+    
+    void recordSessionTime(Session session);
+    
+    int getSessionsCreated();
+    
+    double getSessionTimeStdDev();
+    
+    double getSessionTimeMean();
+    
+    long getSessionTimeTotal();
 }
