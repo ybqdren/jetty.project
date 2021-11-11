@@ -14,18 +14,9 @@
 package org.eclipse.jetty12.server.session;
 
 import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.http.HttpSessionActivationListener;
-import jakarta.servlet.http.HttpSessionBindingEvent;
-import jakarta.servlet.http.HttpSessionBindingListener;
-import jakarta.servlet.http.HttpSessionEvent;
-import org.eclipse.jetty.io.CyclicTimeout;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty12.server.Request;
 import org.slf4j.Logger;
@@ -472,30 +463,6 @@ public class Session
         {
             checkValidForRead();
             return _sessionData.getAttribute(name);
-        }
-    }
-
-    public Enumeration<String> getAttributeNames()
-    {
-        try (AutoLock l = _lock.lock())
-        {
-            checkValidForRead();
-            final Iterator<String> itor = _sessionData.getKeys().iterator();
-            return new Enumeration<>()
-            {
-
-                @Override
-                public boolean hasMoreElements()
-                {
-                    return itor.hasNext();
-                }
-
-                @Override
-                public String nextElement()
-                {
-                    return itor.next();
-                }
-            };
         }
     }
 

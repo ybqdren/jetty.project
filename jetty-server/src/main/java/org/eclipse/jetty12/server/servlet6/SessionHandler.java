@@ -20,6 +20,7 @@ import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -354,7 +355,22 @@ public class SessionHandler extends Handler.Nested implements SessionManager
         @Override
         public Enumeration<String> getAttributeNames()
         {
-            return _session.getAttributeNames();
+            final Iterator<String> itor = _session.getNames().iterator();
+            return new Enumeration<>()
+            {
+
+                @Override
+                public boolean hasMoreElements()
+                {
+                    return itor.hasNext();
+                }
+
+                @Override
+                public String nextElement()
+                {
+                    return itor.next();
+                }
+            };
         }
 
         @Override
