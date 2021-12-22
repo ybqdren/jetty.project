@@ -97,13 +97,13 @@ public class DumpHandler extends Handler.Abstract
                     {
                         try (Blocking.Runnable blocker = _blocker.runnable())
                         {
-                            request.setOnContentListener(blocker);
+//                            request.setOnContentListener(blocker);
                             request.demandContent();
                             blocker.block();
                         }
                         finally
                         {
-                            request.setOnContentListener(null);
+//                            request.setOnContentListener(null);
                         }
                         continue;
                     }

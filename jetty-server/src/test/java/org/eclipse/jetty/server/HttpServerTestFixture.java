@@ -159,13 +159,13 @@ public class HttpServerTestFixture
                 {
                     try (Blocking.Runnable blocker = Blocking.runnable())
                     {
-                        request.setOnContentListener(blocker);
+//                        request.setOnContentListener(blocker);
                         request.demandContent();
                         blocker.block();
                     }
                     finally
                     {
-                        request.setOnContentListener(null);
+//                        request.setOnContentListener(null);
                     }
                     continue;
                 }

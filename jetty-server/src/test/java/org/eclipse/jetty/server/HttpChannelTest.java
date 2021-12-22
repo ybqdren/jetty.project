@@ -978,7 +978,7 @@ public class HttpChannelTest
                         content.release();
                         if (content.isLast())
                         {
-                            request.setOnContentListener(null);
+//                            request.setOnContentListener(null);
                             latch.countDown();
                         }
                         else
@@ -987,7 +987,7 @@ public class HttpChannelTest
                         }
                     }
                 };
-                request.setOnContentListener(onContentAvailable);
+//                request.setOnContentListener(onContentAvailable);
                 request.demandContent();
                 if (latch.await(30, TimeUnit.SECONDS))
                 {
@@ -1099,7 +1099,7 @@ public class HttpChannelTest
         CountDownLatch demand = new CountDownLatch(1);
         // Callback serialized until after onError task
 
-        handling.get().setOnContentListener(demand::countDown);
+//        handling.get().setOnContentListener(demand::countDown);
         handling.get().demandContent();
 
         FuturePromise<Throwable> callback = new FuturePromise<>();

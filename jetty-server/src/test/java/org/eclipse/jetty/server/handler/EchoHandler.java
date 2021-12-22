@@ -53,7 +53,7 @@ public class EchoHandler extends Handler.Abstract
         {
             _request = request;
             _response = response;
-            _request.setOnContentListener(this::succeeded);
+//            _request.setOnContentListener(this::succeeded);
         }
 
         @Override
@@ -77,7 +77,7 @@ public class EchoHandler extends Handler.Abstract
 
             if (!content.hasRemaining() && content.isLast())
             {
-                _request.setOnContentListener(null);
+//                _request.setOnContentListener(null);
                 return Action.SUCCEEDED;
             }
 

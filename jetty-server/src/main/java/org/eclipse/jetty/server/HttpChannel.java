@@ -533,15 +533,6 @@ public class HttpChannel extends Attributes.Lazy
         }
 
         @Override
-        public void setOnContentListener(Runnable onContentAvailable)
-        {
-            try (AutoLock ignored = _lock.lock())
-            {
-                _onContentAvailable = onContentAvailable;
-            }
-        }
-
-        @Override
         public void demandContent()
         {
             boolean error;
@@ -555,6 +546,41 @@ public class HttpChannel extends Attributes.Lazy
                 onContentAvailable = _onContentAvailable;
             }
 
+            if (error)
+                _serializedInvoker.run(onContentAvailable);
+            else
+                getStream().demandContent();
+        }
+
+        @Override
+        public void reduce(Consumer<Content> accumulator, ContentReducer reducer)
+        {
+            boolean error;
+            Runnable onContentAvailable;
+            try (AutoLock ignored = _lock.lock())
+            {
+                error = _error != null;
+                if (_onContentAvailable != null)
+                    throw new IllegalStateException();
+                onContentAvailable = () -> reducer.reduce(ChannelRequest.this, content ->
+                {
+                    try
+                    {
+                        accumulator.accept(content);
+                    }
+                    finally
+                    {
+                        if (content.isLast())
+                        {
+                            try (AutoLock ignored1 = _lock.lock())
+                            {
+                                _onContentAvailable = null;
+                            }
+                        }
+                    }
+                });
+                _onContentAvailable = onContentAvailable;
+            }
             if (error)
                 _serializedInvoker.run(onContentAvailable);
             else

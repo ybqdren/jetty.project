@@ -21,6 +21,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -192,13 +193,8 @@ public class ContextHandlerTest
             {
                 request.addCompletionListener(Callback.from(() -> assertInContext(request)));
 
-                request.setOnContentListener(() ->
+                Consumer<Content> accumulator = (content) ->
                 {
-                    assertInContext(request);
-                    request.setOnContentListener(null);
-                    Content content = request.readContent();
-                    assertTrue(content.hasRemaining());
-                    assertTrue(content.isLast());
                     response.setStatus(200);
                     response.write(true, Callback.from(
                         () ->
@@ -211,8 +207,16 @@ public class ContextHandlerTest
                         {
                             throw new IllegalStateException();
                         }), content.getByteBuffer());
+                };
+                request.reduce(accumulator, (p, a) ->
+                {
+                    assertInContext(request);
+                    Content content = p.readContent();
+                    assertTrue(content.hasRemaining());
+                    assertTrue(content.isLast());
+
+                    a.accept(content);
                 });
-                request.demandContent();
                 return true;
             }
         };
@@ -263,21 +267,23 @@ public class ContextHandlerTest
                 request.addCompletionListener(Callback.from(() -> assertInContext(request)));
 
                 CountDownLatch latch = new CountDownLatch(1);
-                request.setOnContentListener(() ->
+                Consumer<Content> accumulator = content -> latch.countDown();
+                request.reduce(accumulator, (p, a) ->
                 {
                     assertInContext(request);
-                    latch.countDown();
-                });
-                request.demandContent();
 
+                    Content content = request.readContent();
+                    assertNotNull(content);
+                    assertTrue(content.hasRemaining());
+                    assertTrue(content.isLast());
+
+                    a.accept(content);
+
+                    content.release();
+                });
                 blocking.countDown();
+
                 assertTrue(latch.await(10, TimeUnit.SECONDS));
-                request.setOnContentListener(null);
-                Content content = request.readContent();
-                assertNotNull(content);
-                assertTrue(content.hasRemaining());
-                assertTrue(content.isLast());
-                content.release();
                 response.setStatus(200);
                 request.succeeded();
                 return true;

@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.ByteBufferAccumulator;
@@ -245,52 +246,49 @@ public interface Content
     {
         Content readContent();
 
-        void setOnContentListener(Runnable onContentAvailable);
-
         void demandContent();
     }
 
     // TODO should these static methods be instance methods?   They are not very buffer efficient
 
-    static void readBytes(Provider provider, Promise<ByteBuffer> content)
+    static void readBytes(Request provider, Promise<ByteBuffer> content)
     {
         ByteBufferAccumulator out = new ByteBufferAccumulator();
-        Runnable onDataAvailable = new Runnable()
+        Consumer<Content> accumulator = c ->
         {
-            @Override
-            public void run()
+            if (c.hasRemaining())
             {
-                while (true)
-                {
-                    Content c = provider.readContent();
-                    if (c == null)
-                    {
-                        provider.demandContent();
-                        return;
-                    }
-
-                    if (c.hasRemaining())
-                    {
-                        out.copyBuffer(c.getByteBuffer());
-                        c.release();
-                    }
-                    if (c.isLast())
-                    {
-                        provider.setOnContentListener(null);
-                        if (c instanceof Content.Error)
-                            content.failed(((Content.Error)c).getCause());
-                        else
-                            content.succeeded(out.takeByteBuffer());
-                        return;
-                    }
-                }
+                out.copyBuffer(c.getByteBuffer());
             }
         };
-        provider.setOnContentListener(onDataAvailable);
-        onDataAvailable.run();
+
+        provider.reduce(accumulator, (p, a) ->
+        {
+            Content c = p.readContent();
+            if (c == null)
+            {
+                p.demandContent();
+                return;
+            }
+
+            a.accept(c);
+            c.release();
+
+            if (c.isLast())
+            {
+                if (c instanceof Error)
+                    content.failed(((Error)c).getCause());
+                else
+                    content.succeeded(out.takeByteBuffer());
+            }
+            else
+            {
+                p.demandContent();
+            }
+        });
     }
 
-    static ByteBuffer readBytes(Provider provider) throws InterruptedException, IOException
+    static ByteBuffer readBytes(Request provider) throws InterruptedException, IOException
     {
         Promise.Completable<ByteBuffer> result = new Promise.Completable<>();
         readBytes(provider, result);
@@ -304,44 +302,45 @@ public interface Content
         }
     }
 
-    static void readUtf8String(Provider provider, Promise<String> content)
+    static void readUtf8String(Request provider, Promise<String> content)
     {
         Utf8StringBuilder builder = new Utf8StringBuilder();
-        Runnable onDataAvailable = new Runnable()
+
+        Consumer<Content> accumulator = c ->
         {
-            @Override
-            public void run()
+            if (c.hasRemaining())
             {
-                while (true)
-                {
-                    Content c = provider.readContent();
-                    if (c == null)
-                    {
-                        provider.demandContent();
-                        return;
-                    }
-                    if (c.hasRemaining())
-                    {
-                        builder.append(c.getByteBuffer());
-                        c.release();
-                    }
-                    if (c.isLast())
-                    {
-                        provider.setOnContentListener(null);
-                        if (c instanceof Content.Error)
-                            content.failed(((Content.Error)c).getCause());
-                        else
-                            content.succeeded(builder.toString());
-                        return;
-                    }
-                }
+                builder.append(c.getByteBuffer());
             }
         };
-        provider.setOnContentListener(onDataAvailable);
-        onDataAvailable.run();
+
+        provider.reduce(accumulator, (p, a) ->
+        {
+            Content c = p.readContent();
+            if (c == null)
+            {
+                p.demandContent();
+                return;
+            }
+
+            a.accept(c);
+            c.release();
+
+            if (c.isLast())
+            {
+                if (c instanceof Error)
+                    content.failed(((Error)c).getCause());
+                else
+                    content.succeeded(builder.toString());
+            }
+            else
+            {
+                p.demandContent();
+            }
+        });
     }
 
-    static String readUtf8String(Provider provider) throws InterruptedException, IOException
+    static String readUtf8String(Request provider) throws InterruptedException, IOException
     {
         Promise.Completable<String> result = new Promise.Completable<>();
         readUtf8String(provider, result);

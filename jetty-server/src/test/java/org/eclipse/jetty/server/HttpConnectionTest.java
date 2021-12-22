@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -1290,35 +1291,30 @@ public class HttpConnectionTest
             @Override
             public boolean handle(Request request, Response response) throws Exception
             {
-                while (true)
+                CountDownLatch blocker = new CountDownLatch(1);
+                Consumer<Content> accumulator = content ->
+                {
+                    if (!content.isSpecial())
+                        content.getByteBuffer().clear();
+                    if (content.isLast())
+                        blocker.countDown();
+                };
+                request.reduce(accumulator, (p, a) ->
                 {
                     Content content = request.readContent();
                     if (content == null)
                     {
-                        try
-                        {
-                            CountDownLatch blocker = new CountDownLatch(1);
-                            request.setOnContentListener(blocker::countDown);
-                            request.demandContent();
-                            blocker.await();
-                        }
-                        catch (InterruptedException e)
-                        {
-                            // ignored
-                        }
-                        finally
-                        {
-                            request.setOnContentListener(null);
-                        }
-                        continue;
+                        p.demandContent();
+                        return;
                     }
 
-                    if (content.hasRemaining())
-                        content.getByteBuffer().clear();
+                    a.accept(content);
+
                     content.release();
-                    if (content.isLast())
-                        break;
-                }
+                    if (!content.isLast())
+                        p.demandContent();
+                });
+                blocker.await();
 
                 HttpConnection connection = HttpConnection.getCurrentConnection();
                 long bytesIn = connection.getBytesIn();

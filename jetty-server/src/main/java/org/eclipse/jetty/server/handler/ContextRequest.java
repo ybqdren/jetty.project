@@ -15,6 +15,7 @@ package org.eclipse.jetty.server.handler;
 
 import java.util.function.Consumer;
 
+import org.eclipse.jetty.server.Content;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.Callback;
 
@@ -37,12 +38,9 @@ public class ContextRequest extends Request.Wrapper
     }
 
     @Override
-    public void setOnContentListener(Runnable onContentAvailable)
+    public void reduce(Consumer<Content> accumulator, ContentReducer reducer)
     {
-        if (onContentAvailable == null)
-            super.setOnContentListener(null);
-        else
-            super.setOnContentListener(() -> _context.run(onContentAvailable));
+        super.reduce(accumulator, (p, a) -> _context.run(() -> reducer.reduce(p, a)));
     }
 
     @Override
