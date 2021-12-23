@@ -12,6 +12,7 @@
 
   <modules>
     <module>jetty-servlet6</module>
+    <module>jetty-servlet6-experimental</module>
     <module>jetty-servlet-common</module>
   </modules>
 

@@ -189,7 +189,7 @@ public class HttpChannel extends Attributes.Lazy
         }
     }
 
-    protected Request getRequest()
+    public Request getRequest()
     {
         try (AutoLock ignored = _lock.lock())
         {
@@ -197,7 +197,7 @@ public class HttpChannel extends Attributes.Lazy
         }
     }
 
-    protected Response getResponse()
+    public Response getResponse()
     {
         try (AutoLock ignored = _lock.lock())
         {

@@ -51,7 +51,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     }
 
     private final Attributes _persistentAttributes = new Mapped();
-    private final Context _context = new Context();
+    private final Context _context;
     private final List<VHost> _vhosts = new ArrayList<>();
 
     private String _displayName;
@@ -67,6 +67,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     public ContextHandler(String contextPath)
     {
         setContextPath(contextPath);
+        _context = newContext();
     }
 
     @ManagedAttribute(value = "Context")
@@ -353,6 +354,11 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     public void clearAttributes()
     {
         _persistentAttributes.clearAttributes();
+    }
+
+    protected Context newContext()
+    {
+        return new Context();
     }
 
     public class Context extends Attributes.Layer
