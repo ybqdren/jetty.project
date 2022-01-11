@@ -16,6 +16,7 @@ package org.eclipse.jetty.websocket.core.internal;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.LongConsumer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -25,6 +26,7 @@ import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.compression.DeflaterPool;
 import org.eclipse.jetty.util.compression.InflaterPool;
 import org.eclipse.jetty.websocket.core.AbstractExtension;
+import org.eclipse.jetty.websocket.core.Extension;
 import org.eclipse.jetty.websocket.core.ExtensionConfig;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.OpCode;
@@ -40,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Attempts to follow <a href="https://tools.ietf.org/html/rfc7692">Compression Extensions for WebSocket</a>
  */
-public class PerMessageDeflateExtension extends AbstractExtension
+public class PerMessageDeflateExtension extends AbstractExtension implements Extension.Demanding
 {
     private static final byte[] TAIL_BYTES = new byte[]{0x00, 0x00, (byte)0xFF, (byte)0xFF};
     private static final ByteBuffer TAIL_BYTES_BUF = ByteBuffer.wrap(TAIL_BYTES);
@@ -234,6 +236,13 @@ public class PerMessageDeflateExtension extends AbstractExtension
             releaseDeflater();
         }
         super.nextOutgoingFrame(frame, callback, batch);
+    }
+
+    @Override
+    public void demand(long n, LongConsumer nextDemand)
+    {
+        if (!processMoreInflateData())
+            nextDemand.accept(n);
     }
 
     private class OutgoingFlusher extends TransformingFlusher

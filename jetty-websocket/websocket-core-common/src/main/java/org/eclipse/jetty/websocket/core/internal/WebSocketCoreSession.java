@@ -422,7 +422,7 @@ public class WebSocketCoreSession implements IncomingFrames, CoreSession, Dumpab
     {
         if (!demanding)
             throw new IllegalStateException("FrameHandler is not demanding: " + this);
-        connection.demand(n);
+        getExtensionStack().demand(n, connection::demand);
     }
 
     @Override
