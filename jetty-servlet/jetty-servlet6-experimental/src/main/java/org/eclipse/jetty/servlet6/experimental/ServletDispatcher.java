@@ -21,12 +21,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
-import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.servlet6.experimental.util.ServletOutputStreamWrapper;
 import org.eclipse.jetty.util.URIUtil;
 
 public class ServletDispatcher implements RequestDispatcher
@@ -163,33 +163,12 @@ public class ServletDispatcher implements RequestDispatcher
         @Override
         public ServletOutputStream getOutputStream() throws IOException
         {
-            // TODO handle writers etc.
-            final ServletOutputStream out = getResponse().getOutputStream();
-
-            return new ServletOutputStream()
+            return new ServletOutputStreamWrapper(getResponse().getOutputStream())
             {
                 @Override
                 public void close() throws IOException
                 {
-                    // noop for include
-                }
-
-                @Override
-                public boolean isReady()
-                {
-                    return out.isReady();
-                }
-
-                @Override
-                public void setWriteListener(WriteListener writeListener)
-                {
-                    out.setWriteListener(writeListener);
-                }
-
-                @Override
-                public void write(int b) throws IOException
-                {
-                    out.write(b);
+                    // NOOP for include.
                 }
             };
         }
@@ -197,25 +176,25 @@ public class ServletDispatcher implements RequestDispatcher
         @Override
         public void setCharacterEncoding(String charset)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void setContentLength(int len)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void setContentLengthLong(long len)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void setContentType(String type)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
@@ -235,43 +214,43 @@ public class ServletDispatcher implements RequestDispatcher
         @Override
         public void setDateHeader(String name, long date)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void addDateHeader(String name, long date)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void setHeader(String name, String value)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void addHeader(String name, String value)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void setIntHeader(String name, int value)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void addIntHeader(String name, int value)
         {
-            // noop for include
+            // NOOP for include.
         }
 
         @Override
         public void setStatus(int sc)
         {
-            // noop for include
+            // NOOP for include.
         }
     }
 }

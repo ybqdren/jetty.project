@@ -31,6 +31,11 @@ public class ServletHandler extends Handler.Abstract
 {
     private final PathMappings<MappedServlet> _servletPathMap = new PathMappings<>();
 
+    public void addServletWithMapping(HttpServlet servlet, String pathSpec)
+    {
+        _servletPathMap.put(pathSpec, new MappedServletImpl(servlet, pathSpec));
+    }
+
     public void addServletWithMapping(Class<? extends HttpServlet> servlet, String pathSpec)
     {
         _servletPathMap.put(pathSpec, new MappedServletImpl(createInstance(servlet), pathSpec));

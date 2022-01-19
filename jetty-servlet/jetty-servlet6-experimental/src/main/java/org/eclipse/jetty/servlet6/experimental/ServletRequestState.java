@@ -9,7 +9,7 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.thread.AutoLock;
 
-class ServletRequestState
+public class ServletRequestState
 {
 
     /*

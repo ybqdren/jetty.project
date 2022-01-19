@@ -35,7 +35,6 @@ import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
-import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
@@ -50,9 +49,13 @@ import org.eclipse.jetty.server.Content;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextRequest;
-import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.servlet6.experimental.writer.EncodingHttpWriter;
+import org.eclipse.jetty.servlet6.experimental.writer.Iso88591HttpWriter;
+import org.eclipse.jetty.servlet6.experimental.writer.ResponseWriter;
+import org.eclipse.jetty.servlet6.experimental.writer.Utf8HttpWriter;
 import org.eclipse.jetty.util.SharedBlockingCallback;
 import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
+import org.eclipse.jetty.util.StringUtil;
 
 public class ServletScopedRequest extends ContextRequest implements Runnable
 {
@@ -815,7 +818,8 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getCharacterEncoding()
         {
-            return null;
+            // TODO
+            return StringUtil.__ISO_8859_1;
         }
 
         @Override
@@ -828,53 +832,21 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         public ServletOutputStream getOutputStream() throws IOException
         {
             // TODO this will be done in HttpOutput
-            return new ServletOutputStream()
-            {
-                @Override
-                public boolean isReady()
-                {
-                    return false;
-                }
-
-                @Override
-                public void setWriteListener(WriteListener writeListener)
-                {
-                    // TODO
-                }
-
-                @Override
-                public void flush() throws IOException
-                {
-                    try (Blocker blocker = _blocker.acquire())
-                    {
-                        _response.write(false, blocker);
-                    }
-                }
-
-                @Override
-                public void close() throws IOException
-                {
-                    try (Blocker blocker = _blocker.acquire())
-                    {
-                        _response.write(true, blocker);
-                    }
-                }
-
-                @Override
-                public void write(int b) throws IOException
-                {
-                    try (Blocker blocker = _blocker.acquire())
-                    {
-                        _response.write(false, blocker, BufferUtil.toBuffer(new byte[]{(byte)b}));
-                    }
-                }
-            };
+            return new HttpOutput(_response);
         }
 
         @Override
         public PrintWriter getWriter() throws IOException
         {
-            return new PrintWriter(getOutputStream());
+            HttpOutput httpOutput = new HttpOutput(_response);
+            String encoding = getCharacterEncoding();
+            Locale locale = getLocale();
+            if (StringUtil.__ISO_8859_1.equalsIgnoreCase(encoding))
+                return new ResponseWriter(new Iso88591HttpWriter(httpOutput), locale, encoding);
+            else if (StringUtil.__UTF8.equalsIgnoreCase(encoding))
+                return new ResponseWriter(new Utf8HttpWriter(httpOutput), locale, encoding);
+            else
+                return new ResponseWriter(new EncodingHttpWriter(httpOutput, encoding), locale, encoding);
         }
 
         @Override

@@ -6,6 +6,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,10 +19,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 public class JettyServletTest
 {
     private Server _server;
     private ServerConnector _connector;
+    ServletContextHandler _contextHandler = new ServletContextHandler();
 
     @BeforeEach
     public void before() throws Exception
@@ -28,11 +34,7 @@ public class JettyServletTest
         _server = new Server();
         _connector = new ServerConnector(_server);
         _server.addConnector(_connector);
-
-        ServletContextHandler contextHandler = new ServletContextHandler();
-        contextHandler.addServlet(MyServlet.class, "/");
-        _server.setHandler(contextHandler);
-
+        _server.setHandler(_contextHandler);
         _server.start();
     }
 
@@ -48,13 +50,30 @@ public class JettyServletTest
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
         {
             resp.setContentType("text/plain");
-            //resp.getWriter().println("hello world");
-            resp.getOutputStream().write("hello world".getBytes(StandardCharsets.UTF_8));
+            ServletOutputStream outputStream = resp.getOutputStream();
+            outputStream.setWriteListener(new WriteListener()
+            {
+                private int i = 0;
+
+                @Override
+                public void onWritePossible() throws IOException
+                {
+                    if (i < 10)
+                        outputStream.println("i: " + i++);
+                    else
+                        outputStream.close();
+                }
+
+                @Override
+                public void onError(Throwable t)
+                {
+                    resp.setStatus(501);
+                }
+            });
         }
     }
 
-    @Test
-    public void test() throws Exception
+    private void testResponse() throws Exception
     {
         URL uri = new URL("http://localhost:" + _connector.getLocalPort());
         HttpURLConnection connection = (HttpURLConnection)uri.openConnection();
@@ -69,5 +88,84 @@ public class JettyServletTest
         if (connection.getContentLengthLong() != 0)
             System.err.println("\n" + IO.toString(connection.getInputStream()));
         System.err.println();
+
+        assertThat(connection.getResponseCode(), equalTo(200));
+    }
+
+    @Test
+    public void testBlockingWrite() throws Exception
+    {
+        _contextHandler.addServlet(new HttpServlet()
+        {
+            @Override
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+            {
+                resp.setContentType("text/plain");
+                resp.getOutputStream().write("hello world".getBytes(StandardCharsets.UTF_8));
+            }
+        }, "/");
+
+        testResponse();
+    }
+
+    @Test
+    public void testBlockingWriter() throws Exception
+    {
+        _contextHandler.addServlet(new HttpServlet()
+        {
+            @Override
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+            {
+                resp.setContentType("text/plain");
+                resp.getWriter().write("hello world");
+            }
+        }, "/");
+
+        testResponse();
+    }
+
+    @Test
+    public void testAsyncWrite() throws Exception
+    {
+        _contextHandler.addServlet(new HttpServlet()
+        {
+            @Override
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+            {
+                resp.setContentType("text/plain");
+                ServletOutputStream outputStream = resp.getOutputStream();
+                outputStream.setWriteListener(new WriteListener()
+                {
+                    private int i = 0;
+
+                    @Override
+                    public void onWritePossible() throws IOException
+                    {
+                        while (outputStream.isReady())
+                        {
+                            // TODO: Fix reentry into onWritePossible.
+                            // TODO: only call onWritePossible when isReady is called.
+                            if (i < 10)
+                            {
+                                outputStream.println("i: " + i++);
+                            }
+                            else
+                            {
+                                outputStream.close();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable t)
+                    {
+                        resp.setStatus(501);
+                    }
+                });
+            }
+        }, "/");
+
+
+        testResponse();
     }
 }
