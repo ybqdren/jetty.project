@@ -68,6 +68,12 @@ public class ServletContextHandler extends ContextHandler
     }
 
     @Override
+    public ServletContextHandler.Context getContext()
+    {
+        return (ServletContextHandler.Context)super.getContext();
+    }
+
+    @Override
     protected void doStart() throws Exception
     {
         getContext().call(() ->
@@ -178,6 +184,11 @@ public class ServletContextHandler extends ContextHandler
                 //unset the thread local
                 DecoratedObjectFactory.disassociateInfo();
             }
+        }
+
+        public void setExtendedListenerTypes(boolean b)
+        {
+
         }
     }
 
