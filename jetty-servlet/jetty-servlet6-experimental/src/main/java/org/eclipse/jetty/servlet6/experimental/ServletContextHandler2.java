@@ -13,11 +13,18 @@
 
 package org.eclipse.jetty.servlet6.experimental;
 
+import java.io.File;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +41,8 @@ import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContainerInitializer;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextAttributeEvent;
+import jakarta.servlet.ServletContextAttributeListener;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.ServletException;
@@ -49,24 +58,32 @@ import jakarta.servlet.http.HttpSessionAttributeListener;
 import jakarta.servlet.http.HttpSessionBindingListener;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
+import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.security.ConstraintAware;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.server.Dispatcher;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HandlerContainer;
+import org.eclipse.jetty.server.HttpChannel;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.DecoratedObjectFactory;
 import org.eclipse.jetty.util.DeprecationWarning;
+import org.eclipse.jetty.util.Loader;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,6 +126,7 @@ public class ServletContextHandler2 extends ContextHandler
 
     public interface ServletContainerInitializerCaller extends LifeCycle {}
 
+    private ServletContextContext _servletContextContext;
     protected final DecoratedObjectFactory _objFactory;
 //    protected Class<? extends SecurityHandler> _defaultSecurityHandlerClass = org.eclipse.jetty.security.ConstraintSecurityHandler.class;
     protected SessionHandler _sessionHandler;
@@ -305,6 +323,8 @@ public class ServletContextHandler2 extends ContextHandler
     @Override
     protected void doStart() throws Exception
     {
+        _servletContextContext = new ServletContextContext(getContext(), this);
+
         _objFactory.addDecorator(new DeprecationWarning());
         getServletContext().setAttribute(DecoratedObjectFactory.ATTR, _objFactory);
         super.doStart();
@@ -317,6 +337,32 @@ public class ServletContextHandler2 extends ContextHandler
         _objFactory.clear();
         getServletContext().removeAttribute(DecoratedObjectFactory.ATTR);
     }
+
+    @Override
+    protected ServletScopedRequest wrap(Request request, Response response, String pathInContext)
+    {
+        ServletHandler.MappedServlet mappedServlet = _servletHandler.getMappedServlet(pathInContext);
+        if (mappedServlet == null)
+            return null;
+
+        // Get a servlet request, possibly from a cached version in the channel attributes.
+        // TODO there is a little bit of effort here to recycle the ServletRequest, but not the underlying jetty request.
+        //      the servlet request is still a heavy weight object with state, input streams, cookie caches etc. so it is
+        //      probably worth while.
+        HttpChannel channel = request.getChannel();
+        ServletRequestState servletRequestState = (ServletRequestState)channel.getAttribute(ServletRequestState.class.getName());
+        if (servletRequestState == null)
+        {
+            servletRequestState = new ServletRequestState(_servletContextContext);
+            if (channel.getMetaConnection().isPersistent())
+                channel.setAttribute(ServletRequestState.class.getName(), servletRequestState);
+        }
+
+        ServletScopedRequest servletScopedRequest = new ServletScopedRequest(servletRequestState, request, response, pathInContext, mappedServlet);
+        servletRequestState.setServletScopedRequest(servletScopedRequest);
+        return servletScopedRequest;
+    }
+
 
     /**
      * Get the defaultSecurityHandlerClass.
@@ -814,6 +860,12 @@ public class ServletContextHandler2 extends ContextHandler
             return _elIgnored;
         }
 
+        @Override
+        public String getErrorOnELNotFound()
+        {
+            return "true";
+        }
+
         public void setElIgnored(String s)
         {
             _elIgnored = s;
@@ -1038,6 +1090,924 @@ public class ServletContextHandler2 extends ContextHandler
             return sb.toString();
         }
     }
+
+    public static final int SERVLET_MAJOR_VERSION = 5;
+    public static final int SERVLET_MINOR_VERSION = 0;
+    private static final String UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER = "Unimplemented {} - use org.eclipse.jetty.servlet.ServletContextHandler";
+
+    /**
+     * A simple implementation of ServletContext that is used when there is no
+     * ContextHandler.  This is also used as the base for all other ServletContext
+     * implementations.
+     */
+    public static class StaticContext extends AttributesMap implements ServletContext
+    {
+        private int _effectiveMajorVersion = SERVLET_MAJOR_VERSION;
+        private int _effectiveMinorVersion = SERVLET_MINOR_VERSION;
+
+        @Override
+        public ServletContext getContext(String uripath)
+        {
+            return null;
+        }
+
+        @Override
+        public int getMajorVersion()
+        {
+            return SERVLET_MAJOR_VERSION;
+        }
+
+        @Override
+        public String getMimeType(String file)
+        {
+            return null;
+        }
+
+        @Override
+        public int getMinorVersion()
+        {
+            return SERVLET_MINOR_VERSION;
+        }
+
+        @Override
+        public RequestDispatcher getNamedDispatcher(String name)
+        {
+            return null;
+        }
+
+        @Override
+        public RequestDispatcher getRequestDispatcher(String uriInContext)
+        {
+            return null;
+        }
+
+        @Override
+        public String getRealPath(String path)
+        {
+            return null;
+        }
+
+        @Override
+        public URL getResource(String path) throws MalformedURLException
+        {
+            return null;
+        }
+
+        @Override
+        public InputStream getResourceAsStream(String path)
+        {
+            return null;
+        }
+
+        @Override
+        public Set<String> getResourcePaths(String path)
+        {
+            return null;
+        }
+
+        @Override
+        public String getServerInfo()
+        {
+            return ContextHandler.getServerInfo();
+        }
+
+        @Override
+        @Deprecated(since = "Servlet API 2.1")
+        public Servlet getServlet(String name) throws ServletException
+        {
+            return null;
+        }
+
+        @Override
+        @Deprecated(since = "Servlet API 2.1")
+        public Enumeration<String> getServletNames()
+        {
+            return Collections.enumeration(Collections.EMPTY_LIST);
+        }
+
+        @Override
+        @Deprecated(since = "Servlet API 2.0")
+        public Enumeration<Servlet> getServlets()
+        {
+            return Collections.enumeration(Collections.EMPTY_LIST);
+        }
+
+        @Override
+        @Deprecated(since = "Servlet API 2.1")
+        public void log(Exception exception, String msg)
+        {
+            LOG.warn(msg, exception);
+        }
+
+        @Override
+        public void log(String msg)
+        {
+            LOG.info(msg);
+        }
+
+        @Override
+        public void log(String message, Throwable throwable)
+        {
+            LOG.warn(message, throwable);
+        }
+
+        @Override
+        public String getInitParameter(String name)
+        {
+            return null;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Enumeration<String> getInitParameterNames()
+        {
+            return Collections.enumeration(Collections.EMPTY_LIST);
+        }
+
+        @Override
+        public String getServletContextName()
+        {
+            return "No Context";
+        }
+
+        @Override
+        public String getContextPath()
+        {
+            return null;
+        }
+
+        @Override
+        public boolean setInitParameter(String name, String value)
+        {
+            return false;
+        }
+
+        @Override
+        public FilterRegistration.Dynamic addFilter(String filterName, Class<? extends Filter> filterClass)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addFilter(String, Class)");
+            return null;
+        }
+
+        @Override
+        public FilterRegistration.Dynamic addFilter(String filterName, Filter filter)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addFilter(String, Filter)");
+            return null;
+        }
+
+        @Override
+        public FilterRegistration.Dynamic addFilter(String filterName, String className)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addFilter(String, String)");
+            return null;
+        }
+
+        @Override
+        public jakarta.servlet.ServletRegistration.Dynamic addServlet(String servletName, Class<? extends Servlet> servletClass)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addServlet(String, Class)");
+            return null;
+        }
+
+        @Override
+        public jakarta.servlet.ServletRegistration.Dynamic addServlet(String servletName, Servlet servlet)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addServlet(String, Servlet)");
+            return null;
+        }
+
+        @Override
+        public jakarta.servlet.ServletRegistration.Dynamic addServlet(String servletName, String className)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addServlet(String, String)");
+            return null;
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public ServletRegistration.Dynamic addJspFile(String servletName, String jspFile)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addJspFile(String, String)");
+            return null;
+        }
+
+        @Override
+        public Set<SessionTrackingMode> getDefaultSessionTrackingModes()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getDefaultSessionTrackingModes()");
+            return null;
+        }
+
+        @Override
+        public Set<SessionTrackingMode> getEffectiveSessionTrackingModes()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getEffectiveSessionTrackingModes()");
+            return null;
+        }
+
+        @Override
+        public FilterRegistration getFilterRegistration(String filterName)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getFilterRegistration(String)");
+            return null;
+        }
+
+        @Override
+        public Map<String, ? extends FilterRegistration> getFilterRegistrations()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getFilterRegistrations()");
+            return null;
+        }
+
+        @Override
+        public ServletRegistration getServletRegistration(String servletName)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getServletRegistration(String)");
+            return null;
+        }
+
+        @Override
+        public Map<String, ? extends ServletRegistration> getServletRegistrations()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getServletRegistrations()");
+            return null;
+        }
+
+        @Override
+        public SessionCookieConfig getSessionCookieConfig()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getSessionCookieConfig()");
+            return null;
+        }
+
+        @Override
+        public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setSessionTrackingModes(Set<SessionTrackingMode>)");
+        }
+
+        @Override
+        public void addListener(String className)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addListener(String)");
+        }
+
+        @Override
+        public <T extends EventListener> void addListener(T t)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addListener(T)");
+        }
+
+        @Override
+        public void addListener(Class<? extends EventListener> listenerClass)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addListener(Class)");
+        }
+
+        public <T> T createInstance(Class<T> clazz) throws ServletException
+        {
+            try
+            {
+                return clazz.getDeclaredConstructor().newInstance();
+            }
+            catch (Exception e)
+            {
+                throw new ServletException(e);
+            }
+        }
+
+        @Override
+        public <T extends EventListener> T createListener(Class<T> clazz) throws ServletException
+        {
+            return createInstance(clazz);
+        }
+
+        @Override
+        public <T extends Servlet> T createServlet(Class<T> clazz) throws ServletException
+        {
+            return createInstance(clazz);
+        }
+
+        @Override
+        public <T extends Filter> T createFilter(Class<T> clazz) throws ServletException
+        {
+            return createInstance(clazz);
+        }
+
+        @Override
+        public ClassLoader getClassLoader()
+        {
+            return ContextHandler.class.getClassLoader();
+        }
+
+        @Override
+        public int getEffectiveMajorVersion()
+        {
+            return _effectiveMajorVersion;
+        }
+
+        @Override
+        public int getEffectiveMinorVersion()
+        {
+            return _effectiveMinorVersion;
+        }
+
+        public void setEffectiveMajorVersion(int v)
+        {
+            _effectiveMajorVersion = v;
+        }
+
+        public void setEffectiveMinorVersion(int v)
+        {
+            _effectiveMinorVersion = v;
+        }
+
+        @Override
+        public JspConfigDescriptor getJspConfigDescriptor()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getJspConfigDescriptor()");
+            return null;
+        }
+
+        @Override
+        public void declareRoles(String... roleNames)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "declareRoles(String...)");
+        }
+
+        @Override
+        public String getVirtualServerName()
+        {
+            return null;
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public int getSessionTimeout()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getSessionTimeout()");
+            return 0;
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public void setSessionTimeout(int sessionTimeout)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setSessionTimeout(int)");
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public String getRequestCharacterEncoding()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getRequestCharacterEncoding()");
+            return null;
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public void setRequestCharacterEncoding(String encoding)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setRequestCharacterEncoding(String)");
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public String getResponseCharacterEncoding()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getResponseCharacterEncoding()");
+            return null;
+        }
+
+        /**
+         * @since Servlet 4.0
+         */
+        @Override
+        public void setResponseCharacterEncoding(String encoding)
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setResponseCharacterEncoding(String)");
+        }
+    }
+
+
+    /**
+     * Context.
+     * <p>
+     * A partial implementation of {@link jakarta.servlet.ServletContext}. A complete implementation is provided by the
+     * derived {@link ContextHandler} implementations.
+     * </p>
+     */
+    public class PartialContext extends StaticContext
+    {
+        protected boolean _enabled = true; // whether or not the dynamic API is enabled for callers
+        protected boolean _extendedListenerTypes = false;
+
+        protected PartialContext()
+        {
+        }
+
+        public ContextHandler getContextHandler()
+        {
+            return ContextHandler.this;
+        }
+
+        @Override
+        public ServletContext getContext(String uripath)
+        {
+            List<ContextHandler> contexts = new ArrayList<>();
+            Handler[] handlers = getServer().getChildHandlersByClass(ContextHandler.class);
+            String matchedPath = null;
+
+            for (Handler handler : handlers)
+            {
+                if (handler == null)
+                    continue;
+                ContextHandler ch = (ContextHandler)handler;
+                String contextPath = ch.getContextPath();
+
+                if (uripath.equals(contextPath) ||
+                    (uripath.startsWith(contextPath) && uripath.charAt(contextPath.length()) == '/') ||
+                    "/".equals(contextPath))
+                {
+                    // look first for vhost matching context only
+                    if (getVirtualHosts() != null && getVirtualHosts().length > 0)
+                    {
+                        if (ch.getVirtualHosts() != null && ch.getVirtualHosts().length > 0)
+                        {
+                            for (String h1 : getVirtualHosts())
+                            {
+                                for (String h2 : ch.getVirtualHosts())
+                                {
+                                    if (h1.equals(h2))
+                                    {
+                                        if (matchedPath == null || contextPath.length() > matchedPath.length())
+                                        {
+                                            contexts.clear();
+                                            matchedPath = contextPath;
+                                        }
+
+                                        if (matchedPath.equals(contextPath))
+                                            contexts.add(ch);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (matchedPath == null || contextPath.length() > matchedPath.length())
+                        {
+                            contexts.clear();
+                            matchedPath = contextPath;
+                        }
+
+                        if (matchedPath.equals(contextPath))
+                            contexts.add(ch);
+                    }
+                }
+            }
+
+            if (contexts.size() > 0)
+                return contexts.get(0)._scontext;
+
+            // try again ignoring virtual hosts
+            matchedPath = null;
+            for (Handler handler : handlers)
+            {
+                if (handler == null)
+                    continue;
+                ContextHandler ch = (ContextHandler)handler;
+                String contextPath = ch.getContextPath();
+
+                if (uripath.equals(contextPath) || (uripath.startsWith(contextPath) && uripath.charAt(contextPath.length()) == '/') || "/".equals(contextPath))
+                {
+                    if (matchedPath == null || contextPath.length() > matchedPath.length())
+                    {
+                        contexts.clear();
+                        matchedPath = contextPath;
+                    }
+
+                    if (matchedPath.equals(contextPath))
+                        contexts.add(ch);
+                }
+            }
+
+            if (contexts.size() > 0)
+                return contexts.get(0)._scontext;
+            return null;
+        }
+
+        @Override
+        public String getMimeType(String file)
+        {
+            if (_mimeTypes == null)
+                return null;
+            return _mimeTypes.getMimeByExtension(file);
+        }
+
+        @Override
+        public RequestDispatcher getRequestDispatcher(String uriInContext)
+        {
+            // uriInContext is encoded, potentially with query.
+            if (uriInContext == null)
+                return null;
+
+            if (!uriInContext.startsWith("/"))
+                return null;
+
+            try
+            {
+                String contextPath = getContextPath();
+                // uriInContext is canonicalized by HttpURI.
+                HttpURI.Mutable uri = HttpURI.build(uriInContext);
+                String pathInfo = uri.getDecodedPath();
+                if (StringUtil.isEmpty(pathInfo))
+                    return null;
+
+                if (!StringUtil.isEmpty(contextPath))
+                {
+                    uri.path(URIUtil.addPaths(contextPath, uri.getPath()));
+                    pathInfo = uri.getDecodedPath().substring(contextPath.length());
+                }
+                return new Dispatcher(ContextHandler.this, uri, pathInfo);
+            }
+            catch (Exception e)
+            {
+                LOG.trace("IGNORED", e);
+            }
+            return null;
+        }
+
+        @Override
+        public String getRealPath(String path)
+        {
+            // This is an API call from the application which may have arbitrary non canonical paths passed
+            // Thus we canonicalize here, to avoid the enforcement of only canonical paths in
+            // ContextHandler.this.getResource(path).
+            path = URIUtil.canonicalPath(path);
+            if (path == null)
+                return null;
+            if (path.length() == 0)
+                path = URIUtil.SLASH;
+            else if (path.charAt(0) != '/')
+                path = URIUtil.SLASH + path;
+
+            try
+            {
+                Resource resource = ContextHandler.this.getResource(path);
+                if (resource != null)
+                {
+                    File file = resource.getFile();
+                    if (file != null)
+                        return file.getCanonicalPath();
+                }
+            }
+            catch (Exception e)
+            {
+                LOG.trace("IGNORED", e);
+            }
+
+            return null;
+        }
+
+        @Override
+        public URL getResource(String path) throws MalformedURLException
+        {
+            // This is an API call from the application which may have arbitrary non canonical paths passed
+            // Thus we canonicalize here, to avoid the enforcement of only canonical paths in
+            // ContextHandler.this.getResource(path).
+            path = URIUtil.canonicalPath(path);
+            if (path == null)
+                return null;
+            Resource resource = ContextHandler.this.getResource(path);
+            if (resource != null && resource.exists())
+                return resource.getURI().toURL();
+            return null;
+        }
+
+        @Override
+        public InputStream getResourceAsStream(String path)
+        {
+            try
+            {
+                URL url = getResource(path);
+                if (url == null)
+                    return null;
+                Resource r = Resource.newResource(url);
+                // Cannot serve directories as an InputStream
+                if (r.isDirectory())
+                    return null;
+                return r.getInputStream();
+            }
+            catch (Exception e)
+            {
+                LOG.trace("IGNORED", e);
+                return null;
+            }
+        }
+
+        @Override
+        public Set<String> getResourcePaths(String path)
+        {
+            // This is an API call from the application which may have arbitrary non canonical paths passed
+            // Thus we canonicalize here, to avoid the enforcement of only canonical paths in
+            // ContextHandler.this.getResource(path).
+            path = URIUtil.canonicalPath(path);
+            if (path == null)
+                return null;
+            return ContextHandler.this.getResourcePaths(path);
+        }
+
+        @Override
+        public void log(Exception exception, String msg)
+        {
+            _logger.warn(msg, exception);
+        }
+
+        @Override
+        public void log(String msg)
+        {
+            _logger.info(msg);
+        }
+
+        @Override
+        public void log(String message, Throwable throwable)
+        {
+            if (throwable == null)
+                _logger.warn(message);
+            else
+                _logger.warn(message, throwable);
+        }
+
+        @Override
+        public String getInitParameter(String name)
+        {
+            return ContextHandler.this.getInitParameter(name);
+        }
+
+        @Override
+        public Enumeration<String> getInitParameterNames()
+        {
+            return ContextHandler.this.getInitParameterNames();
+        }
+
+        @Override
+        public Object getAttribute(String name)
+        {
+            Object o = ContextHandler.this.getAttribute(name);
+            if (o == null)
+                o = super.getAttribute(name);
+            return o;
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames()
+        {
+            HashSet<String> set = new HashSet<>();
+            Enumeration<String> e = super.getAttributeNames();
+            while (e.hasMoreElements())
+            {
+                set.add(e.nextElement());
+            }
+            e = ContextHandler.this.getAttributeNames();
+            while (e.hasMoreElements())
+            {
+                set.add(e.nextElement());
+            }
+            return Collections.enumeration(set);
+        }
+
+        @Override
+        public void setAttribute(String name, Object value)
+        {
+            Object oldValue = super.getAttribute(name);
+
+            if (value == null)
+                super.removeAttribute(name);
+            else
+                super.setAttribute(name, value);
+
+            if (!_servletContextAttributeListeners.isEmpty())
+            {
+                ServletContextAttributeEvent event = new ServletContextAttributeEvent(_scontext, name, oldValue == null ? value : oldValue);
+
+                for (ServletContextAttributeListener listener : _servletContextAttributeListeners)
+                {
+                    if (oldValue == null)
+                        listener.attributeAdded(event);
+                    else if (value == null)
+                        listener.attributeRemoved(event);
+                    else
+                        listener.attributeReplaced(event);
+                }
+            }
+        }
+
+        @Override
+        public void removeAttribute(String name)
+        {
+            Object oldValue = super.getAttribute(name);
+            super.removeAttribute(name);
+            if (oldValue != null && !_servletContextAttributeListeners.isEmpty())
+            {
+                ServletContextAttributeEvent event = new ServletContextAttributeEvent(_scontext, name, oldValue);
+                for (ServletContextAttributeListener listener : _servletContextAttributeListeners)
+                {
+                    listener.attributeRemoved(event);
+                }
+            }
+        }
+
+        @Override
+        public String getServletContextName()
+        {
+            String name = ContextHandler.this.getDisplayName();
+            if (name == null)
+                name = ContextHandler.this.getContextPath();
+            return name;
+        }
+
+        @Override
+        public String getContextPath()
+        {
+            return getRequestContextPath();
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ServletContext@" + ContextHandler.this.toString();
+        }
+
+        @Override
+        public boolean setInitParameter(String name, String value)
+        {
+            if (ContextHandler.this.getInitParameter(name) != null)
+                return false;
+            ContextHandler.this.getInitParams().put(name, value);
+            return true;
+        }
+
+        @Override
+        public void addListener(String className)
+        {
+            if (!_enabled)
+                throw new UnsupportedOperationException();
+
+            try
+            {
+                @SuppressWarnings(
+                    {"unchecked", "rawtypes"})
+                Class<? extends EventListener> clazz = _classLoader == null ? Loader.loadClass(className) : (Class)_classLoader.loadClass(className);
+                addListener(clazz);
+            }
+            catch (ClassNotFoundException e)
+            {
+                throw new IllegalArgumentException(e);
+            }
+        }
+
+        @Override
+        public <T extends EventListener> void addListener(T t)
+        {
+            if (!_enabled)
+                throw new UnsupportedOperationException();
+
+            checkListener(t.getClass());
+
+            ContextHandler.this.addEventListener(t);
+            ContextHandler.this.addProgrammaticListener(t);
+        }
+
+        @Override
+        public void addListener(Class<? extends EventListener> listenerClass)
+        {
+            if (!_enabled)
+                throw new UnsupportedOperationException();
+
+            try
+            {
+                EventListener e = createListener(listenerClass);
+                addListener(e);
+            }
+            catch (ServletException e)
+            {
+                throw new IllegalArgumentException(e);
+            }
+        }
+
+        public void checkListener(Class<? extends EventListener> listener) throws IllegalStateException
+        {
+            boolean ok = false;
+            int startIndex = (isExtendedListenerTypes() ? EXTENDED_LISTENER_TYPE_INDEX : DEFAULT_LISTENER_TYPE_INDEX);
+            for (int i = startIndex; i < SERVLET_LISTENER_TYPES.length; i++)
+            {
+                if (SERVLET_LISTENER_TYPES[i].isAssignableFrom(listener))
+                {
+                    ok = true;
+                    break;
+                }
+            }
+            if (!ok)
+                throw new IllegalArgumentException("Inappropriate listener class " + listener.getName());
+        }
+
+        public void setExtendedListenerTypes(boolean extended)
+        {
+            _extendedListenerTypes = extended;
+        }
+
+        public boolean isExtendedListenerTypes()
+        {
+            return _extendedListenerTypes;
+        }
+
+        @Override
+        public ClassLoader getClassLoader()
+        {
+            if (!_enabled)
+                throw new UnsupportedOperationException();
+
+            // no security manager just return the classloader
+            if (!isUsingSecurityManager())
+            {
+                return _classLoader;
+            }
+            else
+            {
+                // check to see if the classloader of the caller is the same as the context
+                // classloader, or a parent of it, as required by the javadoc specification.
+
+                // Wrap in a PrivilegedAction so that only Jetty code will require the
+                // "createSecurityManager" permission, not also application code that calls this method.
+                Caller caller = AccessController.doPrivileged((PrivilegedAction<Caller>)Caller::new);
+                ClassLoader callerLoader = caller.getCallerClassLoader(2);
+                while (callerLoader != null)
+                {
+                    if (callerLoader == _classLoader)
+                        return _classLoader;
+                    else
+                        callerLoader = callerLoader.getParent();
+                }
+                System.getSecurityManager().checkPermission(new RuntimePermission("getClassLoader"));
+                return _classLoader;
+            }
+        }
+
+        @Override
+        public JspConfigDescriptor getJspConfigDescriptor()
+        {
+            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getJspConfigDescriptor()");
+            return null;
+        }
+
+        public void setJspConfigDescriptor(JspConfigDescriptor d)
+        {
+
+        }
+
+        @Override
+        public void declareRoles(String... roleNames)
+        {
+            if (!isStarting())
+                throw new IllegalStateException();
+            if (!_enabled)
+                throw new UnsupportedOperationException();
+        }
+
+        public void setEnabled(boolean enabled)
+        {
+            _enabled = enabled;
+        }
+
+        public boolean isEnabled()
+        {
+            return _enabled;
+        }
+
+        @Override
+        public String getVirtualServerName()
+        {
+            String[] hosts = getVirtualHosts();
+            if (hosts != null && hosts.length > 0)
+                return hosts[0];
+            return null;
+        }
+    }
+
 
     public class Context extends ContextHandler.Context
     {
