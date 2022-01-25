@@ -110,13 +110,13 @@ public class HandlerTest
     public void testHandlerCollectionSetServer()
     {
         Server s = new Server();
-        Handler.Collection a = new Handler.Collection();
-        Handler.Collection b = new Handler.Collection();
-        Handler.Collection b1 = new Handler.Collection();
-        Handler.Collection b2 = new Handler.Collection();
-        Handler.Collection c = new Handler.Collection();
-        Handler.Collection c1 = new Handler.Collection();
-        Handler.Collection c2 = new Handler.Collection();
+        Handler.HandlerCollection a = new Handler.HandlerCollection();
+        Handler.HandlerCollection b = new Handler.HandlerCollection();
+        Handler.HandlerCollection b1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection b2 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c = new Handler.HandlerCollection();
+        Handler.HandlerCollection c1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c2 = new Handler.HandlerCollection();
 
         a.addHandler(b);
         a.addHandler(c);
@@ -136,13 +136,13 @@ public class HandlerTest
     public void testHandlerCollectionServerSet()
     {
         Server s = new Server();
-        Handler.Collection a = new Handler.Collection();
-        Handler.Collection b = new Handler.Collection();
-        Handler.Collection b1 = new Handler.Collection();
-        Handler.Collection b2 = new Handler.Collection();
-        Handler.Collection c = new Handler.Collection();
-        Handler.Collection c1 = new Handler.Collection();
-        Handler.Collection c2 = new Handler.Collection();
+        Handler.HandlerCollection a = new Handler.HandlerCollection();
+        Handler.HandlerCollection b = new Handler.HandlerCollection();
+        Handler.HandlerCollection b1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection b2 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c = new Handler.HandlerCollection();
+        Handler.HandlerCollection c1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c2 = new Handler.HandlerCollection();
 
         a.setServer(s);
         a.addHandler(b);
@@ -161,7 +161,7 @@ public class HandlerTest
     @Test
     public void testHandlerCollectionThisLoop()
     {
-        Handler.Collection a = new Handler.Collection();
+        Handler.HandlerCollection a = new Handler.HandlerCollection();
 
         IllegalStateException e = assertThrows(IllegalStateException.class, () -> a.addHandler(a));
         assertThat(e.getMessage(), containsString("loop"));
@@ -170,13 +170,13 @@ public class HandlerTest
     @Test
     public void testHandlerCollectionDeepLoop()
     {
-        Handler.Collection a = new Handler.Collection();
-        Handler.Collection b = new Handler.Collection();
-        Handler.Collection b1 = new Handler.Collection();
-        Handler.Collection b2 = new Handler.Collection();
-        Handler.Collection c = new Handler.Collection();
-        Handler.Collection c1 = new Handler.Collection();
-        Handler.Collection c2 = new Handler.Collection();
+        Handler.HandlerCollection a = new Handler.HandlerCollection();
+        Handler.HandlerCollection b = new Handler.HandlerCollection();
+        Handler.HandlerCollection b1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection b2 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c = new Handler.HandlerCollection();
+        Handler.HandlerCollection c1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c2 = new Handler.HandlerCollection();
 
         a.addHandler(b);
         a.addHandler(c);
@@ -190,13 +190,13 @@ public class HandlerTest
     @Test
     public void testHandlerCollectionChainLoop()
     {
-        Handler.Collection a = new Handler.Collection();
-        Handler.Collection b = new Handler.Collection();
-        Handler.Collection b1 = new Handler.Collection();
-        Handler.Collection b2 = new Handler.Collection();
-        Handler.Collection c = new Handler.Collection();
-        Handler.Collection c1 = new Handler.Collection();
-        Handler.Collection c2 = new Handler.Collection();
+        Handler.HandlerCollection a = new Handler.HandlerCollection();
+        Handler.HandlerCollection b = new Handler.HandlerCollection();
+        Handler.HandlerCollection b1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection b2 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c = new Handler.HandlerCollection();
+        Handler.HandlerCollection c1 = new Handler.HandlerCollection();
+        Handler.HandlerCollection c2 = new Handler.HandlerCollection();
 
         a.addHandler(c);
         b.setHandlers(b1, b2);

@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * handles the request.
  */
 @ManagedObject("Context Handler Collection")
-public class ContextHandlerCollection extends Handler.Collection
+public class ContextHandlerCollection extends Handler.HandlerCollection
 {
     private static final Logger LOG = LoggerFactory.getLogger(ContextHandlerCollection.class);
     private final SerializedExecutor _serializedExecutor = new SerializedExecutor();

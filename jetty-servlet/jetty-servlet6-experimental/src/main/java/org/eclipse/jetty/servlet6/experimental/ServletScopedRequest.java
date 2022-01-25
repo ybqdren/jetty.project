@@ -26,7 +26,6 @@ import java.util.Map;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ReadListener;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
@@ -45,7 +44,6 @@ import jakarta.servlet.http.Part;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.ConnectionMetaData;
-import org.eclipse.jetty.server.Content;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextRequest;
@@ -59,11 +57,14 @@ import org.eclipse.jetty.util.StringUtil;
 
 public class ServletScopedRequest extends ContextRequest implements Runnable
 {
+    public static final String __MULTIPART_CONFIG_ELEMENT = "org.eclipse.jetty.multipartConfig";
+
     final ServletRequestState _servletRequestState;
     final MutableHttpServletRequest _httpServletRequest;
     final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
-    ReadListener _readListener;
+    final HttpOutput _httpOutput;
+    final HttpInput _httpInput;
 
     protected ServletScopedRequest(
         ServletRequestState servletRequestState,
@@ -77,6 +78,8 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _httpServletRequest = new MutableHttpServletRequest();
         _httpServletResponse = new MutableHttpServletResponse(response);
         _mappedServlet = mappedServlet;
+        _httpOutput = new HttpOutput(response);
+        _httpInput = new HttpInput(this);
     }
 
     @Override
@@ -143,7 +146,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _servletRequestState.handle();
     }
 
-    private Runnable onContentAvailable()
+    Runnable onContentAvailable()
     {
         // TODO not sure onReadReady is right method or at least could be renamed.
         return _servletRequestState.onReadReady() ? this : null;
@@ -440,59 +443,10 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             return null;
         }
 
-        private Content _content;
-
         @Override
         public ServletInputStream getInputStream() throws IOException
         {
-            // TODO the stateful saving rather than create each call!
-            //      in reality this will be the HttpInput class
-            return new ServletInputStream()
-            {
-                @Override
-                public boolean isFinished()
-                {
-                    Content content = _content;
-                    return content != null && content.isLast();
-                }
-
-                @Override
-                public boolean isReady()
-                {
-                    if (_content == null)
-                    {
-                        _content = readContent();
-                        if (_content == null)
-                        {
-                            if (_readListener != null)
-                                demandContent(ServletScopedRequest.this::onContentAvailable);
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }
-
-                @Override
-                public void setReadListener(ReadListener readListener)
-                {
-                    _readListener = readListener;
-                }
-
-                @Override
-                public int read() throws IOException
-                {
-                    // TODO this is just the async version
-                    if (_content == null)
-                        _content = readContent();
-                    if (_content != null & _content.hasRemaining())
-                    {
-                        // TODO if last byte release the _content
-                        return _content.getByteBuffer().get();
-                    }
-                    throw new IOException();
-                }
-            };
+            return _httpInput;
         }
 
         @Override
@@ -831,8 +785,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public ServletOutputStream getOutputStream() throws IOException
         {
-            // TODO this will be done in HttpOutput
-            return new HttpOutput(_response);
+            return _httpOutput;
         }
 
         @Override

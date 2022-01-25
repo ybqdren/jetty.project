@@ -37,11 +37,13 @@ public class ServletContextContext implements ServletContext
 {
     final ContextHandler.Context _context;
     final ServletHandler _servletHandler;
+    final ServletContextHandler _servletContextHandler;
 
-    ServletContextContext(ContextHandler.Context context, ServletHandler servletHandler)
+    ServletContextContext(ContextHandler.Context context, ServletContextHandler servletContextHandler)
     {
         _context = context;
-        _servletHandler = servletHandler;
+        _servletHandler = servletContextHandler.getServletHandler();
+        _servletContextHandler = servletContextHandler;
     }
 
     ContextHandler.Context getContext()
@@ -118,7 +120,7 @@ public class ServletContextContext implements ServletContext
     @Override
     public RequestDispatcher getRequestDispatcher(String pathInContext)
     {
-        ServletHandler.MappedServlet mapping = _servletHandler.findMapping(pathInContext);
+        ServletHandler.MappedServlet mapping = _servletHandler.getMappedServlet(pathInContext);
         return new ServletDispatcher(_context, _servletHandler, mapping);
     }
 

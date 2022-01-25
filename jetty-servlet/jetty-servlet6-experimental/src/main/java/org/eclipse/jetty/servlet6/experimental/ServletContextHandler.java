@@ -13,12 +13,19 @@
 
 package org.eclipse.jetty.servlet6.experimental;
 
+import java.util.EventListener;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.util.DecoratedObjectFactory;
+import org.eclipse.jetty.util.DeprecationWarning;
 
 public class ServletContextHandler extends ContextHandler
 {
@@ -34,6 +41,15 @@ public class ServletContextHandler extends ContextHandler
         return null;
     }
 
+    public static ServletContextHandler getServletContextHandler()
+    {
+        ContextHandler.Context context = ContextHandler.getCurrentContext();
+        if (context instanceof ServletContextHandler.Context)
+            return ((Context)context).getServletContextHandler();
+        return null;
+    }
+
+    protected final DecoratedObjectFactory _objFactory = new DecoratedObjectFactory();
     private ServletHandler _servletHandler;
     private ServletContextContext _servletContextContext;
 
@@ -43,7 +59,7 @@ public class ServletContextHandler extends ContextHandler
 
     public void addServlet(HttpServlet servlet, String pathSpec)
     {
-        getServletHandler().addServletWithMapping(servlet, pathSpec);
+        getServletHandler().addServletWithMapping(new ServletHolder(servlet), pathSpec);
     }
 
     public void addServlet(Class<? extends HttpServlet> servlet, String pathSpec)
@@ -54,24 +70,31 @@ public class ServletContextHandler extends ContextHandler
     @Override
     protected void doStart() throws Exception
     {
-        super.doStart();
-        if (_servletHandler == null)
-            _servletHandler = newServletHandler();
-        setHandler(_servletHandler);
+        getContext().call(() ->
+        {
+            super.doStart();
+            if (_servletHandler == null)
+                _servletHandler = newServletHandler();
+            setHandler(_servletHandler);
 
-        _servletContextContext = new ServletContextContext(getContext(), _servletHandler);
+            _servletContextContext = new ServletContextContext(getContext(), this);
+
+            _objFactory.addDecorator(new DeprecationWarning());
+            _servletContextContext.setAttribute(DecoratedObjectFactory.ATTR, _objFactory);
+        });
     }
 
     @Override
     protected void doStop() throws Exception
     {
+        _objFactory.clear();
         _servletHandler = null;
     }
 
     @Override
     protected ContextHandler.Context newContext()
     {
-        return super.newContext();
+        return new ServletContextHandler.Context();
     }
 
     public ServletHandler getServletHandler()
@@ -96,7 +119,7 @@ public class ServletContextHandler extends ContextHandler
     @Override
     protected ServletScopedRequest wrap(Request request, Response response, String pathInContext)
     {
-        ServletHandler.MappedServlet mappedServlet = _servletHandler.findMapping(pathInContext);
+        ServletHandler.MappedServlet mappedServlet = _servletHandler.getMappedServlet(pathInContext);
         if (mappedServlet == null)
             return null;
 
@@ -124,5 +147,62 @@ public class ServletContextHandler extends ContextHandler
         {
             return _servletContextContext;
         }
+
+        public ServletContextHandler getServletContextHandler()
+        {
+            return ServletContextHandler.this;
+        }
+
+        public <T> T createInstance(Class<T> clazz) throws ServletException
+        {
+            try
+            {
+                return _objFactory.createInstance(clazz);
+            }
+            catch (Throwable t)
+            {
+                throw new ServletException(t);
+            }
+        }
+
+        public <T> T createInstance(BaseHolder<T> holder) throws ServletException
+        {
+            try
+            {
+                //set a thread local
+                DecoratedObjectFactory.associateInfo(holder);
+                return createInstance(holder.getHeldClass());
+            }
+            finally
+            {
+                //unset the thread local
+                DecoratedObjectFactory.disassociateInfo();
+            }
+        }
+    }
+
+    /**
+     * The DecoratedObjectFactory for use by IoC containers (weld / spring / etc)
+     *
+     * @return The DecoratedObjectFactory
+     */
+    public DecoratedObjectFactory getObjectFactory()
+    {
+        return _objFactory;
+    }
+
+    void destroyServlet(Servlet servlet)
+    {
+        _objFactory.destroy(servlet);
+    }
+
+    void destroyFilter(Filter filter)
+    {
+        _objFactory.destroy(filter);
+    }
+
+    void destroyListener(EventListener listener)
+    {
+        _objFactory.destroy(listener);
     }
 }

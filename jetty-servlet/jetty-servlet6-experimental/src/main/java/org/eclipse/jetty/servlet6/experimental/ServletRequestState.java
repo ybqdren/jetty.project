@@ -153,13 +153,14 @@ public class ServletRequestState
 
                     case DISPATCH:
                         // TODO: filters and customizers.
-                        _servletScopedRequest._mappedServlet.handle(_servletScopedRequest.getHttpServletRequest(), _servletScopedRequest.getHttpServletResponse());
+                        ServletHandler.MappedServlet mappedServlet = _servletScopedRequest._mappedServlet;
+                        mappedServlet.handle(_servletScopedRequest.getHttpServletRequest(), _servletScopedRequest.getHttpServletResponse());
                         break;
 
                     case READ_CALLBACK:
                         // TODO need to actually do a readContent here so that we can run interceptors and check there really
                         //      is data... but ultimately we do:
-                        _servletScopedRequest._readListener.onDataAvailable();
+                        _servletScopedRequest._httpInput._readListener.onDataAvailable();
                         break;
 
                     case SEND_ERROR:

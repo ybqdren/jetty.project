@@ -15,7 +15,6 @@ package org.eclipse.jetty.servlet;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.EventListener;
@@ -58,7 +57,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HandlerContainer;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ErrorHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.session.SessionHandler;
@@ -597,7 +595,7 @@ public class ServletContextHandler extends ContextHandler
     public Set<String> setServletSecurity(ServletRegistration.Dynamic registration, ServletSecurityElement servletSecurityElement)
     {
         //Default implementation is to just accept them all. If using a webapp, then this behaviour is overridden in WebAppContext.setServletSecurity       
-        Collection<String> pathSpecs = registration.getMappings();
+        HandlerCollection<String> pathSpecs = registration.getMappings();
         if (pathSpecs != null)
         {
             for (String pathSpec : pathSpecs)
@@ -788,7 +786,7 @@ public class ServletContextHandler extends ContextHandler
         private String _errorOnUndeclaredNamespace;
 
         @Override
-        public Collection<String> getUrlPatterns()
+        public HandlerCollection<String> getUrlPatterns()
         {
             return new ArrayList<>(_urlPatterns); // spec says must be a copy
         }
@@ -869,7 +867,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public Collection<String> getIncludePreludes()
+        public HandlerCollection<String> getIncludePreludes()
         {
             return new ArrayList<>(_includePreludes); //must be a copy
         }
@@ -881,7 +879,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public Collection<String> getIncludeCodas()
+        public HandlerCollection<String> getIncludeCodas()
         {
             return new ArrayList<>(_includeCodas); //must be a copy
         }
@@ -992,7 +990,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public Collection<TaglibDescriptor> getTaglibs()
+        public HandlerCollection<TaglibDescriptor> getTaglibs()
         {
             return new ArrayList<>(_taglibs);
         }
@@ -1003,7 +1001,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public Collection<JspPropertyGroupDescriptor> getJspPropertyGroups()
+        public HandlerCollection<JspPropertyGroupDescriptor> getJspPropertyGroups()
         {
             return new ArrayList<>(_jspPropertyGroups);
         }
@@ -1647,7 +1645,7 @@ public class ServletContextHandler extends ContextHandler
                 addBean(holder, true);
         }
         
-        public Collection<ServletContainerInitializerHolder> getServletContainerInitializerHolders()
+        public HandlerCollection<ServletContainerInitializerHolder> getServletContainerInitializerHolders()
         {
             return getContainedBeans(ServletContainerInitializerHolder.class);
         }
@@ -1664,7 +1662,7 @@ public class ServletContextHandler extends ContextHandler
         protected void doStop() throws Exception
         {
             //remove all of the non-programmatic holders
-            Collection<ServletContainerInitializerHolder> holders = getServletContainerInitializerHolders();
+            HandlerCollection<ServletContainerInitializerHolder> holders = getServletContainerInitializerHolders();
             for (ServletContainerInitializerHolder h : holders)
             {
                 if (h.getSource().getOrigin() != Source.Origin.EMBEDDED)
