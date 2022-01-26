@@ -9,7 +9,7 @@ pipeline {
       parallel {
         stage( "Build / Test - JDK11" ) {
           agent {
-            node { label 'k3s' }
+            node { label 'linux' }  // k3s
           }
           steps {
             container( 'jetty-build' ) {
@@ -40,7 +40,7 @@ pipeline {
           }
         }
         stage( "Build / Test - JDK14" ) {
-          agent { node { label 'k3s' } }
+          agent { node { label 'linux' } } // k3s
           steps {
             container( 'jetty-build' ) {
               timeout( time: 120, unit: 'MINUTES' ) {
@@ -53,7 +53,7 @@ pipeline {
         }
 
         stage( "Build Javadoc" ) {
-          agent { node { label 'k3s' } }
+          agent { node { label 'linux' } } // k3s
           steps {
             container( 'jetty-build' ) {
               timeout( time: 30, unit: 'MINUTES' ) {
@@ -66,7 +66,7 @@ pipeline {
           }
         }
         stage( "Build Compact3" ) {
-          agent { node { label 'k3s' } }
+          agent { node { label 'linux' } } // k3s
           steps {
             container( 'jetty-build' ) {
               timeout( time: 30, unit: 'MINUTES' ) {
