@@ -279,7 +279,7 @@ public interface Handler extends LifeCycle, Destroyable
         }
 
         @Override
-        void setServer(Server server)
+        protected void setServer(Server server)
         {
             super.setServer(server);
             if (_handler instanceof Abstract)

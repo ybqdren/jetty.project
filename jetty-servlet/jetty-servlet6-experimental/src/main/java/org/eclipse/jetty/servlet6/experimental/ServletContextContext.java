@@ -16,6 +16,7 @@ package org.eclipse.jetty.servlet6.experimental;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Map;
@@ -37,13 +38,18 @@ public class ServletContextContext implements ServletContext
 {
     final ContextHandler.Context _context;
     final ServletHandler _servletHandler;
-    final ServletContextHandler _servletContextHandler;
+    final ServletContextHandler2 _servletContextHandler;
 
-    ServletContextContext(ContextHandler.Context context, ServletContextHandler servletContextHandler)
+    ServletContextContext(ContextHandler.Context context, ServletContextHandler2 servletContextHandler)
     {
         _context = context;
         _servletHandler = servletContextHandler.getServletHandler();
         _servletContextHandler = servletContextHandler;
+    }
+
+    public Set<Map.Entry<String, Object>> getAttributeEntrySet()
+    {
+        return null;
     }
 
     ContextHandler.Context getContext()

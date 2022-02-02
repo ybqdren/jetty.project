@@ -18,13 +18,17 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.EventListener;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncListener;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletConnection;
@@ -33,6 +37,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestAttributeListener;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -65,6 +70,8 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final ServletHandler.MappedServlet _mappedServlet;
     final HttpOutput _httpOutput;
     final HttpInput _httpInput;
+
+    final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
 
     protected ServletScopedRequest(
         ServletRequestState servletRequestState,
@@ -150,6 +157,19 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     {
         // TODO not sure onReadReady is right method or at least could be renamed.
         return _servletRequestState.onReadReady() ? this : null;
+    }
+
+    public void addEventListener(final EventListener listener)
+    {
+        if (listener instanceof ServletRequestAttributeListener)
+            _requestAttributeListeners.add((ServletRequestAttributeListener)listener);
+        if (listener instanceof AsyncListener)
+            throw new IllegalArgumentException(listener.getClass().toString());
+    }
+
+    public void removeEventListener(final EventListener listener)
+    {
+        _requestAttributeListeners.remove(listener);
     }
 
     public class MutableHttpServletRequest implements HttpServletRequest

@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty.server;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
@@ -92,6 +93,8 @@ public interface Response
     {
         getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, length);
     }
+
+    void sendRedirect(int code, String location, boolean consumeAll) throws IOException;
 
     default void sendError(int status, String reason, Callback callback)
     {
@@ -194,6 +197,12 @@ public interface Response
         public void setWrapper(Response response)
         {
             _wrapped.setWrapper(response);
+        }
+
+        @Override
+        public void sendRedirect(int code, String location, boolean consumeAll) throws IOException
+        {
+            _wrapped.sendRedirect(code, location, consumeAll);
         }
     }
 }

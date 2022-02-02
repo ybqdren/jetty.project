@@ -20,7 +20,6 @@ import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -59,20 +58,12 @@ import jakarta.servlet.http.HttpSessionBindingListener;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
 import org.eclipse.jetty.http.HttpURI;
-import org.eclipse.jetty.security.ConstraintAware;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.server.Dispatcher;
 import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.HandlerContainer;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ErrorHandler;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
-import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.DecoratedObjectFactory;
 import org.eclipse.jetty.util.DeprecationWarning;
 import org.eclipse.jetty.util.Loader;
@@ -101,7 +92,7 @@ import org.slf4j.LoggerFactory;
  * cause confusion with {@link ServletContext}.
  */
 @ManagedObject("Servlet Context Handler")
-public class ServletContextHandler2 extends ContextHandler
+public class ServletContextHandler2 extends TempContextHandler
 {
     private static final Logger LOG = LoggerFactory.getLogger(ServletContextHandler.class);
 
@@ -126,7 +117,6 @@ public class ServletContextHandler2 extends ContextHandler
 
     public interface ServletContainerInitializerCaller extends LifeCycle {}
 
-    private ServletContextContext _servletContextContext;
     protected final DecoratedObjectFactory _objFactory;
 //    protected Class<? extends SecurityHandler> _defaultSecurityHandlerClass = org.eclipse.jetty.security.ConstraintSecurityHandler.class;
     protected SessionHandler _sessionHandler;
@@ -136,8 +126,6 @@ public class ServletContextHandler2 extends ContextHandler
     protected JspConfigDescriptor _jspConfig;
 
     private boolean _startListeners;
-
-    public static class ErrorHandler{} // TODO
 
     public ServletContextHandler2()
     {
@@ -176,7 +164,7 @@ public class ServletContextHandler2 extends ContextHandler
 
     public ServletContextHandler2(Handler.Container parent, String contextPath, SessionHandler sessionHandler, SecurityHandler securityHandler, ServletHandler servletHandler, ErrorHandler errorHandler, int options)
     {
-        super(contextPath);
+        super(parent, contextPath);
         _options = options;
         _sessionHandler = sessionHandler;
         _securityHandler = securityHandler;
@@ -200,9 +188,9 @@ public class ServletContextHandler2 extends ContextHandler
     }
 
     @Override
-    public ServletContextHandler.Context getContext()
+    public ServletContextHandler2.Context getContext()
     {
-        return (ServletContextHandler.Context)super.getContext();
+        return (ServletContextHandler2.Context)super.getContext();
     }
 
     protected void setParent(Handler.Container parent)
@@ -1091,418 +1079,6 @@ public class ServletContextHandler2 extends ContextHandler
         }
     }
 
-    public static final int SERVLET_MAJOR_VERSION = 5;
-    public static final int SERVLET_MINOR_VERSION = 0;
-    private static final String UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER = "Unimplemented {} - use org.eclipse.jetty.servlet.ServletContextHandler";
-
-    /**
-     * A simple implementation of ServletContext that is used when there is no
-     * ContextHandler.  This is also used as the base for all other ServletContext
-     * implementations.
-     */
-    public static class StaticContext extends AttributesMap implements ServletContext
-    {
-        private int _effectiveMajorVersion = SERVLET_MAJOR_VERSION;
-        private int _effectiveMinorVersion = SERVLET_MINOR_VERSION;
-
-        @Override
-        public ServletContext getContext(String uripath)
-        {
-            return null;
-        }
-
-        @Override
-        public int getMajorVersion()
-        {
-            return SERVLET_MAJOR_VERSION;
-        }
-
-        @Override
-        public String getMimeType(String file)
-        {
-            return null;
-        }
-
-        @Override
-        public int getMinorVersion()
-        {
-            return SERVLET_MINOR_VERSION;
-        }
-
-        @Override
-        public RequestDispatcher getNamedDispatcher(String name)
-        {
-            return null;
-        }
-
-        @Override
-        public RequestDispatcher getRequestDispatcher(String uriInContext)
-        {
-            return null;
-        }
-
-        @Override
-        public String getRealPath(String path)
-        {
-            return null;
-        }
-
-        @Override
-        public URL getResource(String path) throws MalformedURLException
-        {
-            return null;
-        }
-
-        @Override
-        public InputStream getResourceAsStream(String path)
-        {
-            return null;
-        }
-
-        @Override
-        public Set<String> getResourcePaths(String path)
-        {
-            return null;
-        }
-
-        @Override
-        public String getServerInfo()
-        {
-            return ContextHandler.getServerInfo();
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public Servlet getServlet(String name) throws ServletException
-        {
-            return null;
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public Enumeration<String> getServletNames()
-        {
-            return Collections.enumeration(Collections.EMPTY_LIST);
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.0")
-        public Enumeration<Servlet> getServlets()
-        {
-            return Collections.enumeration(Collections.EMPTY_LIST);
-        }
-
-        @Override
-        @Deprecated(since = "Servlet API 2.1")
-        public void log(Exception exception, String msg)
-        {
-            LOG.warn(msg, exception);
-        }
-
-        @Override
-        public void log(String msg)
-        {
-            LOG.info(msg);
-        }
-
-        @Override
-        public void log(String message, Throwable throwable)
-        {
-            LOG.warn(message, throwable);
-        }
-
-        @Override
-        public String getInitParameter(String name)
-        {
-            return null;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public Enumeration<String> getInitParameterNames()
-        {
-            return Collections.enumeration(Collections.EMPTY_LIST);
-        }
-
-        @Override
-        public String getServletContextName()
-        {
-            return "No Context";
-        }
-
-        @Override
-        public String getContextPath()
-        {
-            return null;
-        }
-
-        @Override
-        public boolean setInitParameter(String name, String value)
-        {
-            return false;
-        }
-
-        @Override
-        public FilterRegistration.Dynamic addFilter(String filterName, Class<? extends Filter> filterClass)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addFilter(String, Class)");
-            return null;
-        }
-
-        @Override
-        public FilterRegistration.Dynamic addFilter(String filterName, Filter filter)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addFilter(String, Filter)");
-            return null;
-        }
-
-        @Override
-        public FilterRegistration.Dynamic addFilter(String filterName, String className)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addFilter(String, String)");
-            return null;
-        }
-
-        @Override
-        public jakarta.servlet.ServletRegistration.Dynamic addServlet(String servletName, Class<? extends Servlet> servletClass)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addServlet(String, Class)");
-            return null;
-        }
-
-        @Override
-        public jakarta.servlet.ServletRegistration.Dynamic addServlet(String servletName, Servlet servlet)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addServlet(String, Servlet)");
-            return null;
-        }
-
-        @Override
-        public jakarta.servlet.ServletRegistration.Dynamic addServlet(String servletName, String className)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addServlet(String, String)");
-            return null;
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public ServletRegistration.Dynamic addJspFile(String servletName, String jspFile)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addJspFile(String, String)");
-            return null;
-        }
-
-        @Override
-        public Set<SessionTrackingMode> getDefaultSessionTrackingModes()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getDefaultSessionTrackingModes()");
-            return null;
-        }
-
-        @Override
-        public Set<SessionTrackingMode> getEffectiveSessionTrackingModes()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getEffectiveSessionTrackingModes()");
-            return null;
-        }
-
-        @Override
-        public FilterRegistration getFilterRegistration(String filterName)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getFilterRegistration(String)");
-            return null;
-        }
-
-        @Override
-        public Map<String, ? extends FilterRegistration> getFilterRegistrations()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getFilterRegistrations()");
-            return null;
-        }
-
-        @Override
-        public ServletRegistration getServletRegistration(String servletName)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getServletRegistration(String)");
-            return null;
-        }
-
-        @Override
-        public Map<String, ? extends ServletRegistration> getServletRegistrations()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getServletRegistrations()");
-            return null;
-        }
-
-        @Override
-        public SessionCookieConfig getSessionCookieConfig()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getSessionCookieConfig()");
-            return null;
-        }
-
-        @Override
-        public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setSessionTrackingModes(Set<SessionTrackingMode>)");
-        }
-
-        @Override
-        public void addListener(String className)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addListener(String)");
-        }
-
-        @Override
-        public <T extends EventListener> void addListener(T t)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addListener(T)");
-        }
-
-        @Override
-        public void addListener(Class<? extends EventListener> listenerClass)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "addListener(Class)");
-        }
-
-        public <T> T createInstance(Class<T> clazz) throws ServletException
-        {
-            try
-            {
-                return clazz.getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e)
-            {
-                throw new ServletException(e);
-            }
-        }
-
-        @Override
-        public <T extends EventListener> T createListener(Class<T> clazz) throws ServletException
-        {
-            return createInstance(clazz);
-        }
-
-        @Override
-        public <T extends Servlet> T createServlet(Class<T> clazz) throws ServletException
-        {
-            return createInstance(clazz);
-        }
-
-        @Override
-        public <T extends Filter> T createFilter(Class<T> clazz) throws ServletException
-        {
-            return createInstance(clazz);
-        }
-
-        @Override
-        public ClassLoader getClassLoader()
-        {
-            return ContextHandler.class.getClassLoader();
-        }
-
-        @Override
-        public int getEffectiveMajorVersion()
-        {
-            return _effectiveMajorVersion;
-        }
-
-        @Override
-        public int getEffectiveMinorVersion()
-        {
-            return _effectiveMinorVersion;
-        }
-
-        public void setEffectiveMajorVersion(int v)
-        {
-            _effectiveMajorVersion = v;
-        }
-
-        public void setEffectiveMinorVersion(int v)
-        {
-            _effectiveMinorVersion = v;
-        }
-
-        @Override
-        public JspConfigDescriptor getJspConfigDescriptor()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getJspConfigDescriptor()");
-            return null;
-        }
-
-        @Override
-        public void declareRoles(String... roleNames)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "declareRoles(String...)");
-        }
-
-        @Override
-        public String getVirtualServerName()
-        {
-            return null;
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public int getSessionTimeout()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getSessionTimeout()");
-            return 0;
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public void setSessionTimeout(int sessionTimeout)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setSessionTimeout(int)");
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public String getRequestCharacterEncoding()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getRequestCharacterEncoding()");
-            return null;
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public void setRequestCharacterEncoding(String encoding)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setRequestCharacterEncoding(String)");
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public String getResponseCharacterEncoding()
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "getResponseCharacterEncoding()");
-            return null;
-        }
-
-        /**
-         * @since Servlet 4.0
-         */
-        @Override
-        public void setResponseCharacterEncoding(String encoding)
-        {
-            LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setResponseCharacterEncoding(String)");
-        }
-    }
-
-
     /**
      * Context.
      * <p>
@@ -1521,21 +1097,20 @@ public class ServletContextHandler2 extends ContextHandler
 
         public ContextHandler getContextHandler()
         {
-            return ContextHandler.this;
+            return ServletContextHandler2.this;
         }
 
         @Override
         public ServletContext getContext(String uripath)
         {
-            List<ContextHandler> contexts = new ArrayList<>();
-            Handler[] handlers = getServer().getChildHandlersByClass(ContextHandler.class);
+            List<ServletContextHandler2> contexts = new ArrayList<>();
+            List<ServletContextHandler2> handlers = getServer().getChildHandlersByClass(ServletContextHandler2.class);
             String matchedPath = null;
 
-            for (Handler handler : handlers)
+            for (ServletContextHandler2 ch : handlers)
             {
-                if (handler == null)
+                if (ch == null)
                     continue;
-                ContextHandler ch = (ContextHandler)handler;
                 String contextPath = ch.getContextPath();
 
                 if (uripath.equals(contextPath) ||
@@ -1543,9 +1118,9 @@ public class ServletContextHandler2 extends ContextHandler
                     "/".equals(contextPath))
                 {
                     // look first for vhost matching context only
-                    if (getVirtualHosts() != null && getVirtualHosts().length > 0)
+                    if (getVirtualHosts() != null && getVirtualHosts().size() > 0)
                     {
-                        if (ch.getVirtualHosts() != null && ch.getVirtualHosts().length > 0)
+                        if (ch.getVirtualHosts() != null && ch.getVirtualHosts().size() > 0)
                         {
                             for (String h1 : getVirtualHosts())
                             {
@@ -1581,15 +1156,14 @@ public class ServletContextHandler2 extends ContextHandler
             }
 
             if (contexts.size() > 0)
-                return contexts.get(0)._scontext;
+                return contexts.get(0).getServletContext();
 
             // try again ignoring virtual hosts
             matchedPath = null;
-            for (Handler handler : handlers)
+            for (ServletContextHandler2 ch : handlers)
             {
-                if (handler == null)
+                if (ch == null)
                     continue;
-                ContextHandler ch = (ContextHandler)handler;
                 String contextPath = ch.getContextPath();
 
                 if (uripath.equals(contextPath) || (uripath.startsWith(contextPath) && uripath.charAt(contextPath.length()) == '/') || "/".equals(contextPath))
@@ -1606,7 +1180,7 @@ public class ServletContextHandler2 extends ContextHandler
             }
 
             if (contexts.size() > 0)
-                return contexts.get(0)._scontext;
+                return contexts.get(0).getServletContext();
             return null;
         }
 
@@ -2011,6 +1585,17 @@ public class ServletContextHandler2 extends ContextHandler
 
     public class Context extends ContextHandler.Context
     {
+        public Set<Map.Entry<String, Object>> getAttributeEntrySet()
+        {
+            return null;
+        }
+
+        // TODO:
+        public ServletContext getServletContext()
+        {
+            return (ServletContext)this;
+        }
+
         @Override
         public RequestDispatcher getNamedDispatcher(String name)
         {

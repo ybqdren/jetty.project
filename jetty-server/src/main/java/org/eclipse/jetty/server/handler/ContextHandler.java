@@ -28,6 +28,7 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
@@ -48,6 +49,11 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     public static Context getCurrentContext()
     {
         return __context.get();
+    }
+
+    public static String getServerInfo()
+    {
+        return "jetty/" + Server.getVersion();
     }
 
     private final Attributes _persistentAttributes = new Mapped();
@@ -74,6 +80,11 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     public Context getContext()
     {
         return _context;
+    }
+
+    public ClassLoader getClassLoader()
+    {
+        return _contextLoader;
     }
 
     /*

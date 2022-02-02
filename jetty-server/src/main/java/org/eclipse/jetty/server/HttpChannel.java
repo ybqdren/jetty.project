@@ -36,6 +36,7 @@ import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.HostPort;
+import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.SerializedInvoker;
@@ -934,6 +935,62 @@ public class HttpChannel extends Attributes.Lazy
             {
                 return _headers.isReadOnly();
             }
+        }
+
+        private StringBuilder getRootURL()
+        {
+            HttpURI uri = HttpChannel.this.getRequest().getHttpURI();
+            StringBuilder url = new StringBuilder(128);
+            URIUtil.appendSchemeHostPort(url, uri.getScheme(), uri.getHost(), uri.getPort());
+            return url;
+        }
+
+        @Override
+        public void sendRedirect(int code, String location, boolean consumeAll) throws IOException
+        {
+            /*
+            TODO
+            if (consumeAll)
+                ensureConsumeAllOrNotPersistent();
+            */
+
+            if (!HttpStatus.isRedirection(code))
+                throw new IllegalArgumentException("Not a 3xx redirect code");
+
+            if (location == null)
+                throw new IllegalArgumentException();
+
+            if (!URIUtil.hasScheme(location))
+            {
+                StringBuilder buf = HttpChannel.this.getHttpConfiguration().isRelativeRedirectAllowed()
+                    ? new StringBuilder()
+                    : getRootURL();
+                if (location.startsWith("/"))
+                {
+                    // absolute in context
+                    location = URIUtil.canonicalURI(location);
+                }
+                else
+                {
+                    // relative to request
+                    String path = HttpChannel.this.getRequest().getHttpURI().getPath();
+                    String parent = (path.endsWith("/")) ? path : URIUtil.parentPath(path);
+                    location = URIUtil.canonicalURI(URIUtil.addEncodedPaths(parent, location));
+                    if (location != null && !location.startsWith("/"))
+                        buf.append('/');
+                }
+
+                if (location == null)
+                    throw new IllegalStateException("path cannot be above root");
+                buf.append(location);
+
+                location = buf.toString();
+            }
+
+            // resetBuffer(); todo
+            setHeader(HttpHeader.LOCATION, location);
+            setStatus(code);
+            HttpChannel.this.getRequest().succeeded();
         }
 
         @Override
