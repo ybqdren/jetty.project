@@ -36,6 +36,7 @@ import org.eclipse.jetty.io.QuietException;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.util.Attributes;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Jetty;
 import org.eclipse.jetty.util.MultiException;
 import org.eclipse.jetty.util.Uptime;
@@ -113,10 +114,10 @@ public class Server extends Handler.Wrapper implements Attributes
     }
 
     @Override
-    public boolean handle(Request request, Response response)
+    public void handle(Request request)
     {
         if (!isStarted())
-            return false;
+            return;
 
         try
         {
@@ -127,17 +128,22 @@ public class Server extends Handler.Wrapper implements Attributes
             {
                 Request customized = customizer.customize(request.getConnectionMetaData().getConnector(), configuration, customizedRequest);
                 customizedRequest = customized == null ? request : customized;
-                if (request.isComplete())
-                    return true;
+                if (request.isAccepted())
+                    return;
             }
 
             // Handle
-            if (!super.handle(customizedRequest, customizedRequest.getResponse()))
+            super.handle(customizedRequest);
+
+            // Try to accept to test if already accepted
+            Response response = request.accept();
+            if (response != null)
             {
+                Callback callback = response.getCallback();
                 if (response.isCommitted())
-                    request.failed(new IllegalStateException("No Handler for committed request"));
+                    callback.failed(new IllegalStateException("No Handler for committed request"));
                 else
-                    response.writeError(404, null, request);
+                    response.writeError(404, null, callback);
             }
         }
         catch (Throwable t)
@@ -148,10 +154,11 @@ public class Server extends Handler.Wrapper implements Attributes
             else
                 LOG.warn("handle failed {}", this, t);
 
-            request.failed(t);
+            Response response = request.accept();
+            if (response == null)
+                response = request.getResponse();
+            response.getCallback().failed(t);
         }
-
-        return true;
     }
 
     public boolean isDryRun()

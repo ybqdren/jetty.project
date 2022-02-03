@@ -22,7 +22,6 @@ import org.eclipse.jetty.server.Content;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.statistic.CounterStatistic;
 import org.eclipse.jetty.util.statistic.SampleStatistic;
@@ -36,7 +35,7 @@ public class RequestStatsHandler extends Handler.Wrapper
     private final SampleStatistic _handleTimeStats = new SampleStatistic();
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
         Object connectionStats = _connectionStats.computeIfAbsent(request.getConnectionMetaData().getId(), id ->
         {
@@ -97,7 +96,7 @@ public class RequestStatsHandler extends Handler.Wrapper
 
         try
         {
-            return super.handle(new Request.Wrapper(request)
+            super.handle(new Request.Wrapper(request)
             {
                 // TODO make this wrapper optional. Only needed if requestLog asks for these attributes.
                 @Override
@@ -114,11 +113,12 @@ public class RequestStatsHandler extends Handler.Wrapper
                             return super.getAttribute(name);
                     }
                 }
-            }, response);
+            });
         }
         finally
         {
-            _handleTimeStats.record(System.nanoTime() - request.getChannel().getStream().getNanoTimeStamp());
+            if (request.isAccepted())
+                _handleTimeStats.record(System.nanoTime() - request.getChannel().getStream().getNanoTimeStamp());
             // TODO initial dispatch duration stats collected here.
         }
     }
