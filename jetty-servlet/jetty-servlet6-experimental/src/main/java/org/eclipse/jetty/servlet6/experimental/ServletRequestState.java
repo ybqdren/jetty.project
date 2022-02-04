@@ -75,14 +75,14 @@ public class ServletRequestState
     private RequestState _requestState = RequestState.BLOCKING;
 
     private final AutoLock _lock = new AutoLock();
-    private final ServletContextContext _servletContextContext;
+    private final ServletContextHandler.ServletContextContext _servletContextContext;
     private ServletScopedRequest _servletScopedRequest;
 //    private HttpInput _httpInput; // TODO
 //    private HttpWriter _httpWriter; // TODO
     private CookieStore _cookieCache; // TODO
     private boolean _initial;
 
-    ServletRequestState(ServletContextContext servletContextContext)
+    ServletRequestState(ServletContextHandler.ServletContextContext servletContextContext)
     {
         _servletContextContext = servletContextContext;
     }
@@ -117,7 +117,7 @@ public class ServletRequestState
         return _servletScopedRequest;
     }
 
-    public ServletContextContext getServletContextContext()
+    public ServletContextHandler.ServletContextContext getServletContextContext()
     {
         return _servletContextContext;
     }

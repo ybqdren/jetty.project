@@ -52,6 +52,7 @@ import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.descriptor.JspPropertyGroupDescriptor;
 import jakarta.servlet.descriptor.TaglibDescriptor;
+import jakarta.servlet.http.HttpFilter;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSessionActivationListener;
@@ -340,7 +341,7 @@ public class ServletContextHandler extends TempContextHandler
     @Override
     protected void doStart() throws Exception
     {
-        _servletContextContext = new ServletContextContext(getContext(), this);
+        _servletContextContext = getContext().getServletContext();
 
         _objFactory.addDecorator(new DeprecationWarning());
         getServletContext().setAttribute(DecoratedObjectFactory.ATTR, _objFactory);
@@ -567,6 +568,7 @@ public class ServletContextHandler extends TempContextHandler
      *
      * @param servlet the servlet instance
      * @param pathSpec the path spec
+     * @return the ServletHolder for the added servlet
      */
     public ServletHolder addServlet(HttpServlet servlet, String pathSpec)
     {
@@ -611,6 +613,21 @@ public class ServletContextHandler extends TempContextHandler
     public FilterHolder addFilter(String filterClass, String pathSpec, EnumSet<DispatcherType> dispatches)
     {
         return getServletHandler().addFilterWithMapping(filterClass, pathSpec, dispatches);
+    }
+
+    /**
+     * Convenience method to add a servlet.
+     *
+     * @param filter the filter instance
+     * @param pathSpec the path spec
+     * @param dispatches the dispatcher types for this filter
+     * @return the FilterHolder that was created
+     */
+    public FilterHolder addFilter(HttpFilter filter, String pathSpec, EnumSet<DispatcherType> dispatches)
+    {
+        FilterHolder filterHolder = new FilterHolder(filter);
+        getServletHandler().addFilterWithMapping(filterHolder, pathSpec, dispatches);
+        return filterHolder;
     }
 
     /**
@@ -1648,14 +1665,14 @@ public class ServletContextHandler extends TempContextHandler
 
     public class Context extends ContextHandler.Context
     {
-        public ServletContext2 servletContext = new ServletContext2();
+        public ServletContextContext servletContext = new ServletContextContext();
 
         public Set<Map.Entry<String, Object>> getAttributeEntrySet()
         {
             return null;
         }
 
-        public ServletContext getServletContext()
+        public ServletContextContext getServletContext()
         {
             return servletContext;
         }
@@ -1696,8 +1713,13 @@ public class ServletContextHandler extends TempContextHandler
         }
     }
 
-    public class ServletContext2 extends PartialContext
+    public class ServletContextContext extends PartialContext
     {
+        public ServletContextHandler.Context getContext()
+        {
+            return ServletContextHandler.this.getContext();
+        }
+
         @Override
         public RequestDispatcher getNamedDispatcher(String name)
         {

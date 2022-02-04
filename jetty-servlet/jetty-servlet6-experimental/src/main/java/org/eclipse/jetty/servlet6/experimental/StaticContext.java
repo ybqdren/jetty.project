@@ -8,6 +8,7 @@ import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterRegistration;
@@ -33,13 +34,37 @@ public class StaticContext implements ServletContext
 {
     private static final Logger LOG = LoggerFactory.getLogger(StaticContext.class);
 
-    public static final int SERVLET_MAJOR_VERSION = 5;
+    public static final int SERVLET_MAJOR_VERSION = 6;
     public static final int SERVLET_MINOR_VERSION = 0;
     private static final String UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER = "Unimplemented {} - use org.eclipse.jetty.servlet.ServletContextHandler";
 
     private final Attributes.Lazy _attributes = new Attributes.Lazy();
     private int _effectiveMajorVersion = SERVLET_MAJOR_VERSION;
     private int _effectiveMinorVersion = SERVLET_MINOR_VERSION;
+
+    public Set<Map.Entry<String, Object>> getAttributeEntrySet()
+    {
+        return _attributes.getAttributeNames().stream().map(name -> new Map.Entry<String, Object>()
+        {
+            @Override
+            public String getKey()
+            {
+                return name;
+            }
+
+            @Override
+            public Object getValue()
+            {
+                return _attributes.getAttribute(name);
+            }
+
+            @Override
+            public Object setValue(Object value)
+            {
+                return _attributes.setAttribute(name, value);
+            }
+        }).collect(Collectors.toSet());
+    }
 
     @Override
     public ServletContext getContext(String uripath)

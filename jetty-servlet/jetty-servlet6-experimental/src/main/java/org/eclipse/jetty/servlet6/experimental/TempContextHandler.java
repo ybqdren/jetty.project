@@ -56,7 +56,7 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class TempContextHandler extends ContextHandler implements Graceful
+abstract class TempContextHandler extends ContextHandler implements Graceful
 {
     public static final int SERVLET_MAJOR_VERSION = 5;
     public static final int SERVLET_MINOR_VERSION = 0;
@@ -115,7 +115,7 @@ class TempContextHandler extends ContextHandler implements Graceful
         PREFIX
     }
 
-    protected ServletContextContext _servletContextContext;
+    protected ServletContextHandler.ServletContextContext _servletContextContext;
 
     protected ContextStatus _contextStatus = ContextStatus.NOTSET;
     private final AttributesMap _attributes;
