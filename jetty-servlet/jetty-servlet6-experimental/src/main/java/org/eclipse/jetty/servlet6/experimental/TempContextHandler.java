@@ -56,10 +56,12 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class contains the Servlet behaviours from the Jetty 11 ContextHandler, it is only supposed to
+ * be extended by the ServletContextHandler and they should probably be combined into the same class.
+ */
 abstract class TempContextHandler extends ContextHandler implements Graceful
 {
-    public static final int SERVLET_MAJOR_VERSION = 5;
-    public static final int SERVLET_MINOR_VERSION = 0;
     public static final Class<?>[] SERVLET_LISTENER_TYPES =
         {
             ServletContextListener.class,
@@ -188,8 +190,6 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     @Override
     public void dump(Appendable out, String indent) throws IOException
     {
-
-
         dumpObjects(out, indent,
             new ClassLoaderDump(getClassLoader()),
             new DumpableCollection("handler attributes " + this, _servletContextContext.getAttributeEntrySet()),
