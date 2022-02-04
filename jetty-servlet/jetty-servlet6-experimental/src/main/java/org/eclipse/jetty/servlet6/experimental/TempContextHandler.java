@@ -1,16 +1,11 @@
 package org.eclipse.jetty.servlet6.experimental;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLClassLoader;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
@@ -24,33 +19,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterRegistration;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextAttributeEvent;
 import jakarta.servlet.ServletContextAttributeListener;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.ServletRequestAttributeListener;
 import jakarta.servlet.ServletRequestEvent;
 import jakarta.servlet.ServletRequestListener;
-import jakarta.servlet.SessionCookieConfig;
-import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSessionAttributeListener;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
-import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.server.ClassLoaderDump;
-import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -58,7 +40,6 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.ContextRequest;
-import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Index;
@@ -75,9 +56,7 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.eclipse.jetty.servlet6.experimental.ServletContextHandler.getServletContext;
-
-public class TempContextHandler extends ContextHandler implements Graceful
+class TempContextHandler extends ContextHandler implements Graceful
 {
     public static final int SERVLET_MAJOR_VERSION = 5;
     public static final int SERVLET_MINOR_VERSION = 0;
@@ -96,7 +75,7 @@ public class TempContextHandler extends ContextHandler implements Graceful
 
     public static final int EXTENDED_LISTENER_TYPE_INDEX = 0;
 
-    private static final String UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER = "Unimplemented {} - use org.eclipse.jetty.servlet.ServletContextHandler";
+    public static final String UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER = "Unimplemented {} - use org.eclipse.jetty.servlet.ServletContextHandler";
 
     private static final Logger LOG = LoggerFactory.getLogger(ContextHandler.class);
 
@@ -165,7 +144,7 @@ public class TempContextHandler extends ContextHandler implements Graceful
     private final List<EventListener> _programmaticListeners = new CopyOnWriteArrayList<>();
     private final List<ServletContextListener> _servletContextListeners = new CopyOnWriteArrayList<>();
     private final List<ServletContextListener> _destroyServletContextListeners = new ArrayList<>();
-    private final List<ServletContextAttributeListener> _servletContextAttributeListeners = new CopyOnWriteArrayList<>();
+    protected final List<ServletContextAttributeListener> _servletContextAttributeListeners = new CopyOnWriteArrayList<>();
     private final List<ServletRequestListener> _servletRequestListeners = new CopyOnWriteArrayList<>();
     private final List<ServletRequestAttributeListener> _servletRequestAttributeListeners = new CopyOnWriteArrayList<>();
     private final List<ContextScopeListener> _contextListeners = new CopyOnWriteArrayList<>();
@@ -201,9 +180,9 @@ public class TempContextHandler extends ContextHandler implements Graceful
     }
 
     @Override
-    public ServletContextHandler2.Context getContext()
+    public ServletContextHandler.Context getContext()
     {
-        return (ServletContextHandler2.Context)super.getContext();
+        return (ServletContextHandler.Context)super.getContext();
     }
 
     @Override
@@ -216,11 +195,6 @@ public class TempContextHandler extends ContextHandler implements Graceful
             new DumpableCollection("handler attributes " + this, _servletContextContext.getAttributeEntrySet()),
             new DumpableCollection("context attributes " + this, getContext().getAttributeEntrySet()),
             new DumpableCollection("initparams " + this, getInitParams().entrySet()));
-    }
-
-    private Map<Object, Object> getInitParams()
-    {
-        return new HashMap<>();
     }
 
     /**
@@ -278,6 +252,36 @@ public class TempContextHandler extends ContextHandler implements Graceful
     {
         String contextPathEncoded = getContextPathEncoded();
         return "/".equals(contextPathEncoded) ? "" : contextPathEncoded;
+    }
+
+    /*
+     * @see jakarta.servlet.ServletContext#getInitParameter(java.lang.String)
+     */
+    public String getInitParameter(String name)
+    {
+        return _initParams.get(name);
+    }
+
+    public String setInitParameter(String name, String value)
+    {
+        return _initParams.put(name, value);
+    }
+
+    /*
+     * @see jakarta.servlet.ServletContext#getInitParameterNames()
+     */
+    public Enumeration<String> getInitParameterNames()
+    {
+        return Collections.enumeration(_initParams.keySet());
+    }
+
+    /**
+     * @return Returns the initParams.
+     */
+    @ManagedAttribute("Initial Parameter map for the context")
+    public Map<String, String> getInitParams()
+    {
+        return _initParams;
     }
 
     /*
@@ -505,7 +509,10 @@ public class TempContextHandler extends ContextHandler implements Graceful
 
     public Resource getBaseResource()
     {
-        return new PathResource(getResourceBase());
+        Path resourceBase = getResourceBase();
+        if (resourceBase == null)
+            return null;
+        return new PathResource(resourceBase);
     }
 
     @Override
@@ -602,7 +609,7 @@ public class TempContextHandler extends ContextHandler implements Graceful
     {
         String managedAttributes = _initParams.get(MANAGED_ATTRIBUTES);
         if (managedAttributes != null)
-            addEventListener(new ManagedAttributeListener((ServletContextHandler2)this, StringUtil.csvSplit(managedAttributes)));
+            addEventListener(new ManagedAttributeListener((ServletContextHandler)this, StringUtil.csvSplit(managedAttributes)));
 
         super.doStart();
     }
@@ -715,7 +722,7 @@ public class TempContextHandler extends ContextHandler implements Graceful
         Thread currentThread = null;
         enterScope(null, "doStop");
 
-        ServletContextHandler2.Context context = getContext();
+        ServletContextHandler.Context context = getContext();
         try
         {
             // Set the classloader
@@ -938,34 +945,6 @@ public class TempContextHandler extends ContextHandler implements Graceful
             {
                 scopedRequest.removeEventListener(_servletRequestAttributeListeners.get(i));
             }
-        }
-    }
-
-    @Override
-    public boolean handle(Request request, Response response) throws Exception
-    {
-        ServletScopedRequest scopedRequest = request.as(ServletScopedRequest.class);
-        final DispatcherType dispatch = scopedRequest.getHttpServletRequest().getDispatcherType();
-        if (dispatch == DispatcherType.REQUEST && isProtectedTarget(request.getPath()))
-        {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, null, Callback.NOOP);
-            return true;
-        }
-
-        final boolean new_context = true; // todo? scopedRequest.takeNewContext();
-        try
-        {
-            enterScope(request, dispatch);
-            if (new_context)
-                requestInitialized(request, scopedRequest.getHttpServletRequest());
-
-            return super.handle(request, response);
-        }
-        finally
-        {
-            if (new_context)
-                requestDestroyed(request, scopedRequest.getHttpServletRequest());
-            exitScope(request);
         }
     }
 
@@ -1309,6 +1288,41 @@ public class TempContextHandler extends ContextHandler implements Graceful
     }
 
     /**
+     * Attempt to get a Resource from the Context.
+     *
+     * @param pathInContext the path within the base resource to attempt to get
+     * @return the resource, or null if not available.
+     * @throws MalformedURLException if unable to form a Resource from the provided path
+     */
+    public Resource getResource(String pathInContext) throws MalformedURLException
+    {
+        if (pathInContext == null || !pathInContext.startsWith(URIUtil.SLASH))
+            throw new MalformedURLException(pathInContext);
+
+        Resource baseResource = getBaseResource();
+        if (baseResource == null)
+            return null;
+
+        try
+        {
+            // addPath with accept non-canonical paths that don't go above the root,
+            // but will treat them as aliases. So unless allowed by an AliasChecker
+            // they will be rejected below.
+            Resource resource = baseResource.addPath(pathInContext);
+
+            if (checkAlias(pathInContext, resource))
+                return resource;
+            return null;
+        }
+        catch (Exception e)
+        {
+            LOG.trace("IGNORED", e);
+        }
+
+        return null;
+    }
+
+    /**
      * @param path the path to check the alias for
      * @param resource the resource
      * @return True if the alias is OK
@@ -1370,6 +1384,36 @@ public class TempContextHandler extends ContextHandler implements Graceful
     public Resource newResource(String urlOrPath) throws IOException
     {
         return Resource.newResource(urlOrPath);
+    }
+
+    public Set<String> getResourcePaths(String path)
+    {
+        try
+        {
+            Resource resource = getResource(path);
+
+            if (resource != null && resource.exists())
+            {
+                if (!path.endsWith(URIUtil.SLASH))
+                    path = path + URIUtil.SLASH;
+
+                String[] l = resource.list();
+                if (l != null)
+                {
+                    HashSet<String> set = new HashSet<>();
+                    for (int i = 0; i < l.length; i++)
+                    {
+                        set.add(path + l[i]);
+                    }
+                    return set;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            LOG.trace("IGNORED", e);
+        }
+        return Collections.emptySet();
     }
 
     private String normalizeHostname(String host)
@@ -1465,6 +1509,11 @@ public class TempContextHandler extends ContextHandler implements Graceful
          * @param request A request that is applicable to the scope, or null
          */
         void exitScope(ContextHandler.Context context, Request request);
+    }
+
+    public ServletContext getServletContext()
+    {
+        return getContext().getServletContext();
     }
 
     private static class Caller extends SecurityManager

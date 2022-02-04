@@ -14,7 +14,6 @@
 package org.eclipse.jetty.servlet6.experimental;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
@@ -23,7 +22,6 @@ import jakarta.servlet.ServletContextAttributeEvent;
 import jakarta.servlet.ServletContextAttributeListener;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
-import org.eclipse.jetty.server.handler.ContextHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +33,9 @@ public class ManagedAttributeListener implements ServletContextListener, Servlet
     private static final Logger LOG = LoggerFactory.getLogger(ManagedAttributeListener.class);
 
     final Set<String> _managedAttributes = new HashSet<>();
-    final ServletContextHandler2 _context;
+    final ServletContextHandler _context;
 
-    public ManagedAttributeListener(ServletContextHandler2 context, String... managedAttributes)
+    public ManagedAttributeListener(ServletContextHandler context, String... managedAttributes)
     {
         _context = context;
         _managedAttributes.addAll(Arrays.asList(managedAttributes));

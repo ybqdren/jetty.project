@@ -13,6 +13,10 @@
 
 package org.eclipse.jetty.servlet6.experimental;
 
+import java.util.Set;
+
+import jakarta.servlet.SessionCookieConfig;
+import jakarta.servlet.SessionTrackingMode;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -22,6 +26,26 @@ import org.slf4j.LoggerFactory;
 public class SessionHandler extends Handler.Wrapper
 {    
     static final Logger LOG = LoggerFactory.getLogger(SessionHandler.class);
+
+    public Set<SessionTrackingMode> getDefaultSessionTrackingModes()
+    {
+        return null;
+    }
+
+    public Set<SessionTrackingMode> getEffectiveSessionTrackingModes()
+    {
+        return null;
+    }
+
+    public int getMaxInactiveInterval()
+    {
+        return 0;
+    }
+
+    public SessionCookieConfig getSessionCookieConfig()
+    {
+        return null;
+    }
 
     @Override
     public boolean handle(Request request, Response response) throws Exception
@@ -36,4 +60,13 @@ public class SessionHandler extends Handler.Wrapper
         return super.handle(request, response);
     }
 
+    public void setMaxInactiveInterval(int tmp)
+    {
+
+    }
+
+    public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes)
+    {
+
+    }
 }

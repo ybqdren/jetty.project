@@ -218,7 +218,7 @@ public abstract class BaseHolder<T> extends AbstractLifeCycle implements Dumpabl
             return scontext;
 
         //try the ServletContextHandler next
-        return ServletContextHandler.getServletContext();
+        return ServletContextHandler.getCurrentServletContext();
     }
 
     public ServletContextHandler getServletContextHandler()
@@ -233,7 +233,7 @@ public abstract class BaseHolder<T> extends AbstractLifeCycle implements Dumpabl
             return ((ServletContextHandler.Context)scontext).getServletContextHandler();
 
         //try the ServletContextHandler next
-        return ServletContextHandler.getServletContextHandler();
+        return ServletContextHandler.getCurrentServletContextHandler();
     }
 
     /**

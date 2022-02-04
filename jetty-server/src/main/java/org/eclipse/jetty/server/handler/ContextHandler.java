@@ -294,6 +294,11 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         return isStarted(); // TODO
     }
 
+    protected void invokeHandler(Request request, Response response) throws Exception
+    {
+        getHandler().handle(request, response);
+    }
+
     @Override
     public boolean handle(Request request, Response response) throws Exception
     {
@@ -328,7 +333,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
             return false; // TODO 404? 500? Error dispatch ???
 
         // TODO make the lambda part of the scope request to save allocation?
-        _context.call(() -> next.handle(scoped, new ContextResponse(response)));
+        _context.call(() -> invokeHandler(scoped, new ContextResponse(response)));
         return true;
     }
 

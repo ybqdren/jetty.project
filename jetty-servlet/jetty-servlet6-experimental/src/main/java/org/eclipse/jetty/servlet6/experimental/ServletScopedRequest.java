@@ -70,6 +70,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final ServletHandler.MappedServlet _mappedServlet;
     final HttpOutput _httpOutput;
     final HttpInput _httpInput;
+    boolean _newContext;
 
     final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
 
@@ -106,6 +107,13 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             default:
                 return super.getAttribute(name);
         }
+    }
+
+    public boolean takeNewContext()
+    {
+        boolean nc = _newContext;
+        _newContext = false;
+        return nc;
     }
 
     ServletRequestState getServletRequestState()
