@@ -41,7 +41,6 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.ContextRequest;
 import org.eclipse.jetty.util.AttributesMap;
-import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Index;
 import org.eclipse.jetty.util.Loader;
 import org.eclipse.jetty.util.MultiException;
@@ -133,7 +132,6 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     protected MimeTypes _mimeTypes;
     private Map<String, String> _localeEncodingMap;
     private String[] _welcomeFiles;
-    private ErrorHandler _errorHandler;
     private String[] _vhosts; // Host name portion, matching _vconnectors array
     private boolean[] _vhostswildcard;
     private String[] _vconnectors; // connector portion, matching _vhosts array
@@ -212,14 +210,6 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     public void setAllowNullPathInfo(boolean allowNullPathInfo)
     {
         _allowNullPathInfo = allowNullPathInfo;
-    }
-
-    @Override
-    public void setServer(Server server)
-    {
-        super.setServer(server);
-        if (_errorHandler != null)
-            _errorHandler.setServer(server);
     }
 
     public boolean isUsingSecurityManager()
@@ -793,7 +783,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
             return true;
 
         String vhost = normalizeHostname(baseRequest.getServerName());
-        String connectorName = baseRequest.getChannel().getConnector().getName();
+        String connectorName = baseRequest.getHttpChannel().getConnector().getName();
 
         for (int i = 0; i < _vhosts.length; i++)
         {
@@ -848,7 +838,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     /*
      * @see org.eclipse.jetty.server.Handler#handle(jakarta.servlet.http.HttpServletRequest, jakarta.servlet.http.HttpServletResponse)
      */
-    public boolean checkContext(String target, Request baseRequest, Response response)
+    public boolean checkContext(String target, Request baseRequest)
     {
         ServletScopedRequest servletRequest = baseRequest.as(ServletScopedRequest.class);
         HttpServletRequest httpServletRequest = servletRequest.getHttpServletRequest();
@@ -867,6 +857,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
             if (!_allowNullPathInfo && _contextPath.length() == target.length() && _contextPath.length() > 1)
             {
                 // context request must end with /
+                Response response = baseRequest.accept();
                 String queryString = httpServletRequest.getQueryString();
                 response.sendRedirect(
                     HttpServletResponse.SC_MOVED_TEMPORARILY,
@@ -881,7 +872,8 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
                     return false;
                 case SHUTDOWN:
                 case UNAVAILABLE:
-                    response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, null, Callback.NOOP);
+                    Response response = baseRequest.accept();
+                    response.writeError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, null, response.getCallback());
                     return false;
                 default:
                     return true;
@@ -894,12 +886,12 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     }
 
     @Override
-    protected ContextRequest wrap(Request request, Response response, String pathInContext)
+    protected ContextRequest wrap(Request request, String pathInContext)
     {
-        if (!checkContext(pathInContext, request, response))
+        if (!checkContext(pathInContext, request))
             return null;
 
-        return super.wrap(request, response, pathInContext);
+        return super.wrap(request, pathInContext);
     }
 
     protected void requestInitialized(Request baseRequest, HttpServletRequest request)
@@ -1179,26 +1171,6 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     public String[] getWelcomeFiles()
     {
         return _welcomeFiles;
-    }
-
-    /**
-     * @return Returns the errorHandler.
-     */
-    @ManagedAttribute("The error handler to use for the context")
-    public ErrorHandler getErrorHandler()
-    {
-        return _errorHandler;
-    }
-
-    /**
-     * @param errorHandler The errorHandler to set.
-     */
-    public void setErrorHandler(ErrorHandler errorHandler)
-    {
-        if (errorHandler != null)
-            errorHandler.setServer(getServer());
-        updateBean(_errorHandler, errorHandler, true);
-        _errorHandler = errorHandler;
     }
 
     @ManagedAttribute("The maximum content size")

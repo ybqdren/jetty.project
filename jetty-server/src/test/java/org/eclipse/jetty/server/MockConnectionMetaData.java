@@ -19,10 +19,22 @@ import java.net.SocketAddress;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.util.Attributes;
+import org.eclipse.jetty.util.HostPort;
 
 public class MockConnectionMetaData extends Attributes.Mapped implements ConnectionMetaData
 {
+    private final Connector _connector;
     boolean _persistent = true;
+
+    public MockConnectionMetaData()
+    {
+        this(null);
+    }
+
+    public MockConnectionMetaData(Connector connector)
+    {
+        _connector = connector;
+    }
 
     public void notPersistent()
     {
@@ -56,7 +68,7 @@ public class MockConnectionMetaData extends Attributes.Mapped implements Connect
     @Override
     public Connector getConnector()
     {
-        return null;
+        return _connector;
     }
 
     @Override
@@ -72,14 +84,20 @@ public class MockConnectionMetaData extends Attributes.Mapped implements Connect
     }
 
     @Override
-    public SocketAddress getRemote()
+    public SocketAddress getRemoteAddress()
     {
         return InetSocketAddress.createUnresolved("localhost", 12345);
     }
 
     @Override
-    public SocketAddress getLocal()
+    public SocketAddress getLocalAddress()
     {
         return InetSocketAddress.createUnresolved("localhost", 80);
+    }
+
+    @Override
+    public HostPort getServerAuthority()
+    {
+        return null;
     }
 }

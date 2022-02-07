@@ -83,7 +83,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         String pathInContext,
         ServletHandler.MappedServlet mappedServlet)
     {
-        super(servletRequestState.getServletContextContext().getContext(), request, pathInContext);
+        super(servletRequestState.getContextHandler(), request, pathInContext);
         _servletRequestState = servletRequestState;
         _httpServletRequest = new MutableHttpServletRequest();
         _httpServletResponse = new MutableHttpServletResponse(response);
@@ -231,7 +231,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getProtocolRequestId()
         {
-            return ServletScopedRequest.this.getChannel().getStream().getId();
+            return ServletScopedRequest.this.getHttpChannel().getHttpStream().getId();
         }
 
         @Override
@@ -721,14 +721,14 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             switch (sc)
             {
                 case -1:
-                    _servletRequestState.getServletScopedRequest().failed(new IOException(msg));
+                    _servletRequestState.getServletScopedRequest().getResponse().getCallback().failed(new IOException(msg));
                     break;
 
                 case HttpStatus.PROCESSING_102:
                     try (Blocker blocker = _blocker.acquire())
                     {
                         // TODO static MetaData
-                        _servletRequestState.getServletScopedRequest().getChannel().getStream()
+                        _servletRequestState.getServletScopedRequest().getHttpChannel().getHttpStream()
                             .send(new MetaData.Response(null, 102, null), false, blocker);
                     }
                     break;

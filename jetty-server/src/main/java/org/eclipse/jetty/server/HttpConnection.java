@@ -40,6 +40,7 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.io.AbstractConnection;
 import org.eclipse.jetty.io.ByteBufferPool;
@@ -67,6 +68,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpConnection.class);
     private static final ThreadLocal<HttpConnection> __currentConnection = new ThreadLocal<>();
+    public static final HttpField CONNECTION_CLOSE = new PreEncodedHttpField(HttpHeader.CONNECTION, HttpHeaderValue.CLOSE.asString());
 
     private final HttpConfiguration _configuration;
     private final Connector _connector;
@@ -231,15 +233,43 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
     }
 
     @Override
-    public SocketAddress getRemote()
+    public SocketAddress getRemoteAddress()
     {
         return getEndPoint().getRemoteSocketAddress();
     }
 
     @Override
-    public SocketAddress getLocal()
+    public SocketAddress getLocalAddress()
     {
+        HttpConfiguration config = getHttpConfiguration();
+        if (config != null)
+        {
+            SocketAddress override = config.getLocalAddress();
+            if (override != null)
+                return override;
+        }
         return getEndPoint().getLocalSocketAddress();
+    }
+
+    @Override
+    public HostPort getServerAuthority()
+    {
+        HttpConfiguration config = getHttpConfiguration();
+        if (config != null)
+        {
+            HostPort override = config.getServerAuthority();
+            if (override != null)
+                return override;
+        }
+
+        // TODO cache the HostPort?
+        SocketAddress addr = getLocalAddress();
+        if (addr instanceof InetSocketAddress)
+        {
+            InetSocketAddress inet = (InetSocketAddress)addr;
+            return new HostPort(inet.getHostString(), inet.getPort());
+        }
+        return new HostPort(addr.toString(), -1);
     }
 
     @Override
@@ -485,7 +515,14 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
     private int fillRequestBuffer()
     {
         if (_retainableByteBuffer != null && _retainableByteBuffer.isRetained())
-            throw new IllegalStateException("fill with unconsumed content on " + this);
+        {
+            // TODO this is almost certainly wrong
+            RetainableByteBuffer newBuffer = _retainableByteBufferPool.acquire(getInputBufferSize(), isUseInputDirectByteBuffers());
+            if (LOG.isDebugEnabled())
+                LOG.debug("replace buffer {} <- {} in {}", _retainableByteBuffer, newBuffer, this);
+            _retainableByteBuffer.release();
+            _retainableByteBuffer = newBuffer;
+        }
 
         if (isRequestBufferEmpty())
         {
@@ -572,14 +609,6 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
     }
 
     @Override
-    protected boolean onReadTimeout(Throwable timeout)
-    {
-        // TODO
-        throw new UnsupportedOperationException();
-        // TODO return _channel.onIdleTimeout(timeout);
-    }
-
-    @Override
     protected void onFillInterestedFailed(Throwable cause)
     {
         _parser.close();
@@ -599,10 +628,19 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
     @Override
     public void onClose(Throwable cause)
     {
-        if (cause == null)
-            _sendCallback.close();
-        else
-            _sendCallback.failed(cause);
+        try
+        {
+            if (cause == null)
+                _sendCallback.close();
+            else
+                _sendCallback.failed(cause);
+        }
+        finally
+        {
+            Runnable todo = _channel.onConnectionClose(cause);
+            if (todo != null)
+                todo.run();
+        }
         super.onClose(cause);
     }
 
@@ -646,6 +684,8 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         public void succeeded()
         {
             Runnable task = _channel.onContentAvailable();
+            if (LOG.isDebugEnabled())
+                LOG.debug("demand succeeded {}", task);
             if (task != null)
                 task.run();
         }
@@ -654,6 +694,8 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         public void failed(Throwable x)
         {
             Runnable task = _channel.onConnectionClose(x);
+            if (LOG.isDebugEnabled())
+                LOG.debug("demand failed {}", task, x);
             if (task != null)
                 // Execute error path as invocation type is probably wrong.
                 getConnector().getExecutor().execute(task);
@@ -933,9 +975,31 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         @Override
         public boolean content(ByteBuffer buffer)
         {
-            if (_stream.get()._content != null)
+            if (_stream.get()._content != null || _retainableByteBuffer == null)
                 throw new IllegalStateException();
-            _stream.get()._content = Content.from(buffer, false);
+
+            _retainableByteBuffer.retain();
+
+            if (LOG.isDebugEnabled())
+                LOG.debug("content {}/{} for {}", BufferUtil.toDetailString(buffer), _retainableByteBuffer, HttpConnection.this);
+
+            _stream.get()._content = new Content.Abstract(false, false)
+            {
+                final RetainableByteBuffer _retainable = _retainableByteBuffer;
+                @Override
+                public void release()
+                {
+                    _retainable.release();
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("release {}/{} for {}", BufferUtil.toDetailString(buffer), _retainable, HttpConnection.this);
+                }
+
+                @Override
+                public ByteBuffer getByteBuffer()
+                {
+                    return buffer;
+                }
+            };
             return true;
         }
 
@@ -951,15 +1015,11 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         public boolean messageComplete()
         {
             Http1Stream stream = _stream.get();
-            if (_trailers == null)
-            {
-                stream._content = stream._content == null ? Content.EOF : Content.from(stream._content, Content.EOF);
-            }
+            stream._content = Content.last(stream._content);
+            if (_trailers != null && (stream._content == null || stream._content == Content.EOF))
+                stream._content = new Content.Trailers(_trailers.asImmutable());
             else
-            {
-                Content trailers = new Content.Trailers(_trailers.asImmutable());
-                stream._content = stream._content == null ? trailers : Content.from(stream._content, trailers);
-            }
+                stream._content = Content.last(stream._content);
             return false;
         }
 
@@ -1011,7 +1071,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         private final HttpURI.Mutable _uri;
         private final HttpVersion _version;
         private long _contentLength = -1;
-        private HostPortHttpField _authority;
+        private HostPortHttpField _hostField;
         private MetaData.Request _request;
         private HttpField _upgrade = null;
 
@@ -1026,7 +1086,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         protected Http1Stream(String method, String uri, HttpVersion version)
         {
             _method = method;
-            _uri = uri == null ? null : HttpURI.build(uri);
+            _uri = uri == null ? null : HttpURI.build(method, uri);
             _version = version;
 
             if (_uri != null && _uri.getPath() == null && _uri.getScheme() != null && _uri.hasAuthority())
@@ -1048,10 +1108,12 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
                         break;
 
                     case HOST:
+                        if (value == null)
+                            value = "";
                         if (field instanceof HostPortHttpField)
-                            _authority = (HostPortHttpField)field;
-                        else if (StringUtil.isNotBlank(value))
-                            field = _authority = new HostPortHttpField(value);
+                            _hostField = (HostPortHttpField)field;
+                        else
+                            field = _hostField = new HostPortHttpField(value);
                         break;
 
                     case EXPECT:
@@ -1104,21 +1166,33 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
                     throw new BadMessageException(badMessage);
             }
 
-            _uri.scheme(getEndPoint() instanceof SslConnection.DecryptedEndPoint ? HttpScheme.HTTPS : HttpScheme.HTTP);
-
-            if (!HttpMethod.CONNECT.is(_method))
+            // Check host field matches the authority in the any absolute URI or is not blank
+            if (_hostField != null)
             {
-                if (_authority != null)
-                    _uri.authority(HostPort.normalizeHost(_authority.getHost()), _authority.getPort());
+                if (_uri.isAbsolute())
+                {
+                    if (!_hostField.getValue().equals(_uri.getAuthority()))
+                        throw new BadMessageException("Authority!=Host ");
+                }
                 else
                 {
-                    SocketAddress addr = getConnection().getEndPoint().getLocalSocketAddress();
-                    if (addr instanceof InetSocketAddress)
-                    {
-                        InetSocketAddress inet = (InetSocketAddress)addr;
-                        _uri.authority(HostPort.normalizeHost(inet.getHostString()), inet.getPort());
-                    }
+                    if (StringUtil.isBlank(_hostField.getHostPort().getHost()))
+                        throw new BadMessageException("Blank Host");
                 }
+            }
+
+            // Set the scheme in the URI
+            if (!_uri.isAbsolute())
+                _uri.scheme(getEndPoint() instanceof SslConnection.DecryptedEndPoint ? HttpScheme.HTTPS : HttpScheme.HTTP);
+
+            // Set the authority (if not already set) in the URI
+            if (!HttpMethod.CONNECT.is(_method) && _uri.getAuthority() == null)
+            {
+                HostPort hostPort = _hostField == null ? getServerAuthority() : _hostField.getHostPort();
+                int port = hostPort.getPort();
+                if (port == HttpScheme.getDefaultPort(_uri.getScheme()))
+                    port = -1;
+                _uri.authority(hostPort.getHost(), port);
             }
 
             _request = new MetaData.Request(_method, _uri.asImmutable(), _version, _headerBuilder, _contentLength);
@@ -1224,12 +1298,10 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
                 parseAndFillForContent();
 
             Content content = _content;
-            if (content != null)
-            {
-                _content = content.next();
-                if (_expect100Continue && content.hasRemaining())
-                    _expect100Continue = false;
-            }
+            _content = Content.next(content);
+            if (content != null && _expect100Continue && content.hasRemaining())
+                _expect100Continue = false;
+
             return content;
         }
 

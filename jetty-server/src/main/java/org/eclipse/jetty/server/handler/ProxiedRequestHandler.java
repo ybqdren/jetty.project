@@ -19,12 +19,12 @@ import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.HostPort;
 
 public class ProxiedRequestHandler extends Handler.Wrapper
 {
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
         ConnectionMetaData proxiedFor = new ConnectionMetaData.Wrapper(request.getConnectionMetaData())
         {
@@ -36,21 +36,28 @@ public class ProxiedRequestHandler extends Handler.Wrapper
             }
 
             @Override
-            public SocketAddress getRemote()
+            public SocketAddress getRemoteAddress()
             {
                 // TODO replace with value determined from headers
-                return super.getRemote();
+                return super.getRemoteAddress();
             }
 
             @Override
-            public SocketAddress getLocal()
+            public SocketAddress getLocalAddress()
             {
                 // TODO replace with value determined from headers
-                return super.getLocal();
+                return super.getLocalAddress();
+            }
+
+            @Override
+            public HostPort getServerAuthority()
+            {
+                // TODO replace with value determined from headers
+                return super.getServerAuthority();
             }
         };
 
-        return super.handle(new Request.Wrapper(request)
+        super.handle(new Request.Wrapper(request)
         {
             @Override
             public HttpURI getHttpURI()
@@ -64,6 +71,6 @@ public class ProxiedRequestHandler extends Handler.Wrapper
             {
                 return proxiedFor;
             }
-        }, response);
+        });
     }
 }

@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.ssl;
+package org.eclipse.jetty.server;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,14 +30,6 @@ import javax.net.ssl.TrustManagerFactory;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.LeakTrackingByteBufferPool;
 import org.eclipse.jetty.io.MappedByteBufferPool;
-import org.eclipse.jetty.server.AbstractConnectionFactory;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.HttpServerTestBase;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.SecureRequestCustomizer;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.hamcrest.Matchers;
@@ -234,8 +226,9 @@ public class ServerConnectorSslServerTest extends HttpServerTestBase
     public static class SecureRequestHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void handle(Request request) throws Exception
         {
+            Response response = request.accept();
             response.setStatus(200);
             StringBuilder out = new StringBuilder();
             SSLSession session = (SSLSession)request.getAttribute("SSL_SESSION");
@@ -250,8 +243,7 @@ public class ServerConnectorSslServerTest extends HttpServerTestBase
             out.append("key_size='").append(data == null ? "" : data.getKeySize()).append("'").append('\n');
             out.append("ssl_session_id='").append(data == null ? "" : data.getId()).append("'").append('\n');
             out.append("ssl_session='").append(session).append("'").append('\n');
-            response.write(true, request, out.toString());
-            return true;
+            response.write(true, response.getCallback(), out.toString());
         }
     }
 }

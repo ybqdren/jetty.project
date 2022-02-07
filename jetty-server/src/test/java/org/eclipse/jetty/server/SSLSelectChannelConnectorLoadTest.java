@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.ssl;
+package org.eclipse.jetty.server;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -33,12 +33,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
-import org.eclipse.jetty.server.Content;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
@@ -328,11 +322,11 @@ public class SSLSelectChannelConnectorLoadTest
     private static class TestHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void handle(Request request) throws Exception
         {
+            Response response = request.accept();
             ByteBuffer input = Content.readBytes(request);
-            response.write(true, request, BufferUtil.toBuffer(String.valueOf(input.remaining()).getBytes()));
-            return true;
+            response.write(true, response.getCallback(), BufferUtil.toBuffer(String.valueOf(input.remaining()).getBytes()));
         }
     }
 }

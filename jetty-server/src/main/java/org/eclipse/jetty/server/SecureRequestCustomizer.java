@@ -219,7 +219,7 @@ public class SecureRequestCustomizer implements HttpConfiguration.Customizer
         }
 
         if (_stsField != null)
-            request.getChannel().getResponse().getHeaders().add(_stsField); // TODO How to protect from reset?
+            request.getHttpChannel().getResponse().getHeaders().add(_stsField); // TODO How to protect from reset?
 
         return newSecureRequest(request, uri, sslEngine);
     }
@@ -330,7 +330,7 @@ public class SecureRequestCustomizer implements HttpConfiguration.Customizer
                         String cipherSuite = _sslSession.getCipherSuite();
                         int keySize = SslContextFactory.deduceKeyLength(cipherSuite);
 
-                        X509Certificate[] certs = getCertChain(getChannel().getConnector(), _sslSession);
+                        X509Certificate[] certs = getCertChain(getHttpChannel().getConnector(), _sslSession);
 
                         byte[] bytes = _sslSession.getId();
                         String idStr = TypeUtil.toHexString(bytes);
@@ -378,7 +378,7 @@ public class SecureRequestCustomizer implements HttpConfiguration.Customizer
         public Set<String> getAttributeNames()
         {
             String sessionAttribute = getSslSessionAttribute();
-            Set<String> names = new HashSet<>(_attributes.getAttributeNames());
+            Set<String> names = new HashSet<>(super.getAttributeNames());
             if (!StringUtil.isEmpty(sessionAttribute))
             {
                 names.add(sessionAttribute);

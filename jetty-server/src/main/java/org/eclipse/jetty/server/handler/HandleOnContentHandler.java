@@ -13,6 +13,8 @@
 
 package org.eclipse.jetty.server.handler;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
@@ -22,14 +24,18 @@ import org.eclipse.jetty.util.thread.Invocable;
 public class HandleOnContentHandler extends Handler.Wrapper
 {
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
         // If no content or content available, then don't delay dispatch
         if (request.getContentLength() <= 0 && !request.getHeaders().contains(HttpHeader.CONTENT_TYPE))
-            return super.handle(request, response);
-
-        request.demandContent(new OnContentRunner(request, response));
-        return true;
+            super.handle(request);
+        else
+        {
+            Response response = request.accept();
+            if (response == null)
+                return;
+            request.demandContent(new OnContentRunner(request, response));
+        }
     }
 
     private class OnContentRunner implements Runnable, Invocable
@@ -48,8 +54,26 @@ public class HandleOnContentHandler extends Handler.Wrapper
         {
             try
             {
-                if (!HandleOnContentHandler.super.handle(_request, _response))
-                    _request.failed(new IllegalStateException());
+                AtomicBoolean accepted = new AtomicBoolean();
+                Request request = new Request.Wrapper(_request)
+                {
+                    @Override
+                    public Response accept()
+                    {
+                        if (accepted.compareAndSet(false, true))
+                            return _response;
+                        return null;
+                    }
+
+                    @Override
+                    public boolean isAccepted()
+                    {
+                        return accepted.get();
+                    }
+                };
+                HandleOnContentHandler.super.handle(request);
+                if (!request.isAccepted())
+                    _response.getCallback().failed(new IllegalStateException("Not accepted after content"));
             }
             catch (Exception e)
             {

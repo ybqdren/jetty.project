@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.ssl;
+package org.eclipse.jetty.server;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,11 +26,6 @@ import java.util.concurrent.Executors;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -73,27 +68,28 @@ public class SlowClientsTest
             server.setHandler(new Handler.Abstract()
             {
                 @Override
-                public boolean handle(Request request, Response response) throws Exception
+                public void handle(Request request) throws Exception
                 {
                     LOG.info("SERVING {}", request);
                     // Write some big content.
+                    Response response = request.accept();
+                    Callback callback = response.getCallback();
                     response.write(true, new Callback()
                         {
                             @Override
                             public void succeeded()
                             {
-                                request.succeeded();
+                                callback.succeeded();
                                 LOG.info("SERVED {}", request);
                             }
 
                             @Override
                             public void failed(Throwable x)
                             {
-                                request.failed(x);
+                                callback.failed(x);
                             }
                         },
                         BufferUtil.toBuffer(new byte[contentLength]));
-                    return true;
                 }
             });
             server.start();

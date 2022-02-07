@@ -16,7 +16,7 @@
 // Junit test that shows the Jetty SSL bug.
 //
 
-package org.eclipse.jetty.server.ssl;
+package org.eclipse.jetty.server;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -36,16 +36,6 @@ import javax.net.ssl.SSLException;
 
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection;
-import org.eclipse.jetty.server.ConnectionFactory;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.SecureRequestCustomizer;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.IO;
@@ -365,8 +355,9 @@ public class SSLEngineTest
     private static class TestHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void handle(Request request) throws Exception
         {
+            Response response = request.accept();
             // System.err.println("HANDLE "+request.getRequestURI());
             SecureRequestCustomizer.SslSessionData sslData = (SecureRequestCustomizer.SslSessionData)
                 request.getAttribute("org.eclipse.jetty.servlet.request.ssl_session_data");
@@ -382,13 +373,12 @@ public class SSLEngineTest
                 {
                     buf[i] = (byte)('0' + (i % 10));
                 }
-                response.write(true, request, BufferUtil.toBuffer(buf));
+                response.write(true, response.getCallback(), BufferUtil.toBuffer(buf));
             }
             else
             {
-                response.write(true, request, BufferUtil.toBuffer(HELLO_WORLD));
+                response.write(true, response.getCallback(), BufferUtil.toBuffer(HELLO_WORLD));
             }
-            return true;
         }
     }
 }

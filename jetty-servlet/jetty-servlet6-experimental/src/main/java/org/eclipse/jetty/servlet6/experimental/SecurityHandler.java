@@ -20,28 +20,21 @@ import org.eclipse.jetty.server.Response;
 public class SecurityHandler extends Handler.Wrapper
 {
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
         ServletScopedRequest.MutableHttpServletRequest servletRequest =
             request.get(ServletScopedRequest.class, ServletScopedRequest::getMutableHttpServletRequest);
         if (servletRequest == null)
-            return false;
+            return;
 
         // if we match some security constraint, we can respond here
         if (servletRequest.getServletPath().startsWith("/secret"))
         {
-            try
-            {
-                servletRequest.getHttpServletResponse().sendError(403);
-            }
-            catch (Exception e)
-            {
-                request.failed(e);
-                return true;
-            }
-            // Fall through to super.handle, so ServletHandler will be called and will see the sendError and act on it
+            Response response = request.getResponse();
+            response.writeError(403, response.getCallback());
+            return;
         }
 
-        return super.handle(request, response);
+        super.handle(request);
     }
 }

@@ -17,26 +17,33 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
+import org.eclipse.jetty.http.BadMessageException;
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MetaData;
-import org.eclipse.jetty.http.MimeTypes;
+import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.server.handler.ContextRequest;
+import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.URIUtil;
 
 /**
- * Response is the absolute minimum to efficiently communicate a request.
+ * An asynchronous HTTP response.
+ * TODO Javadoc
  */
 public interface Response
 {
     Request getRequest();
 
+    Callback getCallback();
+
     int getStatus();
 
     void setStatus(int code);
-
-    // TODO do we need getHeaders and getMutableHeaders? or just a way to switch a Mutable HttpFields to be Immutable?
 
     HttpFields.Mutable getHeaders();
 
@@ -59,10 +66,6 @@ public interface Response
     {
         return null;
     }
-
-    Response getWrapper();
-
-    void setWrapper(Response response);
 
     default void addHeader(String name, String value)
     {
@@ -94,9 +97,94 @@ public interface Response
         getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, length);
     }
 
-    void sendRedirect(int code, String location, boolean consumeAll) throws IOException;
+    default void sendRedirect(int code, String location, boolean consumeAll) throws IOException
+    {
+        if (isCommitted())
+            throw new IllegalStateException();
 
-    default void sendError(int status, String reason, Callback callback)
+        if (consumeAll)
+        {
+            // TODO: can we remove this?
+            while (true)
+            {
+                Content content = getRequest().readContent();
+                if (content == null)
+                    break;
+                content.release();
+                if (content.isLast())
+                    break;
+            }
+        }
+
+        if (!HttpStatus.isRedirection(code))
+            throw new IllegalArgumentException("Not a 3xx redirect code");
+
+        if (location == null)
+            throw new IllegalArgumentException();
+
+        if (!URIUtil.hasScheme(location))
+        {
+            StringBuilder buf = new StringBuilder(128);
+            if (!getRequest().getHttpChannel().getHttpConfiguration().isRelativeRedirectAllowed())
+            {
+                HttpURI uri = getRequest().getHttpURI();
+                URIUtil.appendSchemeHostPort(buf, uri.getScheme(), uri.getHost(), uri.getPort());
+            }
+
+            if (location.startsWith("/"))
+            {
+                // TODO: optimise this case.
+                // absolute in context
+                location = URIUtil.canonicalURI(location);
+            }
+            else
+            {
+                // relative to request
+                String path = getRequest().getHttpURI().getPath();
+                String parent = (path.endsWith("/")) ? path : URIUtil.parentPath(path);
+                location = URIUtil.canonicalURI(URIUtil.addEncodedPaths(parent, location));
+                if (location != null && !location.startsWith("/"))
+                    buf.append('/');
+            }
+
+            if (location == null)
+                throw new IllegalStateException("path cannot be above root");
+            buf.append(location);
+
+            location = buf.toString();
+        }
+
+        setHeader(HttpHeader.LOCATION, location);
+        setStatus(code);
+        write(true, getCallback());
+    }
+
+    default void writeError(Throwable cause, Callback callback)
+    {
+        if (cause == null)
+            cause = new Throwable("unknown cause");
+        int status = HttpStatus.INTERNAL_SERVER_ERROR_500;
+        String message = cause.toString();
+        if (cause instanceof BadMessageException)
+        {
+            BadMessageException bad = (BadMessageException)cause;
+            status = bad.getCode();
+            message = bad.getReason();
+        }
+        writeError(status, message, cause, callback);
+    }
+
+    default void writeError(int status, Callback callback)
+    {
+        writeError(status, null, null, callback);
+    }
+
+    default void writeError(int status, String message, Callback callback)
+    {
+        writeError(status, message, null, callback);
+    }
+
+    default void writeError(int status, String message, Throwable cause, Callback callback)
     {
         if (isCommitted())
         {
@@ -104,27 +192,52 @@ public interface Response
             return;
         }
 
+        if (status <= 0)
+            status = HttpStatus.INTERNAL_SERVER_ERROR_500;
+        if (message == null)
+            message = HttpStatus.getMessage(status);
+
         setStatus(status);
-        ByteBuffer content = BufferUtil.EMPTY_BUFFER;
-        if (!HttpStatus.hasNoBody(status))
+
+        ContextHandler.Context context = getRequest().get(ContextRequest.class, ContextRequest::getContext);
+        Handler errorHandler = ErrorHandler.getErrorHandler(getRequest().getHttpChannel().getServer(), context == null ? null : context.getContextHandler());
+
+        if (errorHandler != null)
         {
-            getHeaders().put(HttpHeader.CONTENT_TYPE, MimeTypes.Type.TEXT_HTML_8859_1.asString());
-            if (reason == null)
-                reason = HttpStatus.getMessage(status);
-            content = BufferUtil.toBuffer("<h1>Bad Message " + status + "</h1><pre>reason: " + reason + "</pre>");
+            Request errorRequest = new ErrorHandler.ErrorRequest(getRequest(), this, status, message, cause, callback);
+            try
+            {
+                errorHandler.handle(errorRequest);
+                if (errorRequest.isAccepted())
+                    return;
+            }
+            catch (Exception e)
+            {
+                if (cause != null && cause != e)
+                    cause.addSuppressed(e);
+            }
         }
 
-        write(true, callback, content);
+        // fall back to very empty error page
+        getHeaders().put(ErrorHandler.ERROR_CACHE_CONTROL);
+        write(true, callback);
     }
 
     class Wrapper implements Response
     {
+        private final Request _request;
         private final Response _wrapped;
 
-        public Wrapper(Response wrapped)
+        public Wrapper(Request request, Response wrapped)
         {
+            _request = request;
             _wrapped = wrapped;
-            _wrapped.setWrapper(this);
+        }
+
+        @Override
+        public Callback getCallback()
+        {
+            return _wrapped.getCallback();
         }
 
         @Override
@@ -184,25 +297,7 @@ public interface Response
         @Override
         public Request getRequest()
         {
-            return _wrapped.getRequest();
-        }
-
-        @Override
-        public Response getWrapper()
-        {
-            return _wrapped.getWrapper();
-        }
-
-        @Override
-        public void setWrapper(Response response)
-        {
-            _wrapped.setWrapper(response);
-        }
-
-        @Override
-        public void sendRedirect(int code, String location, boolean consumeAll) throws IOException
-        {
-            _wrapped.sendRedirect(code, location, consumeAll);
+            return _request;
         }
     }
 }

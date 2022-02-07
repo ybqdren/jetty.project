@@ -17,8 +17,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.util.Enumeration;
 
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MimeTypes;
@@ -44,20 +44,16 @@ public class DumpHandler extends Handler.Abstract
     private static final Logger LOG = LoggerFactory.getLogger(DumpHandler.class);
 
     private final Blocking.Shared _blocker = new Blocking.Shared(); 
-    String _label = "Dump Handler";
+    private static final String _label = "Dump Handler";
 
     public DumpHandler()
     {
     }
 
-    public DumpHandler(String label)
-    {
-        this._label = label;
-    }
-
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
+        Response response = request.accept();
         if (LOG.isDebugEnabled())
             LOG.debug("dump {}", request);
         HttpURI httpURI = request.getHttpURI();
@@ -76,8 +72,8 @@ public class DumpHandler extends Handler.Abstract
         if (Boolean.parseBoolean(params.getValue("empty")))
         {
             response.setStatus(200);
-            request.succeeded();
-            return true;
+            response.getCallback().succeeded();
+            return;
         }
 
         Utf8StringBuilder read = null;
@@ -106,8 +102,8 @@ public class DumpHandler extends Handler.Abstract
 
                 if (content instanceof Content.Error)
                 {
-                    request.failed(((Content.Error)content).getCause());
-                    return true;
+                    response.getCallback().failed(((Content.Error)content).getCause());
+                    return;
                 }
 
                 int l = Math.min(buffer.length, Math.min(len, content.remaining()));
@@ -124,6 +120,8 @@ public class DumpHandler extends Handler.Abstract
                         content = null;
                 }
             }
+            if (content != null)
+                content.release();
         }
 
         if (params.getValue("date") != null)
@@ -135,8 +133,8 @@ public class DumpHandler extends Handler.Abstract
         if (params.getValue("error") != null)
         {
             response.setStatus(Integer.parseInt(params.getValue("error")));
-            request.succeeded();
-            return true;
+            response.getCallback().succeeded();
+            return;
         }
 
         response.setContentType(MimeTypes.Type.TEXT_HTML.asString());
@@ -152,13 +150,12 @@ public class DumpHandler extends Handler.Abstract
         writer.write("<pre>remote=" + request.getRemoteAddr() + ":" + request.getRemotePort() + "</pre><br/>\n");
         writer.write("<h3>Header:</h3><pre>");
         writer.write(String.format("%4s %s %s\n", request.getMethod(), httpURI.getPathQuery(), request.getConnectionMetaData().getProtocol()));
-        Enumeration<String> headers = request.getHeaders().getFieldNames();
-        while (headers.hasMoreElements())
+        for (HttpField field : request.getHeaders())
         {
-            String name = headers.nextElement();
+            String name = field.getName();
             writer.write(name);
             writer.write(": ");
-            String value = request.getHeaders().get(name);
+            String value = field.getValue();
             writer.write(value == null ? "" : value);
             writer.write("\n");
         }
@@ -205,7 +202,6 @@ public class DumpHandler extends Handler.Abstract
             response.write(true, blocker, BufferUtil.toBuffer(padding.getBytes(StandardCharsets.ISO_8859_1)));
         }
 
-        request.succeeded();
-        return true;
+        response.getCallback().succeeded();
     }
 }

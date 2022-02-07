@@ -18,6 +18,7 @@ import org.eclipse.jetty.server.Content;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IteratingCallback;
 import org.eclipse.jetty.util.StringUtil;
 
@@ -29,8 +30,9 @@ import org.eclipse.jetty.util.StringUtil;
 public class EchoHandler extends Handler.Abstract
 {
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
+        Response response = request.accept();
         response.setStatus(200);
         String contentType = request.getHeaders().get(HttpHeader.CONTENT_TYPE);
         if (StringUtil.isNotBlank(contentType))
@@ -40,19 +42,20 @@ public class EchoHandler extends Handler.Abstract
             response.setContentLength(contentLength);
         if (request.getHeaders().contains(HttpHeader.TRAILER))
             response.getTrailers();
-        new Echo(request, response).iterate();
-        return true;
+        new Echo(request, response, response.getCallback()).iterate();
     }
 
     static class Echo extends IteratingCallback
     {
         private final Request _request;
         private final Response _response;
+        private final Callback _callback;
 
-        Echo(Request request, Response response)
+        Echo(Request request, Response response, Callback callback)
         {
             _request = request;
             _response = response;
+            _callback = callback;
         }
 
         @Override
@@ -70,27 +73,31 @@ public class EchoHandler extends Handler.Abstract
                 _response.getTrailers()
                     .add("Echo", "Trailers")
                     .add(((Content.Trailers)content).getTrailers());
+                content.release();
                 this.succeeded();
                 return Action.SCHEDULED;
             }
 
             if (!content.hasRemaining() && content.isLast())
+            {
+                content.release();
                 return Action.SUCCEEDED;
+            }
 
-            _response.write(content.isLast(), this, content.getByteBuffer());
+            _response.write(content.isLast(), Callback.from(this, content::release), content.getByteBuffer());
             return Action.SCHEDULED;
         }
 
         @Override
         protected void onCompleteSuccess()
         {
-            _request.succeeded();
+            _callback.succeeded();
         }
 
         @Override
         protected void onCompleteFailure(Throwable cause)
         {
-            _request.failed(cause);
+            _callback.failed(cause);
         }
     }
 }

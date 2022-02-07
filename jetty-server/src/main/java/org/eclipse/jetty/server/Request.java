@@ -16,24 +16,56 @@ package org.eclipse.jetty.server;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpScheme;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.HostPort;
 import org.eclipse.jetty.util.MultiMap;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.UrlEncoded;
 
 // TODO lots of javadoc
-public interface Request extends Attributes, Callback, Executor, Content.Provider
+public interface Request extends Attributes, Executor, Content.Provider
 {
+    /**
+     * Accept the request for handling and provide the {@link Response} instance.
+     * @return The response instance or null if the request has already been accepted.
+     */
+    Response accept();
+
+    /**
+     * Test if the request has been accepted.
+     * <p>This should not be used if the caller intends to accept the request.  Specifically
+     * the following is an anti-pattern: <pre>
+     *     if (!request.isAccepted())
+     *     {
+     *         Response response = request.accept();
+     *         // ...
+     *     }
+     * </pre>
+     * Instead, the {@link #accept()} method should be used and tested for a null result: <pre>
+     *     Response response = request.accept();
+     *     if (response != null)
+     *     {
+     *         // ...
+     *     }
+     * </pre>
+     *
+     * @return true if the request has been accepted, else null
+     * @see #accept()
+     */
+    boolean isAccepted();
+
     String getId();
 
-    HttpChannel getChannel();
+    HttpChannel getHttpChannel();
 
     boolean isComplete();
 
@@ -49,7 +81,7 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
 
     default boolean isSecure()
     {
-        return getConnectionMetaData().isSecure();
+        return HttpScheme.HTTPS.is(getHttpURI().getScheme());
     }
 
     long getContentLength();
@@ -64,6 +96,9 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
 
     void addCompletionListener(Callback onComplete);
 
+    /**
+     * @return The response instance iff this request has been excepted, else null
+     */
     Response getResponse();
 
     default Request getWrapped()
@@ -71,14 +106,9 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         return null;
     }
 
-    Request getWrapper();
-
-    void setWrapper(Request request);
-
-    // TODO probably inline this once all converted or replace with safer convenience method
     default String getLocalAddr()
     {
-        SocketAddress local = getConnectionMetaData().getLocal();
+        SocketAddress local = getConnectionMetaData().getLocalAddress();
         if (local instanceof InetSocketAddress)
         {
             InetAddress address = ((InetSocketAddress)local).getAddress();
@@ -86,24 +116,22 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
                 ? ((InetSocketAddress)local).getHostString()
                 : address.getHostAddress();
 
-            return getChannel().formatAddrOrHost(result);
+            return getHttpChannel().formatAddrOrHost(result);
         }
         return local.toString();
     }
 
-    // TODO probably inline this once all converted or replace with safer convenience method
     default int getLocalPort()
     {
-        SocketAddress local = getConnectionMetaData().getLocal();
+        SocketAddress local = getConnectionMetaData().getLocalAddress();
         if (local instanceof InetSocketAddress)
             return ((InetSocketAddress)local).getPort();
         return -1;
     }
 
-    // TODO probably inline this once all converted or replace with safer convenience method
     default String getRemoteAddr()
     {
-        SocketAddress remote = getConnectionMetaData().getRemote();
+        SocketAddress remote = getConnectionMetaData().getRemoteAddress();
         if (remote instanceof InetSocketAddress)
         {
             InetAddress address = ((InetSocketAddress)remote).getAddress();
@@ -111,49 +139,60 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
                 ? ((InetSocketAddress)remote).getHostString()
                 : address.getHostAddress();
 
-            return getChannel().formatAddrOrHost(result);
+            return getHttpChannel().formatAddrOrHost(result);
         }
         return remote.toString();
     }
 
-    // TODO probably inline this once all converted or replace with safer convenience method
     default int getRemotePort()
     {
-        SocketAddress remote = getConnectionMetaData().getRemote();
+        SocketAddress remote = getConnectionMetaData().getRemoteAddress();
         if (remote instanceof InetSocketAddress)
             return ((InetSocketAddress)remote).getPort();
         return -1;
     }
 
-    // TODO review
     default String getServerName()
     {
         HttpURI uri = getHttpURI();
         if (uri.hasAuthority())
-            return getChannel().formatAddrOrHost(uri.getHost());
+            return getHttpChannel().formatAddrOrHost(uri.getHost());
 
-        SocketAddress local = getConnectionMetaData().getLocal();
+        HostPort authority = getConnectionMetaData().getServerAuthority();
+        if (authority != null)
+            return getHttpChannel().formatAddrOrHost(authority.getHost());
+
+        SocketAddress local = getConnectionMetaData().getLocalAddress();
         if (local instanceof InetSocketAddress)
-            return getChannel().formatAddrOrHost(((InetSocketAddress)local).getHostString());
+            return getHttpChannel().formatAddrOrHost(((InetSocketAddress)local).getHostString());
 
         return local.toString();
     }
 
-    // TODO review
     default int getServerPort()
     {
         HttpURI uri = getHttpURI();
-        if (uri.hasAuthority())
+        if (uri.hasAuthority() && uri.getPort() > 0)
             return uri.getPort();
 
-        SocketAddress local = getConnectionMetaData().getLocal();
-        if (local instanceof InetSocketAddress)
-            return ((InetSocketAddress)local).getPort();
+        HostPort authority = getConnectionMetaData().getServerAuthority();
+        if (authority != null && authority.getPort() > 0)
+            return authority.getPort();
+
+        if (authority == null)
+        {
+            SocketAddress local = getConnectionMetaData().getLocalAddress();
+            if (local instanceof InetSocketAddress)
+                return ((InetSocketAddress)local).getPort();
+        }
+
+        HttpScheme scheme = HttpScheme.CACHE.get(getHttpURI().getScheme());
+        if (scheme != null)
+            return scheme.getDefaultPort();
 
         return -1;
     }
 
-    // TODO review
     default MultiMap<String> extractQueryParameters()
     {
         MultiMap<String> params = new MultiMap<>();
@@ -163,12 +202,12 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         return params;
     }
 
-    default Request unwrap()
+    default Request getBaseRequest()
     {
         Request r = this;
         while (true)
         {
-            Request w = r.getWrapper();
+            Request w = r.getWrapped();
             if (w == null)
                 return r;
             r = w;
@@ -200,15 +239,13 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         return null;
     }
 
-    class Wrapper extends Attributes.Wrapper implements Request
+    class Wrapper implements Request
     {
         private final Request _wrapped;
 
         protected Wrapper(Request wrapped)
         {
-            super(wrapped);
-            this._wrapped = wrapped;
-            wrapped.setWrapper(this);
+            _wrapped = wrapped;
         }
 
         @Override
@@ -224,12 +261,6 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         }
 
         @Override
-        public void setWrapper(Request request)
-        {
-            _wrapped.setWrapper(request);
-        }
-
-        @Override
         public String getId()
         {
             return _wrapped.getId();
@@ -242,9 +273,9 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         }
 
         @Override
-        public HttpChannel getChannel()
+        public HttpChannel getHttpChannel()
         {
-            return _wrapped.getChannel();
+            return _wrapped.getHttpChannel();
         }
 
         @Override
@@ -314,27 +345,45 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         }
 
         @Override
-        public Request getWrapper()
+        public Response accept()
         {
-            return _wrapped.getWrapper();
+            return _wrapped.accept();
         }
 
         @Override
-        public void succeeded()
+        public boolean isAccepted()
         {
-            _wrapped.succeeded();
+            return _wrapped.isAccepted();
         }
 
         @Override
-        public void failed(Throwable x)
+        public Object removeAttribute(String name)
         {
-            _wrapped.failed(x);
+            return _wrapped.removeAttribute(name);
         }
 
         @Override
-        public InvocationType getInvocationType()
+        public Object setAttribute(String name, Object attribute)
         {
-            return _wrapped.getInvocationType();
+            return _wrapped.setAttribute(name, attribute);
+        }
+
+        @Override
+        public Object getAttribute(String name)
+        {
+            return _wrapped.getAttribute(name);
+        }
+
+        @Override
+        public Set<String> getAttributeNames()
+        {
+            return _wrapped.getAttributeNames();
+        }
+
+        @Override
+        public void clearAttributes()
+        {
+            _wrapped.clearAttributes();
         }
     }
 }

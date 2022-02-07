@@ -15,7 +15,6 @@ package org.eclipse.jetty.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 import org.eclipse.jetty.http.HttpFields;
@@ -80,20 +79,30 @@ public interface Content
         return length;
     }
 
-    /**
-     * Get the next content if known from the current content
-     * @return The next content, which may be null if not known, EOF or the current content if persistent
-     */
-    default Content next()
+    static Content from(ByteBuffer buffer)
     {
-        return isSpecial() ? this : isLast() ? Content.EOF : null;
+        return from(buffer, false);
     }
 
-    static Content from(Content content, Content next)
+    static Content from(ByteBuffer buffer, boolean last)
     {
-        if (Objects.equals(content.next(), next))
+        return new Abstract(false, last)
+        {
+            @Override
+            public ByteBuffer getByteBuffer()
+            {
+                return buffer;
+            }
+        };
+    }
+
+    static Content last(Content content)
+    {
+        if (content == null)
+            return EOF;
+        if (content.isLast())
             return content;
-        return new Abstract(content.isSpecial(), content.isLast())
+        return new Abstract(content.isSpecial(), true)
         {
             @Override
             public ByteBuffer getByteBuffer()
@@ -106,38 +115,26 @@ public interface Content
             {
                 content.release();
             }
-
-            @Override
-            public Content next()
-            {
-                if (content.next() == null)
-                    return next;
-                return from(content.next(), next);
-            }
         };
     }
 
-    static Content from(ByteBuffer buffer)
+    /**
+     * Compute the next content from the current content.
+     * @param content The current content
+     * @return The next content if known, else null
+     */
+    static Content next(Content content)
     {
-        return () -> buffer;
-    }
-
-    static Content from(ByteBuffer buffer, boolean last)
-    {
-        return new Abstract(false, last)
+        if (content != null)
         {
-            @Override
-            public ByteBuffer getByteBuffer()
-            {
-                return buffer;
-            }
-
-            @Override
-            public String toString()
-            {
-                return String.format("[%s, l=%b]", BufferUtil.toDetailString(getByteBuffer()), isLast());
-            }
-        };
+            if (content instanceof Trailers)
+                return EOF;
+            if (content.isSpecial())
+                return content;
+            if (content.isLast())
+                return EOF;
+        }
+        return null;
     }
 
     abstract class Abstract implements Content
@@ -168,6 +165,17 @@ public interface Content
         {
             return null;
         }
+
+        @Override
+        public String toString()
+        {
+            return String.format("%s@%x{%s,s=%b,l=%b}",
+                getClass().getName(),
+                hashCode(),
+                BufferUtil.toDetailString(getByteBuffer()),
+                isSpecial(),
+                isLast());
+        }
     }
 
     Content EOF = new Abstract(true, true)
@@ -191,7 +199,12 @@ public interface Content
 
         public Error(Throwable cause)
         {
-            super(true, true);
+            this (cause, true);
+        }
+
+        public Error(Throwable cause, boolean last)
+        {
+            super(true, last);
             _cause = cause == null ? new IOException("unknown") : cause;
         }
 
@@ -229,15 +242,14 @@ public interface Content
         }
 
         @Override
-        public Content next()
-        {
-            return EOF;
-        }
-
-        @Override
         public String toString()
         {
-            return "TRAILERS";
+            return String.format("%s@%x{t=%d,s=%b,l=%b}",
+                getClass().getName(),
+                hashCode(),
+                _trailers.size(),
+                isSpecial(),
+                isLast());
         }
     }
 
@@ -345,6 +357,21 @@ public interface Content
         catch (ExecutionException e)
         {
             throw IO.rethrow(e.getCause());
+        }
+    }
+
+    abstract class Processor implements Provider
+    {
+        private final Provider _provider;
+
+        protected Processor(Provider provider)
+        {
+            _provider = provider;
+        }
+
+        public Content.Provider getProvider()
+        {
+            return _provider;
         }
     }
 }

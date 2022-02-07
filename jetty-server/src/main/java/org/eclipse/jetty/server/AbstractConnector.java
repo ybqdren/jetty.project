@@ -153,6 +153,7 @@ public abstract class AbstractConnector extends ContainerLifeCycle implements Co
     private long _shutdownIdleTimeout = 1000L;
     private String _defaultProtocol;
     private ConnectionFactory _defaultConnectionFactory;
+    /* The name used to link up virtual host configuration to named connectors */
     private String _name;
     private int _acceptorPriorityDelta = -2;
     private boolean _accepting = true;
@@ -188,7 +189,7 @@ public abstract class AbstractConnector extends ContainerLifeCycle implements Co
         _byteBufferPool = pool != null ? pool : new ArrayByteBufferPool();
         addBean(_byteBufferPool);
         RetainableByteBufferPool retainableByteBufferPool = _server.getBean(RetainableByteBufferPool.class);
-        addBean(retainableByteBufferPool == null ? new ArrayRetainableByteBufferPool() : retainableByteBufferPool, retainableByteBufferPool == null);
+        addBean(retainableByteBufferPool == null ? new ArrayRetainableByteBufferPool.ExponentialPool() : retainableByteBufferPool, retainableByteBufferPool == null);
 
         for (ConnectionFactory factory : factories)
         {
@@ -310,6 +311,7 @@ public abstract class AbstractConnector extends ContainerLifeCycle implements Co
         }
 
         _lease = ThreadPoolBudget.leaseFrom(getExecutor(), this, _acceptors.length);
+
         super.doStart();
 
         for (int i = 0; i < _acceptors.length; i++)

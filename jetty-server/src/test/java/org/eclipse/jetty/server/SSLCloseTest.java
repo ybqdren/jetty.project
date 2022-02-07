@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.ssl;
+package org.eclipse.jetty.server;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -21,11 +21,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import javax.net.ssl.SSLContext;
 
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -85,8 +80,9 @@ public class SSLCloseTest
     private static class WriteHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void handle(Request request) throws Exception
         {
+            Response response = request.accept();
             response.setStatus(200);
             response.setHeader("test", "value");
 
@@ -98,10 +94,10 @@ public class SSLCloseTest
             data = data + data + data + data;
             byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
 
+            Callback callback = response.getCallback();
             response.write(false,
-                Callback.from(() -> response.write(true, request, BufferUtil.toBuffer(bytes)), request::failed),
+                Callback.from(() -> response.write(true, callback, BufferUtil.toBuffer(bytes)), callback::failed),
                 BufferUtil.toBuffer(bytes));
-            return true;
         }
     }
 }

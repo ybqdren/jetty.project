@@ -148,7 +148,7 @@ public class ServletRequestState implements Runnable
 
     public HttpChannel getHttpChannel()
     {
-        return _servletScopedRequest == null ? null : _servletScopedRequest.getChannel();
+        return _servletScopedRequest == null ? null : _servletScopedRequest.getHttpChannel();
     }
 
     public void handle()
@@ -164,7 +164,7 @@ public class ServletRequestState implements Runnable
                 switch (action)
                 {
                     case COMPLETE:
-                        _servletScopedRequest.succeeded();
+                        _servletScopedRequest.getResponse().getCallback().succeeded();
                         break loop;
 
                     case WAIT:

@@ -357,14 +357,15 @@ public class ServletContextHandler extends TempContextHandler
     }
 
     @Override
-    protected void invokeHandler(Request request, Response response) throws Exception
+    protected void invokeHandler(Request request) throws Exception
     {
         ServletScopedRequest scopedRequest = request.as(ServletScopedRequest.class);
         DispatcherType dispatch = scopedRequest.getHttpServletRequest().getDispatcherType();
 
         if (dispatch == DispatcherType.REQUEST && isProtectedTarget(request.getPath()))
         {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, null, Callback.NOOP);
+            Response response = request.accept();
+            response.writeError(HttpServletResponse.SC_NOT_FOUND, null, response.getCallback());
             return;
         }
 
@@ -374,7 +375,7 @@ public class ServletContextHandler extends TempContextHandler
             enterScope(request, dispatch);
             if (new_context)
                 requestInitialized(request, scopedRequest.getHttpServletRequest());
-            super.invokeHandler(request, response);
+            super.invokeHandler(request);
         }
         finally
         {
@@ -385,22 +386,25 @@ public class ServletContextHandler extends TempContextHandler
     }
 
     @Override
-    protected ServletScopedRequest wrap(Request request, Response response, String pathInContext)
+    protected ServletScopedRequest wrap(Request request, String pathInContext)
     {
         ServletHandler.MappedServlet mappedServlet = _servletHandler.getMappedServlet(pathInContext);
         if (mappedServlet == null)
+            return null;
+        Response response = request.accept();
+        if (response == null)
             return null;
 
         // Get a servlet request, possibly from a cached version in the channel attributes.
         // TODO there is a little bit of effort here to recycle the ServletRequest, but not the underlying jetty request.
         //      the servlet request is still a heavy weight object with state, input streams, cookie caches etc. so it is
         //      probably worth while.
-        HttpChannel channel = request.getChannel();
+        HttpChannel channel = request.getHttpChannel();
         ServletRequestState servletRequestState = (ServletRequestState)channel.getAttribute(ServletRequestState.class.getName());
         if (servletRequestState == null)
         {
             servletRequestState = new ServletRequestState(_servletContextContext);
-            if (channel.getMetaConnection().isPersistent())
+            if (channel.getConnectionMetaData().isPersistent())
                 channel.setAttribute(ServletRequestState.class.getName(), servletRequestState);
         }
 

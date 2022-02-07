@@ -123,7 +123,7 @@ public class MockHttpStream implements HttpStream
         if (content == null || content == DEMAND)
             return null;
 
-        _content.set(content.next());
+        _content.set(Content.next(content));
 
         return content;
     }
@@ -148,8 +148,8 @@ public class MockHttpStream implements HttpStream
             }
 
             if (response.getFields().contains(HttpHeader.CONNECTION, HttpHeaderValue.CLOSE.asString()) &&
-                _channel.getMetaConnection() instanceof MockConnectionMetaData)
-                ((MockConnectionMetaData)_channel.getMetaConnection()).notPersistent();
+                _channel.getConnectionMetaData() instanceof MockConnectionMetaData)
+                ((MockConnectionMetaData)_channel.getConnectionMetaData()).notPersistent();
         }
 
         for (ByteBuffer buffer : content)
@@ -216,8 +216,8 @@ public class MockHttpStream implements HttpStream
     @Override
     public void failed(Throwable x)
     {
-        if (_channel.getMetaConnection() instanceof MockConnectionMetaData)
-            ((MockConnectionMetaData)_channel.getMetaConnection()).notPersistent();
+        if (_channel.getConnectionMetaData() instanceof MockConnectionMetaData)
+            ((MockConnectionMetaData)_channel.getConnectionMetaData()).notPersistent();
         if (_complete.compareAndSet(null, x == null ? new Throwable() : x))
             _completed.countDown();
     }

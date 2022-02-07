@@ -20,7 +20,6 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.thread.ThreadPool;
 import org.junit.jupiter.api.BeforeEach;
 
 /**
@@ -36,7 +35,10 @@ public class DelayedServerTest extends HttpServerTestBase
             @Override
             public Connection newConnection(Connector connector, EndPoint endPoint)
             {
-                return configure(new DelayedHttpConnection(getHttpConfiguration(), connector, endPoint), connector, endPoint);
+                DelayedHttpConnection connection = new DelayedHttpConnection(getHttpConfiguration(), connector, endPoint);
+                connection.setUseInputDirectByteBuffers(isUseInputDirectByteBuffers());
+                connection.setUseOutputDirectByteBuffers(isUseOutputDirectByteBuffers());
+                return configure(connection, connector, endPoint);
             }
         }));
     }
@@ -56,7 +58,7 @@ public class DelayedServerTest extends HttpServerTestBase
                 @Override
                 public void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content)
                 {
-                    DelayedCallback delay = new DelayedCallback(callback, getServer().getThreadPool());
+                    DelayedCallback delay = new DelayedCallback(callback);
                     super.send(response, last, delay, content);
                 }
             };
@@ -65,18 +67,15 @@ public class DelayedServerTest extends HttpServerTestBase
 
     private static class DelayedCallback extends Callback.Nested
     {
-        final ThreadPool pool;
-
-        public DelayedCallback(Callback callback, ThreadPool threadPool)
+        public DelayedCallback(Callback callback)
         {
             super(callback);
-            pool = threadPool;
         }
 
         @Override
         public void succeeded()
         {
-            pool.execute(() ->
+            new Thread(() ->
             {
                 try
                 {
@@ -90,13 +89,13 @@ public class DelayedServerTest extends HttpServerTestBase
                 {
                     super.succeeded();
                 }
-            });
+            }).start();
         }
 
         @Override
         public void failed(Throwable x)
         {
-            pool.execute(() ->
+            new Thread(() ->
             {
                 try
                 {
@@ -110,7 +109,7 @@ public class DelayedServerTest extends HttpServerTestBase
                 {
                     super.failed(x);
                 }
-            });
+            }).start();
         }
 
         @Override

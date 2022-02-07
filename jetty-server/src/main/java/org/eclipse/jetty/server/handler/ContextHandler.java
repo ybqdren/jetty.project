@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.server.handler;
 
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +29,6 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Attributes;
-import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
@@ -64,6 +62,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     private String _contextPath = "/";
     private Path _resourceBase;
     private ClassLoader _contextLoader;
+    private Handler _errorHandler;
 
     public ContextHandler()
     {
@@ -145,6 +144,26 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         _contextLoader = contextLoader;
     }
 
+    /**
+     * @return Returns the errorHandler.
+     */
+    @ManagedAttribute("The error handler to use for the context")
+    public Handler getErrorHandler()
+    {
+        return _errorHandler;
+    }
+
+    /**
+     * @param errorHandler The errorHandler to set.
+     */
+    public void setErrorHandler(Handler errorHandler)
+    {
+        if (errorHandler instanceof Abstract)
+            ((Abstract)errorHandler).setServer(getServer());
+        updateBean(_errorHandler, errorHandler, true);
+        _errorHandler = errorHandler;
+    }
+
     public List<String> getVirtualHosts()
     {
         return _vhosts.stream().map(VHost::getVHost).collect(Collectors.toList());
@@ -219,7 +238,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         // TODO is this correct?
         String host = request.getHttpURI().getHost();
 
-        String connectorName = request.getChannel().getMetaConnection().getConnector().getName();
+        String connectorName = request.getConnectionMetaData().getConnector().getName();
 
         for (VHost vhost : _vhosts)
         {
@@ -294,24 +313,23 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         return isStarted(); // TODO
     }
 
-    protected void invokeHandler(Request request, Response response) throws Exception
+    protected void invokeHandler(Request request) throws Exception
     {
-        getHandler().handle(request, response);
+        getHandler().handle(request);
     }
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
-        Handler next = getHandler();
-        if (next == null)
-            return false;
+        if (getHandler() == null)
+            return;
 
         if (!checkVirtualHost(request))
-            return false;
+            return;
 
         String pathInContext = getPathInContext(request);
         if (pathInContext == null)
-            return false;
+            return;
 
         if (pathInContext.isEmpty())
         {
@@ -320,26 +338,26 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
                 location += ";" + request.getHttpURI().getParam();
             if (request.getHttpURI().getQuery() != null)
                 location += ";" + request.getHttpURI().getQuery();
+
+            Response response = request.accept();
             response.setStatus(HttpStatus.MOVED_PERMANENTLY_301);
             response.getHeaders().add(new HttpField(HttpHeader.LOCATION, location));
-            request.succeeded();
-            return true;
+            response.getCallback().succeeded();
+            return;
         }
 
         // TODO check availability and maybe return a 503
 
-        ContextRequest scoped = wrap(request, response, pathInContext);
+        ContextRequest scoped = wrap(request, pathInContext);
         if (scoped == null)
-            return false; // TODO 404? 500? Error dispatch ???
+            return; // TODO 404? 500? Error dispatch ???
 
-        // TODO make the lambda part of the scope request to save allocation?
-        _context.call(() -> invokeHandler(scoped, new ContextResponse(response)));
-        return true;
+        _context.call(scoped);
     }
 
-    protected ContextRequest wrap(Request request, Response response, String pathInContext)
+    protected ContextRequest wrap(Request request, String pathInContext)
     {
-        return new ContextRequest(_context, request, pathInContext);
+        return new ContextRequest(this, request, pathInContext);
     }
 
     @Override
@@ -468,34 +486,6 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
                 LOG.warn("Failed to run in {}", _displayName, e);
                 throw new RuntimeException(e);
             }
-        }
-    }
-
-    private class ContextResponse extends Response.Wrapper
-    {
-        public ContextResponse(Response response)
-        {
-            super(response);
-        }
-
-        @Override
-        public void write(boolean last, Callback callback, ByteBuffer... content)
-        {
-            Callback contextCallback = new Callback()
-            {
-                @Override
-                public void succeeded()
-                {
-                    _context.run(callback::succeeded);
-                }
-
-                @Override
-                public void failed(Throwable t)
-                {
-                    _context.accept(callback::failed, t);
-                }
-            };
-            super.write(last, contextCallback, content);
         }
     }
 }
