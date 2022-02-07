@@ -198,7 +198,7 @@ public class ErrorHandler extends Handler.Abstract
                 return false;
         }
 
-        int bufferSize = request.getChannel().getHttpConfiguration().getOutputBufferSize();
+        int bufferSize = request.getHttpChannel().getHttpConfiguration().getOutputBufferSize();
         ByteBuffer buffer = request.getConnectionMetaData().getConnector().getByteBufferPool().acquire(bufferSize, false);
 
         // write into the response aggregate buffer and flush it asynchronously.
@@ -318,7 +318,7 @@ public class ErrorHandler extends Handler.Abstract
         if (showStacks)
             writeErrorHtmlStacks(request, writer);
         
-        request.getChannel().getHttpConfiguration()
+        request.getHttpChannel().getHttpConfiguration()
             .writePoweredBy(writer, "<hr/>", "<hr/>\n");
     }
 

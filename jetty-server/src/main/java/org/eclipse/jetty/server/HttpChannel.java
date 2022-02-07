@@ -33,9 +33,11 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.HostPort;
+import org.eclipse.jetty.util.TypeUtil;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.SerializedInvoker;
@@ -100,10 +102,15 @@ public class HttpChannel extends Attributes.Lazy
                 {
                     error = _request == null ? null : _request._error;
                 }
-                if (error != null && error.getCause() != null)
+
+                if (error != null)
                 {
-                    if (error.getCause() != t)
+                    // We are already in error, so we will not handle this one
+                    // but we will add as suppressed if we have not seen it already.
+                    Throwable cause = error.getCause();
+                    if (cause != null && !TypeUtil.isAssociated(cause, t))
                         error.getCause().addSuppressed(t);
+                    return;
                 }
 
                 super.onError(task, t);
@@ -126,7 +133,7 @@ public class HttpChannel extends Attributes.Lazy
         }
     }
 
-    public HttpStream getStream()
+    public HttpStream getHttpStream()
     {
         try (AutoLock ignored = _lock.lock())
         {
@@ -139,7 +146,7 @@ public class HttpChannel extends Attributes.Lazy
         return _server;
     }
 
-    public ConnectionMetaData getMetaConnection()
+    public ConnectionMetaData getConnectionMetaData()
     {
         return _connectionMetaData;
     }
@@ -152,6 +159,11 @@ public class HttpChannel extends Attributes.Lazy
     public Connector getConnector()
     {
         return _connectionMetaData.getConnector();
+    }
+
+    public EndPoint getEndPoint()
+    {
+        return getConnection().getEndPoint();
     }
 
     /**
@@ -225,13 +237,6 @@ public class HttpChannel extends Attributes.Lazy
         {
             return Invocable.getInvocationType(_request == null ? null : _request._onContentAvailable);
         }
-    }
-
-    public boolean onIdleTimeout(long now, long timeoutNanos)
-    {
-        // TODO check time against last activity and return true only if we really are idle.
-        //      If we return true, then onError will be called with a real exception... or is that too late????
-        return true;
     }
 
     public Runnable onError(Throwable x)
@@ -491,7 +496,7 @@ public class HttpChannel extends Attributes.Lazy
         }
 
         @Override
-        public HttpChannel getChannel()
+        public HttpChannel getHttpChannel()
         {
             return HttpChannel.this;
         }
@@ -667,7 +672,7 @@ public class HttpChannel extends Attributes.Lazy
                     if (_response._onWriteComplete != null)
                         throw new IllegalStateException("write pending");
                     if (_error != null)
-                        throw (IllegalStateException)(new IllegalStateException("error " + _error, _error.getCause()));
+                        throw new IllegalStateException("error " + _error, _error.getCause());
 
                     if (_stream == null | _request != ChannelRequest.this)
                         return;
@@ -1010,7 +1015,7 @@ public class HttpChannel extends Attributes.Lazy
             Supplier<HttpFields> trailers = _trailers == null ? null : this::takeTrailers;
 
             return new MetaData.Response(
-                getMetaConnection().getVersion(),
+                getConnectionMetaData().getVersion(),
                 _status,
                 null,
                 _headers,

@@ -123,7 +123,7 @@ public class Server extends Handler.Wrapper implements Attributes
         {
             // Customize
             Request customizedRequest = request;
-            HttpConfiguration configuration = request.getChannel().getHttpConfiguration();
+            HttpConfiguration configuration = request.getHttpChannel().getHttpConfiguration();
             for (HttpConfiguration.Customizer customizer : configuration.getCustomizers())
             {
                 Request customized = customizer.customize(request.getConnectionMetaData().getConnector(), configuration, customizedRequest);

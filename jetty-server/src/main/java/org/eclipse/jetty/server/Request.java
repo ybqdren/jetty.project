@@ -65,7 +65,7 @@ public interface Request extends Attributes, Executor, Content.Provider
 
     String getId();
 
-    HttpChannel getChannel();
+    HttpChannel getHttpChannel();
 
     boolean isComplete();
 
@@ -116,7 +116,7 @@ public interface Request extends Attributes, Executor, Content.Provider
                 ? ((InetSocketAddress)local).getHostString()
                 : address.getHostAddress();
 
-            return getChannel().formatAddrOrHost(result);
+            return getHttpChannel().formatAddrOrHost(result);
         }
         return local.toString();
     }
@@ -139,7 +139,7 @@ public interface Request extends Attributes, Executor, Content.Provider
                 ? ((InetSocketAddress)remote).getHostString()
                 : address.getHostAddress();
 
-            return getChannel().formatAddrOrHost(result);
+            return getHttpChannel().formatAddrOrHost(result);
         }
         return remote.toString();
     }
@@ -156,15 +156,15 @@ public interface Request extends Attributes, Executor, Content.Provider
     {
         HttpURI uri = getHttpURI();
         if (uri.hasAuthority())
-            return getChannel().formatAddrOrHost(uri.getHost());
+            return getHttpChannel().formatAddrOrHost(uri.getHost());
 
         HostPort authority = getConnectionMetaData().getServerAuthority();
         if (authority != null)
-            return getChannel().formatAddrOrHost(authority.getHost());
+            return getHttpChannel().formatAddrOrHost(authority.getHost());
 
         SocketAddress local = getConnectionMetaData().getLocalAddress();
         if (local instanceof InetSocketAddress)
-            return getChannel().formatAddrOrHost(((InetSocketAddress)local).getHostString());
+            return getHttpChannel().formatAddrOrHost(((InetSocketAddress)local).getHostString());
 
         return local.toString();
     }
@@ -273,9 +273,9 @@ public interface Request extends Attributes, Executor, Content.Provider
         }
 
         @Override
-        public HttpChannel getChannel()
+        public HttpChannel getHttpChannel()
         {
-            return _wrapped.getChannel();
+            return _wrapped.getHttpChannel();
         }
 
         @Override

@@ -1104,7 +1104,7 @@ public class HttpChannelTest
 
         FuturePromise<Throwable> callback = new FuturePromise<>();
         // Callback serialized until after onError task
-        handling.get().getChannel().getResponse().write(false, Callback.from(() -> {}, callback::succeeded));
+        handling.get().getHttpChannel().getResponse().write(false, Callback.from(() -> {}, callback::succeeded));
         assertFalse(callback.isDone());
 
         // process error callback

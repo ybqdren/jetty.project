@@ -55,7 +55,7 @@ public class GzipHandler extends Handler.Wrapper
         });
 
         // TODO look up cached or pool inflaters / deflated
-        final Object inflaterAndOrDeflator = request.getChannel().getAttribute("o.e.j.s.h.gzip.cachedCompression");
+        final Object inflaterAndOrDeflator = request.getHttpChannel().getAttribute("o.e.j.s.h.gzip.cachedCompression");
 
         super.handle(
             new Request.Wrapper(request)

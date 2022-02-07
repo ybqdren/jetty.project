@@ -134,7 +134,7 @@ public interface Response
         setStatus(status);
 
         ContextHandler.Context context = getRequest().get(ContextRequest.class, ContextRequest::getContext);
-        Handler errorHandler = ErrorHandler.getErrorHandler(getRequest().getChannel().getServer(), context == null ? null : context.getContextHandler());
+        Handler errorHandler = ErrorHandler.getErrorHandler(getRequest().getHttpChannel().getServer(), context == null ? null : context.getContextHandler());
 
         if (errorHandler != null)
         {

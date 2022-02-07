@@ -1539,7 +1539,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
             public void handle(Request request) throws Exception
             {
                 Response response = request.accept();
-                request.getChannel().addConnectionCloseListener(t -> closed.countDown());
+                request.getHttpChannel().addConnectionCloseListener(t -> closed.countDown());
                 while (true)
                 {
                     Content content = request.readContent();

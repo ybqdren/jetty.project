@@ -39,7 +39,7 @@ public class RequestStatsHandler extends Handler.Wrapper
     {
         Object connectionStats = _connectionStats.computeIfAbsent(request.getConnectionMetaData().getId(), id ->
         {
-            request.getChannel().addConnectionCloseListener(x ->
+            request.getHttpChannel().addConnectionCloseListener(x ->
             {
                 // complete connections stats
                 _connectionStats.remove(request.getConnectionMetaData().getId());
@@ -51,7 +51,7 @@ public class RequestStatsHandler extends Handler.Wrapper
         final LongAdder bytesWritten = new LongAdder();
 
         _requestStats.increment();
-        request.getChannel().addStreamWrapper(s -> new HttpStream.Wrapper(s)
+        request.getHttpChannel().addStreamWrapper(s -> new HttpStream.Wrapper(s)
         {
             @Override
             public void send(MetaData.Response response, boolean last, Callback callback, ByteBuffer... content)
@@ -118,7 +118,7 @@ public class RequestStatsHandler extends Handler.Wrapper
         finally
         {
             if (request.isAccepted())
-                _handleTimeStats.record(System.nanoTime() - request.getChannel().getStream().getNanoTimeStamp());
+                _handleTimeStats.record(System.nanoTime() - request.getHttpChannel().getHttpStream().getNanoTimeStamp());
             // TODO initial dispatch duration stats collected here.
         }
     }
