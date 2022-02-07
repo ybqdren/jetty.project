@@ -51,6 +51,7 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextRequest;
 import org.eclipse.jetty.servlet6.experimental.writer.EncodingHttpWriter;
 import org.eclipse.jetty.servlet6.experimental.writer.Iso88591HttpWriter;
@@ -71,6 +72,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final HttpOutput _httpOutput;
     final HttpInput _httpInput;
     boolean _newContext;
+    private UserIdentity.Scope _scope;
 
     final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
 
@@ -90,6 +92,11 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _httpInput = new HttpInput(this);
     }
 
+    public void errorClose()
+    {
+        // Make the response immutable and soft close the output.
+    }
+
     @Override
     public Object getAttribute(String name)
     {
@@ -107,6 +114,15 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             default:
                 return super.getAttribute(name);
         }
+    }
+
+    /**
+     * @return The current {@link ContextHandler.Context context} used for this error handling for this request.  If the request is asynchronous,
+     * then it is the context that called async. Otherwise it is the last non-null context passed to #setContext
+     */
+    public ContextHandler.Context getErrorContext()
+    {
+        return _servletRequestState.getContext();
     }
 
     public boolean takeNewContext()
@@ -159,6 +175,13 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     public void run()
     {
         _servletRequestState.handle();
+    }
+
+    public String getServletName()
+    {
+        if (_scope != null)
+            return _scope.getName();
+        return null;
     }
 
     Runnable onContentAvailable()

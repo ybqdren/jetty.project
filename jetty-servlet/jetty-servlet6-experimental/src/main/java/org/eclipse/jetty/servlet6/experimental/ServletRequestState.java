@@ -8,9 +8,12 @@ import jakarta.servlet.ServletContext;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.thread.AutoLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ServletRequestState
+public class ServletRequestState implements Runnable
 {
+    private static final Logger LOG = LoggerFactory.getLogger(ServletRequestState.class);
 
     /*
      * The state of the HttpChannel,used to control the overall lifecycle.
@@ -85,6 +88,22 @@ public class ServletRequestState
     ServletRequestState(ServletContextHandler.ServletContextContext servletContextContext)
     {
         _servletContextContext = servletContextContext;
+    }
+
+    @Override
+    public void run()
+    {
+        handle();
+    }
+
+    public HttpOutput getHttpOutput()
+    {
+        return _servletScopedRequest._httpOutput;
+    }
+
+    public HttpInput getHttpInput()
+    {
+        return _servletScopedRequest._httpInput;
     }
 
     AutoLock lock()
@@ -236,6 +255,27 @@ public class ServletRequestState
         }
     }
 
+    /**
+     * Unwrap failure causes to find target class
+     *
+     * @param failure The throwable to have its causes unwrapped
+     * @param targets Exception classes that we should not unwrap
+     * @return A target throwable or null
+     */
+    protected Throwable unwrap(Throwable failure, Class<?>... targets)
+    {
+        while (failure != null)
+        {
+            for (Class<?> x : targets)
+            {
+                if (x.isInstance(failure))
+                    return failure;
+            }
+            failure = failure.getCause();
+        }
+        return null;
+    }
+
     public void addListener(AsyncListener listener)
     {
 
@@ -257,9 +297,9 @@ public class ServletRequestState
         return null;
     }
 
-    public ServletContext getContext()
+    public ContextHandler.Context getContext()
     {
-        return null;
+        return _servletContextContext.getContext();
     }
 
     public ContextHandler getContextHandler()

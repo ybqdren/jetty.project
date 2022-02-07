@@ -26,6 +26,11 @@ public class HttpOutput extends ServletOutputStream
         _response = response;
     }
 
+    public void completed(Throwable failure)
+    {
+
+    }
+
     public Response getResponse()
     {
         return _response;
