@@ -32,7 +32,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.eclipse.jetty.core.server.Content;
-import org.eclipse.jetty.core.server.Handler;
+import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
 import org.eclipse.jetty.core.server.Server;
@@ -56,14 +56,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Handler for Error pages
- * An ErrorHandler is registered with {@link Server#setErrorHandler(Handler)}.
+ * An ErrorHandler is registered with {@link Server#setErrorProcessor(Processor)}.
  * It is called by the {@link Response#writeError(int, String, Callback)}
  * to generate an error page.
  */
-public class ErrorHandler extends Handler.Abstract
+public class ErrorProcessor implements Processor
 {
     // TODO This classes API needs to be majorly refactored/cleanup in jetty-10
-    private static final Logger LOG = LoggerFactory.getLogger(ErrorHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ErrorProcessor.class);
     public static final String ERROR_STATUS = "org.eclipse.jetty.server.error_status";
     public static final String ERROR_MESSAGE = "org.eclipse.jetty.server.error_message";
     public static final String ERROR_EXCEPTION = "org.eclipse.jetty.server.error_exception";
@@ -76,7 +76,7 @@ public class ErrorHandler extends Handler.Abstract
     boolean _showMessageInTitle = true;
     HttpField _cacheControl = new PreEncodedHttpField(HttpHeader.CACHE_CONTROL, "must-revalidate,no-cache,no-store");
 
-    public ErrorHandler()
+    public ErrorProcessor()
     {
     }
 
@@ -85,7 +85,8 @@ public class ErrorHandler extends Handler.Abstract
         return ERROR_METHODS.contains(method);
     }
 
-    public boolean handle(Request request, Response response) throws IOException
+    @Override
+    public void process(Request request, Response response)
     {
         if (_cacheControl != null)
             response.getHeaders().put(_cacheControl);
@@ -110,25 +111,32 @@ public class ErrorHandler extends Handler.Abstract
             if (message == null)
                 message = cause == null ? HttpStatus.getMessage(code) : cause.toString();
 
-            generateAcceptableResponse(request, response, code, message, cause);
+            try
+            {
+                generateAcceptableResponse(request, response, code, message, cause);
+            }
+            catch (Throwable x)
+            {
+                // TODO: cannot write the error response, give up and close the stream.
+                x.printStackTrace();
+            }
         }
-        return true;
     }
 
-    protected void generateAcceptableResponse(Request request, Response response, int code, String message, Throwable cause)
-        throws IOException
+    protected void generateAcceptableResponse(Request request, Response response, int code, String message, Throwable cause) throws IOException
     {
-        List<String> acceptable = request.getHeaders().getQualityCSV(HttpHeader.ACCEPT, QuotedQualityCSV.MOST_SPECIFIC_MIME_ORDERING);
+        HttpFields headers = request.getHttpFields();
+        List<String> acceptable = headers.getQualityCSV(HttpHeader.ACCEPT, QuotedQualityCSV.MOST_SPECIFIC_MIME_ORDERING);
         if (acceptable.isEmpty())
         {
-            if (request.getHeaders().contains(HttpHeader.ACCEPT))
+            if (headers.contains(HttpHeader.ACCEPT))
             {
                 request.succeeded();
                 return;
             }
             acceptable = Collections.singletonList(Type.TEXT_HTML.asString());
         }
-        List<Charset> charsets = request.getHeaders().getQualityCSV(HttpHeader.ACCEPT_CHARSET).stream()
+        List<Charset> charsets = headers.getQualityCSV(HttpHeader.ACCEPT_CHARSET).stream()
             .map(s ->
             {
                 try
@@ -147,7 +155,7 @@ public class ErrorHandler extends Handler.Abstract
         if (charsets.isEmpty())
         {
             charsets = List.of(StandardCharsets.ISO_8859_1, StandardCharsets.UTF_8);
-            if (request.getHeaders().contains(HttpHeader.ACCEPT_CHARSET))
+            if (headers.contains(HttpHeader.ACCEPT_CHARSET))
             {
                 request.succeeded();
                 return;
@@ -162,8 +170,7 @@ public class ErrorHandler extends Handler.Abstract
         request.succeeded();
     }
 
-    protected boolean generateAcceptableResponse(Request request, Response response, String contentType, List<Charset> charsets, int code, String message, Throwable cause)
-        throws IOException
+    protected boolean generateAcceptableResponse(Request request, Response response, String contentType, List<Charset> charsets, int code, String message, Throwable cause) throws IOException
     {
         Type type;
         Charset charset;
@@ -271,8 +278,7 @@ public class ErrorHandler extends Handler.Abstract
         return true;
     }
 
-    protected void writeErrorHtml(Request request, Writer writer, Charset charset, int code, String message, Throwable cause, boolean showStacks)
-        throws IOException
+    protected void writeErrorHtml(Request request, Writer writer, Charset charset, int code, String message, Throwable cause, boolean showStacks) throws IOException
     {
         if (message == null)
             message = HttpStatus.getMessage(code);
@@ -285,16 +291,14 @@ public class ErrorHandler extends Handler.Abstract
         writer.write("\n</body>\n</html>\n");
     }
     
-    protected void writeErrorHtmlMeta(Request request, Writer writer, Charset charset)
-        throws IOException
+    protected void writeErrorHtmlMeta(Request request, Writer writer, Charset charset) throws IOException
     {
         writer.write("<meta http-equiv=\"Content-Type\" content=\"text/html;charset=");
         writer.write(charset.name());
         writer.write("\"/>\n");
     }
     
-    protected void writeErrorHtmlHead(Request request, Writer writer, int code, String message)
-        throws IOException
+    protected void writeErrorHtmlHead(Request request, Writer writer, int code, String message) throws IOException
     {
         writer.write("<title>Error ");
         String status = Integer.toString(code);
@@ -307,8 +311,7 @@ public class ErrorHandler extends Handler.Abstract
         writer.write("</title>\n");
     }
 
-    protected void writeErrorHtmlBody(Request request, Writer writer, int code, String message, Throwable cause, boolean showStacks)
-        throws IOException
+    protected void writeErrorHtmlBody(Request request, Writer writer, int code, String message, Throwable cause, boolean showStacks) throws IOException
     {
         String uri = request.getHttpURI().toString();
 
@@ -320,8 +323,7 @@ public class ErrorHandler extends Handler.Abstract
             .writePoweredBy(writer, "<hr/>", "<hr/>\n");
     }
 
-    protected void writeErrorHtmlMessage(Request request, Writer writer, int code, String message, Throwable cause, String uri)
-        throws IOException
+    protected void writeErrorHtmlMessage(Request request, Writer writer, int code, String message, Throwable cause, String uri) throws IOException
     {
         writer.write("<h2>HTTP ERROR ");
         String status = Integer.toString(code);
@@ -344,8 +346,7 @@ public class ErrorHandler extends Handler.Abstract
         writer.write("</table>\n");
     }
 
-    private void htmlRow(Writer writer, String tag, Object value)
-        throws IOException
+    private void htmlRow(Writer writer, String tag, Object value) throws IOException
     {
         writer.write("<tr><th>");
         writer.write(tag);
@@ -397,8 +398,7 @@ public class ErrorHandler extends Handler.Abstract
                 .collect(Collectors.joining(",\n", "{\n", "\n}")));
     }
 
-    protected void writeErrorHtmlStacks(Request request, Writer writer)
-        throws IOException
+    protected void writeErrorHtmlStacks(Request request, Writer writer) throws IOException
     {
         Throwable th = (Throwable)request.getAttribute(ERROR_EXCEPTION);
         if (th != null)
@@ -504,8 +504,7 @@ public class ErrorHandler extends Handler.Abstract
         return _showMessageInTitle;
     }
 
-    protected void write(Writer writer, String string)
-        throws IOException
+    protected void write(Writer writer, String string) throws IOException
     {
         if (string == null)
             return;
@@ -513,14 +512,14 @@ public class ErrorHandler extends Handler.Abstract
         writer.write(StringUtil.sanitizeXmlString(string));
     }
 
-    public static Handler getErrorHandler(Server server, ContextHandler context)
+    public static Processor getErrorProcessor(Server server, ContextHandler context)
     {
-        Handler errorHandler = null;
+        Processor errorProcessor = null;
         if (context != null)
-            errorHandler = context.getErrorHandler();
-        if (errorHandler == null && server != null)
-            errorHandler = server.getErrorHandler();
-        return errorHandler;
+            errorProcessor = context.getErrorProcessor();
+        if (errorProcessor == null && server != null)
+            errorProcessor = server.getErrorProcessor();
+        return errorProcessor;
     }
 
     public static class ErrorRequest extends Request.Wrapper

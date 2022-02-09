@@ -23,7 +23,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-import org.eclipse.jetty.core.server.handler.ErrorHandler;
+import org.eclipse.jetty.core.server.handler.ErrorProcessor;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpTester;
@@ -642,7 +642,7 @@ public class HttpConfigurationAuthorityOverrideTest
         handlers.addHandler(new ErrorMsgHandler());
         server.setHandler(handlers);
 
-        server.setErrorHandler(new RedirectErrorHandler());
+        server.setErrorProcessor(new RedirectErrorProcessor());
         server.start();
 
         return new CloseableServer(server, connector);
@@ -651,73 +651,77 @@ public class HttpConfigurationAuthorityOverrideTest
     private static class DumpHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void accept(Incoming request) throws Exception
         {
-            if (request.getPath().startsWith("/dump"))
+            if (request.getHttpURI().getPath().startsWith("/dump"))
             {
-                response.setContentType("text/plain; charset=utf-8");
-                try (StringWriter stringWriter = new StringWriter();
-                     PrintWriter out = new PrintWriter(stringWriter))
-                {
-                    out.printf("ServerName=[%s]%n", request.getServerName());
-                    out.printf("ServerPort=[%d]%n", request.getServerPort());
-                    out.printf("LocalAddr=[%s]%n", request.getLocalAddr());
-                    out.printf("LocalName=[%s]%n", request.getLocalAddr());
-                    out.printf("LocalPort=[%s]%n", request.getLocalPort());
-                    out.printf("HttpURI=[%s]%n", request.getHttpURI());
-                    response.write(true, request, stringWriter.getBuffer().toString());
-                }
-                return true;
+                request.accept(DumpHandler::process);
             }
-            return false;
+        }
+
+        private static void process(Request request, Response response) throws IOException
+        {
+            response.setContentType("text/plain; charset=utf-8");
+            try (StringWriter stringWriter = new StringWriter();
+                 PrintWriter out = new PrintWriter(stringWriter))
+            {
+                out.printf("ServerName=[%s]%n", request.getServerName());
+                out.printf("ServerPort=[%d]%n", request.getServerPort());
+                out.printf("LocalAddr=[%s]%n", request.getLocalAddr());
+                out.printf("LocalName=[%s]%n", request.getLocalAddr());
+                out.printf("LocalPort=[%s]%n", request.getLocalPort());
+                out.printf("HttpURI=[%s]%n", request.getHttpURI());
+                response.write(true, request, stringWriter.getBuffer().toString());
+            }
         }
     }
 
     private static class RedirectHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void accept(Incoming request) throws Exception
         {
-            if (request.getPath().startsWith("/redirect"))
-            {
-                response.setStatus(HttpStatus.MOVED_TEMPORARILY_302);
-                response.setHeader(HttpHeader.LOCATION, HttpURI.build(request.getHttpURI(), "/dump").toString());
-                request.succeeded();
-                return true;
-            }
-            return false;
+            if (request.getHttpURI().getPath().startsWith("/redirect"))
+                request.accept(RedirectHandler::process);
+        }
+
+        private static void process(Request request, Response response)
+        {
+            response.setStatus(HttpStatus.MOVED_TEMPORARILY_302);
+            response.setHeader(HttpHeader.LOCATION, HttpURI.build(request.getHttpURI(), "/dump").toString());
+            request.succeeded();
         }
     }
 
     private static class ErrorMsgHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void accept(Incoming request) throws Exception
         {
-            if (request.getPath().startsWith("/error"))
-            {
-                response.setContentType("text/plain; charset=utf-8");
-                response.write(true, request, "Generic Error Page.");
-                return true;
-            }
-            return false;
+            if (request.getHttpURI().getPath().startsWith("/error"))
+                request.accept(ErrorMsgHandler::process);
+        }
+
+        private static void process(Request request, Response response)
+        {
+            response.setContentType("text/plain; charset=utf-8");
+            response.write(true, request, "Generic Error Page.");
         }
     }
 
-    public static class RedirectErrorHandler extends ErrorHandler
+    private static class RedirectErrorProcessor extends ErrorProcessor
     {
         @Override
-        public boolean handle(Request request, Response response) throws IOException
+        public void process(Request request, Response response)
         {
             response.setHeader("X-Error-Status", Integer.toString(response.getStatus()));
-            response.setHeader("X-Error-Message", String.valueOf(request.getAttribute(ErrorHandler.ERROR_MESSAGE)));
+            response.setHeader("X-Error-Message", String.valueOf(request.getAttribute(ErrorProcessor.ERROR_MESSAGE)));
             response.setStatus(HttpStatus.MOVED_TEMPORARILY_302);
             String scheme = request.getHttpURI().getScheme();
             if (scheme == null)
                 scheme = request.getConnectionMetaData().isSecure() ? "https" : "http";
             response.setHeader(HttpHeader.LOCATION, HttpURI.from(scheme, request.getConnectionMetaData().getServerAuthority(), "/error").toString());
             response.write(true, request);
-            return true;
         }
     }
 

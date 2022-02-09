@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 
 import org.eclipse.jetty.core.server.Connector;
 import org.eclipse.jetty.core.server.Handler;
+import org.eclipse.jetty.core.server.Incoming;
+import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
 import org.eclipse.jetty.http.HttpField;
@@ -56,7 +58,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     private String _contextPath = "/";
     private Path _resourceBase;
     private ClassLoader _contextLoader;
-    private Handler _errorHandler;
+    private Processor _errorProcessor;
 
     public ContextHandler()
     {
@@ -136,20 +138,20 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
      * @return Returns the errorHandler.
      */
     @ManagedAttribute("The error handler to use for the context")
-    public Handler getErrorHandler()
+    public Processor getErrorProcessor()
     {
-        return _errorHandler;
+        return _errorProcessor;
     }
 
     /**
-     * @param errorHandler The errorHandler to set.
+     * @param errorProcessor The errorProcessor to set.
      */
-    public void setErrorHandler(Handler errorHandler)
+    public void setErrorProcessor(Processor errorProcessor)
     {
-        if (errorHandler instanceof Abstract)
-            ((Abstract)errorHandler).setServer(getServer());
-        updateBean(_errorHandler, errorHandler, true);
-        _errorHandler = errorHandler;
+        if (errorProcessor instanceof Abstract)
+            ((Abstract)errorProcessor).setServer(getServer());
+        updateBean(_errorProcessor, errorProcessor, true);
+        _errorProcessor = errorProcessor;
     }
 
     public List<String> getVirtualHosts()
@@ -218,7 +220,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         }
     }
 
-    public boolean checkVirtualHost(Request request)
+    private boolean checkVirtualHost(Incoming request)
     {
         if (_vhosts.isEmpty())
             return true;
@@ -264,7 +266,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         return false;
     }
 
-    protected String getPathInContext(Request request)
+    protected String getPathInContext(Incoming request)
     {
         String path = request.getHttpURI().getPath();
         if (!path.startsWith(_context.getContextPath()))
@@ -324,40 +326,44 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     }
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void accept(Incoming request) throws Exception
     {
         Handler next = getHandler();
         if (next == null)
-            return false;
+            return;
 
         if (!checkVirtualHost(request))
-            return false;
+            return;
 
         String pathInContext = getPathInContext(request);
         if (pathInContext == null)
-            return false;
+            return;
 
         if (pathInContext.isEmpty())
         {
-            String location = _contextPath + "/";
-            if (request.getHttpURI().getParam() != null)
-                location += ";" + request.getHttpURI().getParam();
-            if (request.getHttpURI().getQuery() != null)
-                location += ";" + request.getHttpURI().getQuery();
-            response.setStatus(HttpStatus.MOVED_PERMANENTLY_301);
-            response.getHeaders().add(new HttpField(HttpHeader.LOCATION, location));
-            request.succeeded();
-            return true;
+            request.accept((rq, rs) ->
+            {
+                String location = _contextPath + "/";
+                if (rq.getHttpURI().getParam() != null)
+                    location += ";" + rq.getHttpURI().getParam();
+                if (rq.getHttpURI().getQuery() != null)
+                    location += ";" + rq.getHttpURI().getQuery();
+                rs.setStatus(HttpStatus.MOVED_PERMANENTLY_301);
+                rs.getHeaders().add(new HttpField(HttpHeader.LOCATION, location));
+                rq.succeeded();
+            });
+            return;
         }
 
         // TODO check availability and maybe return a 503
 
-        ContextRequest scoped = wrap(request, response, pathInContext);
-        if (scoped == null)
-            return false; // TODO 404? 500? Error dispatch ???
-
-        _context.call(scoped);
-        return true;
+        request.accept((rq, rs) ->
+        {
+            ContextRequest scoped = wrap(rq, rs, pathInContext);
+            if (scoped == null)
+                return; // TODO 404? 500? Error dispatch ???
+            _context.call(scoped);
+        });
     }
 
     protected ContextRequest wrap(Request request, Response response, String pathInContext)
@@ -423,7 +429,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
             return _resourceBase;
         }
 
-        public void call(Invocable.Task task) throws Exception
+        public void call(Invocable.Task task)
         {
             Context lastContext = __context.get();
             if (lastContext == this)

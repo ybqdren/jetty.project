@@ -1294,12 +1294,12 @@ public class ForwardedRequestCustomizerTest
         boolean check(Request request, Response response) throws IOException;
     }
 
-    private class RequestHandler extends Handler.Abstract
+    private static class RequestHandler extends Handler.Abstract
     {
         private RequestTester requestTester;
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
             if (requestTester != null && requestTester.check(request, response))
             {
@@ -1310,7 +1310,6 @@ public class ForwardedRequestCustomizerTest
             {
                 response.writeError(500, "failed", request);
             }
-            return true;
         }
     }
 }

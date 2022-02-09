@@ -155,10 +155,10 @@ public class HttpChannel extends Attributes.Lazy
     }
 
     /**
-     * Start request handling by returning a Runnable that will call {@link Server#handle(Request, Response)}.
+     * Start request handling by returning a Runnable that will call {@link Handler#accept(Incoming)}.
      *
      * @param request The request metadata to handle.
-     * @return A Runnable that will call {@link Server#handle(Request, Response)}.  Unlike all other Runnables
+     * @return A Runnable that will call {@link Handler#accept(Incoming)}.  Unlike all other Runnables
      * returned by {@link HttpChannel} methods, this runnable is not mutually excluded or serialized against the other
      * Runnables.
      */
@@ -365,12 +365,11 @@ public class HttpChannel extends Attributes.Lazy
         @Override
         public void run()
         {
-            if (!_server.handle(_request, _request._response))
-                throw new IllegalStateException();
+            _server.process(_request);
         }
     }
 
-    private class ChannelRequest implements Attributes, Request
+    private class ChannelRequest implements Request
     {
         final MetaData.Request _metaData;
         final String _id;
@@ -378,6 +377,7 @@ public class HttpChannel extends Attributes.Lazy
         Content.Error _error;
         Consumer<Throwable> _onError;
         Runnable _onContentAvailable;
+        private boolean _accepted;
 
         ChannelRequest(MetaData.Request metaData)
         {
@@ -389,6 +389,31 @@ public class HttpChannel extends Attributes.Lazy
             _id = Integer.toString(_requests);
             _metaData = metaData;
             _response = new ChannelResponse(this);
+        }
+
+        @Override
+        public String getTarget()
+        {
+            return null;
+        }
+
+        @Override
+        public void accept(Processor processor) throws Exception
+        {
+            _accepted = true;
+            processor.process(this, _response);
+        }
+
+        @Override
+        public boolean isAccepted()
+        {
+            return _accepted;
+        }
+
+        @Override
+        public void read(Processor processor)
+        {
+            // TODO
         }
 
         @Override
@@ -501,7 +526,7 @@ public class HttpChannel extends Attributes.Lazy
         }
 
         @Override
-        public HttpFields getHeaders()
+        public HttpFields getHttpFields()
         {
             return _metaData.getFields();
         }

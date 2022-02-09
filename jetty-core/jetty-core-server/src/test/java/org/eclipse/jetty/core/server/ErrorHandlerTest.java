@@ -24,7 +24,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.eclipse.jetty.core.server.handler.ContextHandler;
 import org.eclipse.jetty.core.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.core.server.handler.ErrorHandler;
+import org.eclipse.jetty.core.server.handler.ErrorProcessor;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpTester;
@@ -67,50 +67,69 @@ public class ErrorHandlerTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response)
+            public void accept(Incoming request) throws Exception
             {
-                if (request.getPath().startsWith("/badmessage/"))
+                String path = request.getHttpURI().getPath();
+                if (path.startsWith("/badmessage/"))
                 {
-                    int code = Integer.parseInt(request.getPath().substring(request.getPath().lastIndexOf('/') + 1));
-                    throw new BadMessageException(code);
+                    request.accept((rq, rs) ->
+                    {
+                        int code = Integer.parseInt(path.substring(path.lastIndexOf('/') + 1));
+                        throw new BadMessageException(code);
+                    });
                 }
 
                 // produce an exception with an JSON formatted cause message
-                if (request.getPath().startsWith("/jsonmessage/"))
+                else if (path.startsWith("/jsonmessage/"))
                 {
-                    String message = "\"}, \"glossary\": {\n \"title\": \"example\"\n }\n {\"";
-                    throw new TestException(message);
+                    request.accept((rq, rs) ->
+                    {
+                        String message = "\"}, \"glossary\": {\n \"title\": \"example\"\n }\n {\"";
+                        throw new TestException(message);
+                    });
                 }
 
                 // produce an exception with an XML cause message
-                if (request.getPath().startsWith("/xmlmessage/"))
+                else if (path.startsWith("/xmlmessage/"))
                 {
-                    String message =
-                        "<!DOCTYPE glossary PUBLIC \"-//OASIS//DTD DocBook V3.1//EN\">\n" +
-                            " <glossary>\n" +
-                            "  <title>example glossary</title>\n" +
-                            " </glossary>";
-                    throw new TestException(message);
+                    request.accept((rq, rs) ->
+                    {
+                        String message =
+                            "<!DOCTYPE glossary PUBLIC \"-//OASIS//DTD DocBook V3.1//EN\">\n" +
+                                " <glossary>\n" +
+                                "  <title>example glossary</title>\n" +
+                                " </glossary>";
+                        throw new TestException(message);
+                    });
                 }
 
                 // produce an exception with an HTML cause message
-                if (request.getPath().startsWith("/htmlmessage/"))
+                else if (path.startsWith("/htmlmessage/"))
                 {
-                    String message = "<hr/><script>alert(42)</script>%3Cscript%3E";
-                    throw new TestException(message);
+                    request.accept((rq, rs) ->
+                    {
+                        String message = "<hr/><script>alert(42)</script>%3Cscript%3E";
+                        throw new TestException(message);
+                    });
                 }
 
                 // produce an exception with a UTF-8 cause message
-                if (request.getPath().startsWith("/utf8message/"))
+                else if (path.startsWith("/utf8message/"))
                 {
-                    // @checkstyle-disable-check : AvoidEscapedUnicodeCharacters
-                    String message = "Euro is &euro; and \u20AC and %E2%82%AC";
-                    // @checkstyle-enable-check : AvoidEscapedUnicodeCharacters
-                    throw new TestException(message);
+                    request.accept((rq, rs) ->
+                    {
+                        // @checkstyle-disable-check : AvoidEscapedUnicodeCharacters
+                        String message = "Euro is &euro; and \u20AC and %E2%82%AC";
+                        // @checkstyle-enable-check : AvoidEscapedUnicodeCharacters
+                        throw new TestException(message);
+                    });
                 }
 
-                response.writeError(404, request);
-                return true;
+                // produce a 404.
+                else
+                {
+                    request.accept((rq, rs) -> rs.writeError(404, rq));
+                }
             }
         });
         server.start();
@@ -440,18 +459,13 @@ public class ErrorHandlerTest
     @Test
     public void testNoBodyErrorHandler() throws Exception
     {
-        server.setErrorHandler(new Handler.Abstract()
+        server.setErrorProcessor((request, response) ->
         {
-            @Override
-            public boolean handle(Request request, Response response)
-            {
-                response.setHeader(HttpHeader.LOCATION, "/error");
-                response.setHeader("X-Error-Message", String.valueOf(request.getAttribute(ErrorHandler.ERROR_MESSAGE)));
-                response.setHeader("X-Error-Status", Integer.toString(response.getStatus()));
-                response.setStatus(302);
-                request.succeeded();
-                return true;
-            }
+            response.setHeader(HttpHeader.LOCATION, "/error");
+            response.setHeader("X-Error-Message", String.valueOf(request.getAttribute(ErrorProcessor.ERROR_MESSAGE)));
+            response.setHeader("X-Error-Status", Integer.toString(response.getStatus()));
+            response.setStatus(302);
+            request.succeeded();
         });
         String rawResponse = connector.getResponse(
             "GET / HTTP/1.1\r\n" +
@@ -646,34 +660,17 @@ public class ErrorHandlerTest
         server.setHandler(contexts);
         ContextHandler context = new ContextHandler("/foo");
         contexts.addHandler(context);
-        context.setErrorHandler(new ErrorHandler()
-        {
-            @Override
-            public boolean handle(Request request, Response response)
-            {
-                response.write(true, request, BufferUtil.toBuffer("Context Error"));
-                return true;
-            }
-        });
+        context.setErrorProcessor((request, response) -> response.write(true, request, BufferUtil.toBuffer("Context Error")));
         context.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response)
+            public void accept(Incoming request) throws Exception
             {
-                response.writeError(444, request);
-                return true;
+                request.accept((rq, rs) -> rs.writeError(444, rq));
             }
         });
 
-        server.setErrorHandler(new ErrorHandler()
-        {
-            @Override
-            public boolean handle(Request request, Response response)
-            {
-                response.write(true, request, BufferUtil.toBuffer("Server Error"));
-                return true;
-            }
-        });
+        server.setErrorProcessor((request, response) -> response.write(true, request, BufferUtil.toBuffer("Server Error")));
 
         server.start();
 

@@ -68,7 +68,7 @@ public class SlowClientsTest
             server.setHandler(new Handler.Abstract()
             {
                 @Override
-                public boolean handle(Request request, Response response) throws Exception
+                protected void handle(Request request, Response response)
                 {
                     LOG.info("SERVING {}", request);
                     // Write some big content.
@@ -88,7 +88,6 @@ public class SlowClientsTest
                             }
                         },
                         BufferUtil.toBuffer(new byte[contentLength]));
-                    return true;
                 }
             });
             server.start();

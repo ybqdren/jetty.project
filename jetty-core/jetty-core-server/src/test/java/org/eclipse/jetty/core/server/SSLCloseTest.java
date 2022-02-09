@@ -80,7 +80,7 @@ public class SSLCloseTest
     private static class WriteHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
             response.setStatus(200);
             response.setHeader("test", "value");
@@ -96,7 +96,6 @@ public class SSLCloseTest
             response.write(false,
                 Callback.from(() -> response.write(true, request, BufferUtil.toBuffer(bytes)), request::failed),
                 BufferUtil.toBuffer(bytes));
-            return true;
         }
     }
 }

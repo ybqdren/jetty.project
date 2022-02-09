@@ -30,11 +30,11 @@ import org.eclipse.jetty.core.server.Content;
 import org.eclipse.jetty.core.server.Handler;
 import org.eclipse.jetty.core.server.HttpChannel;
 import org.eclipse.jetty.core.server.HttpConfiguration;
+import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.MockConnectionMetaData;
 import org.eclipse.jetty.core.server.MockConnector;
 import org.eclipse.jetty.core.server.MockHttpStream;
 import org.eclipse.jetty.core.server.Request;
-import org.eclipse.jetty.core.server.Response;
 import org.eclipse.jetty.core.server.Server;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -160,12 +160,14 @@ public class ContextHandlerTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request) throws Exception
             {
-                assertInContext(request);
-                response.setStatus(200);
-                request.succeeded();
-                return true;
+                request.accept((rq, rs) ->
+                {
+                    assertInContext(rq);
+                    rs.setStatus(200);
+                    rq.succeeded();
+                });
             }
         };
         _contextHandler.setHandler(handler);
@@ -192,30 +194,32 @@ public class ContextHandlerTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request) throws Exception
             {
-                request.addCompletionListener(Callback.from(() -> assertInContext(request)));
-
-                request.demandContent(() ->
+                request.accept((rq, rs) ->
                 {
-                    assertInContext(request);
-                    Content content = request.readContent();
-                    assertTrue(content.hasRemaining());
-                    assertTrue(content.isLast());
-                    response.setStatus(200);
-                    response.write(true, Callback.from(
-                        () ->
-                        {
-                            content.release();
-                            assertInContext(request);
-                            request.succeeded();
-                        },
-                        t ->
-                        {
-                            throw new IllegalStateException();
-                        }), content.getByteBuffer());
+                    rq.addCompletionListener(Callback.from(() -> assertInContext(rq)));
+
+                    rq.demandContent(() ->
+                    {
+                        assertInContext(rq);
+                        Content content = rq.readContent();
+                        assertTrue(content.hasRemaining());
+                        assertTrue(content.isLast());
+                        rs.setStatus(200);
+                        rs.write(true, Callback.from(
+                            () ->
+                            {
+                                content.release();
+                                assertInContext(rq);
+                                rq.succeeded();
+                            },
+                            t ->
+                            {
+                                throw new IllegalStateException();
+                            }), content.getByteBuffer());
+                    });
                 });
-                return true;
             }
         };
         _contextHandler.setHandler(handler);
@@ -260,27 +264,29 @@ public class ContextHandlerTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request) throws Exception
             {
-                request.addCompletionListener(Callback.from(() -> assertInContext(request)));
-
-                CountDownLatch latch = new CountDownLatch(1);
-                request.demandContent(() ->
+                request.accept((rq, rs) ->
                 {
-                    assertInContext(request);
-                    latch.countDown();
-                });
+                    rq.addCompletionListener(Callback.from(() -> assertInContext(rq)));
 
-                blocking.countDown();
-                assertTrue(latch.await(10, TimeUnit.SECONDS));
-                Content content = request.readContent();
-                assertNotNull(content);
-                assertTrue(content.hasRemaining());
-                assertTrue(content.isLast());
-                content.release();
-                response.setStatus(200);
-                request.succeeded();
-                return true;
+                    CountDownLatch latch = new CountDownLatch(1);
+                    rq.demandContent(() ->
+                    {
+                        assertInContext(rq);
+                        latch.countDown();
+                    });
+
+                    blocking.countDown();
+                    assertTrue(latch.await(10, TimeUnit.SECONDS));
+                    Content content = rq.readContent();
+                    assertNotNull(content);
+                    assertTrue(content.hasRemaining());
+                    assertTrue(content.isLast());
+                    content.release();
+                    rs.setStatus(200);
+                    rq.succeeded();
+                });
             }
         };
         _contextHandler.setHandler(handler);
@@ -377,12 +383,12 @@ public class ContextHandlerTest
         _contextHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request)
             {
                 throw new RuntimeException("Testing");
             }
         });
-        _contextHandler.setErrorHandler(new ErrorHandler()
+        _contextHandler.setErrorProcessor(new ErrorProcessor()
         {
             @Override
             protected void writeErrorHtmlBody(Request request, Writer writer, int code, String message, Throwable cause, boolean showStacks) throws IOException

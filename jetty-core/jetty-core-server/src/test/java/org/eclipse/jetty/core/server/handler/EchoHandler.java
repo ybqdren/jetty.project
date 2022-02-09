@@ -17,6 +17,7 @@ import org.eclipse.jetty.core.server.Content;
 import org.eclipse.jetty.core.server.Handler;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IteratingCallback;
@@ -30,19 +31,19 @@ import org.eclipse.jetty.util.StringUtil;
 public class EchoHandler extends Handler.Abstract
 {
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    protected void handle(Request request, Response response) throws Exception
     {
         response.setStatus(200);
-        String contentType = request.getHeaders().get(HttpHeader.CONTENT_TYPE);
+        HttpFields headers = request.getHttpFields();
+        String contentType = headers.get(HttpHeader.CONTENT_TYPE);
         if (StringUtil.isNotBlank(contentType))
             response.setContentType(contentType);
-        long contentLength = request.getHeaders().getLongField(HttpHeader.CONTENT_LENGTH);
+        long contentLength = headers.getLongField(HttpHeader.CONTENT_LENGTH);
         if (contentLength >= 0)
             response.setContentLength(contentLength);
-        if (request.getHeaders().contains(HttpHeader.TRAILER))
+        if (headers.contains(HttpHeader.TRAILER))
             response.getTrailers();
         new Echo(request, response).iterate();
-        return true;
     }
 
     static class Echo extends IteratingCallback
@@ -57,7 +58,7 @@ public class EchoHandler extends Handler.Abstract
         }
 
         @Override
-        protected Action process() throws Throwable
+        protected Action process()
         {
             Content content = _request.readContent();
             if (content == null)

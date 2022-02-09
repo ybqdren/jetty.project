@@ -115,12 +115,11 @@ public class SniSslConnectionFactoryTest
         _server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setStatus(200);
                 response.setHeader("X-URL", request.getHttpURI().toString());
                 response.setHeader("X-HOST", request.getServerName());
-                return true;
             }
         });
 

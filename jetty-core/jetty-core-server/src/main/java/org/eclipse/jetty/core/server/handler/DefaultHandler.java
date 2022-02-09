@@ -84,10 +84,10 @@ public class DefaultHandler extends Handler.Abstract
     }
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    protected void handle(Request request, Response response) throws Exception
     {
         if (response.isCommitted())
-            return false;
+            return;
 
         String method = request.getMethod();
 
@@ -95,7 +95,7 @@ public class DefaultHandler extends Handler.Abstract
         if (_serveIcon && _favicon != null && HttpMethod.GET.is(method) && request.getPath().equals("/favicon.ico"))
         {
             ByteBuffer content = BufferUtil.EMPTY_BUFFER;
-            if (_faviconModifiedMs > 0 && request.getHeaders().getDateField(HttpHeader.IF_MODIFIED_SINCE) == _faviconModifiedMs)
+            if (_faviconModifiedMs > 0 && request.getHttpFields().getDateField(HttpHeader.IF_MODIFIED_SINCE) == _faviconModifiedMs)
                 response.setStatus(HttpStatus.NOT_MODIFIED_304);
             else
             {
@@ -107,13 +107,13 @@ public class DefaultHandler extends Handler.Abstract
                 content = _favicon.slice();
             }
             response.write(true, request, content);
-            return true;
+            return;
         }
 
         if (!_showContexts || !HttpMethod.GET.is(method) || !request.getPath().equals("/"))
         {
             response.writeError(HttpStatus.NOT_FOUND_404, null, request);
-            return true;
+            return;
         }
 
         response.setStatus(HttpStatus.NOT_FOUND_404);
@@ -194,7 +194,6 @@ public class DefaultHandler extends Handler.Abstract
             ByteBuffer content = BufferUtil.toBuffer(outputStream.toByteArray());
             response.setContentLength(content.remaining());
             response.write(true, request, content);
-            return true;
         }
     }
 

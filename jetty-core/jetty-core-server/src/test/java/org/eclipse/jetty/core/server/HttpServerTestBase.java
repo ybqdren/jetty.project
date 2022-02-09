@@ -65,15 +65,19 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpServerTestBase.class);
 
-    private static final String REQUEST1_HEADER = "POST / HTTP/1.0\n" +
-        "Host: localhost\n" +
-        "Content-Type: text/xml; charset=utf-8\n" +
-        "Connection: close\n" +
-        "Content-Length: ";
-    private static final String REQUEST1_CONTENT = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-        "<nimbus xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
-        "        xsi:noNamespaceSchemaLocation=\"nimbus.xsd\" version=\"1.0\">\n" +
-        "</nimbus>";
+    private static final String REQUEST1_HEADER = """
+        POST / HTTP/1.0
+        Host: localhost
+        Content-Type: text/xml; charset=utf-8
+        Connection: close
+        Content-Length:\s
+        """;
+    private static final String REQUEST1_CONTENT = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <nimbus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:noNamespaceSchemaLocation="nimbus.xsd" version="1.0">
+        </nimbus>
+        """;
     private static final String REQUEST1 = REQUEST1_HEADER + REQUEST1_CONTENT.getBytes().length + "\n\n" + REQUEST1_CONTENT;
 
     private static final String RESPONSE1 = "HTTP/1.1 200 OK\n" +
@@ -88,21 +92,23 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
     private static final String FRAGMENT2 = REQUEST1.substring(16, 34);
     private static final String FRAGMENT3 = REQUEST1.substring(34);
 
-    protected static final String REQUEST2_HEADER =
-        "POST / HTTP/1.0\n" +
-            "Host: localhost\n" +
-            "Content-Type: text/xml; charset=ISO-8859-1\n" +
-            "Content-Length: ";
-    protected static final String REQUEST2_CONTENT =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-            "<nimbus xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
-            "        xsi:noNamespaceSchemaLocation=\"nimbus.xsd\" version=\"1.0\">\n" +
-            "    <request requestId=\"1\">\n" +
-            "        <getJobDetails>\n" +
-            "            <jobId>73</jobId>\n" +
-            "        </getJobDetails>\n" +
-            "    </request>\n" +
-            "</nimbus>\n";
+    protected static final String REQUEST2_HEADER = """
+        POST / HTTP/1.0
+        Host: localhost
+        Content-Type: text/xml; charset=ISO-8859-1
+        Content-Length:\s
+        """;
+    protected static final String REQUEST2_CONTENT = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <nimbus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:noNamespaceSchemaLocation="nimbus.xsd" version="1.0">
+            <request requestId="1">
+                <getJobDetails>
+                    <jobId>73</jobId>
+                </getJobDetails>
+            </request>
+        </nimbus>
+        """;
     protected static final String REQUEST2 = REQUEST2_HEADER + REQUEST2_CONTENT.getBytes().length + "\n\n" + REQUEST2_CONTENT;
 
     protected static final String RESPONSE2 =
@@ -122,10 +128,12 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         {
             OutputStream os = client.getOutputStream();
 
-            String request = "GET / HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Connection: close\r\n" +
-                "\r\n";
+            String request = """
+                GET / HTTP/1.1
+                Host: localhost
+                Connection: close
+                                
+                """;
             os.write(request.getBytes(StandardCharsets.ISO_8859_1));
             os.flush();
 
@@ -145,11 +153,12 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         try (Socket client = newSocket(_serverURI.getHost(), _serverURI.getPort()))
         {
             OutputStream os = client.getOutputStream();
-
-            os.write(("OPTIONS * HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Connection: close\r\n" +
-                "\r\n").getBytes(StandardCharsets.ISO_8859_1));
+            os.write(("""
+                OPTIONS * HTTP/1.1
+                Host: localhost
+                Connection: close
+                                
+                """).getBytes(StandardCharsets.ISO_8859_1));
             os.flush();
 
             // Read the response.
@@ -271,13 +280,13 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 throw new Exception("TEST handler exception");
             }
         });
 
-        StringBuffer request = new StringBuffer("GET / HTTP/1.0\r\n");
+        StringBuilder request = new StringBuilder("GET / HTTP/1.0\r\n");
         request.append("Host: localhost\r\n\r\n");
 
         Socket client = newSocket(_serverURI.getHost(), _serverURI.getPort());
@@ -300,13 +309,13 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request) throws Exception
             {
                 throw new Exception("TEST handler exception");
             }
         });
 
-        StringBuffer request = new StringBuffer("GET / HTTP/1.0\r\n");
+        StringBuilder request = new StringBuilder("GET / HTTP/1.0\r\n");
         request.append("Host: localhost\r\n\r\n");
 
         Socket client = newSocket(_serverURI.getHost(), _serverURI.getPort());
@@ -331,7 +340,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 long contentLength = request.getContentLength();
                 long read = 0;
@@ -369,13 +378,15 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
                         break;
                     }
                 }
-                return true;
             }
         });
 
-        String request = "GET / HTTP/1.0\n" + "Host: localhost\n" +
-            "Content-length: 6\n\n" +
-            "foo";
+        String request = """
+            GET / HTTP/1.0
+            Host: localhost
+            Content-length: 6
+
+            foo""";
 
         Socket client = newSocket(_serverURI.getHost(), _serverURI.getPort());
         OutputStream os = client.getOutputStream();
@@ -483,12 +494,14 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         {
             OutputStream os = client.getOutputStream();
 
-            os.write(("GET /R2 HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Transfer-Encoding: chunked\r\n" +
-                "Content-Type: text/plain\r\n" +
-                "Connection: close\r\n" +
-                "\r\n").getBytes());
+            os.write(("""
+                GET /R2 HTTP/1.1
+                Host: localhost
+                Transfer-Encoding: chunked
+                Content-Type: text/plain
+                Connection: close
+                                
+                """).getBytes());
             os.flush();
             Thread.sleep(1000);
             os.write(("5").getBytes());
@@ -496,8 +509,11 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
             os.write(("\r\n").getBytes());
             os.flush();
             Thread.sleep(1000);
-            os.write(("ABCDE\r\n" +
-                "0;\r\n\r\n").getBytes());
+            os.write(("""
+                ABCDE
+                0;
+                                
+                """).getBytes());
             os.flush();
 
             // Read the response.
@@ -515,14 +531,16 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         {
             OutputStream os = client.getOutputStream();
             //@checkstyle-disable-check : IllegalTokenText
-            os.write(("GET /R2 HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Content-Length: 5\r\n" +
-                "Content-Type: text/plain\r\n" +
-                "Connection: close\r\n" +
-                "\r\n" +
-                "ABCDE\r\n" +
-                "\r\n"
+            os.write(("""
+                GET /R2 HTTP/1.1
+                Host: localhost
+                Content-Length: 5
+                Content-Type: text/plain
+                Connection: close
+                                
+                ABCDE
+                                
+                """
                 //@checkstyle-enable-check : IllegalTokenText
             ).getBytes());
             os.flush();
@@ -770,23 +788,26 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
             ).getBytes());
             os.flush();
             Thread.sleep(50);
-            os.write((
-                "a\r\n" +
-                    "123456890\r\n"
+            os.write(("""
+                a
+                123456890
+                """
             ).getBytes());
             os.flush();
 
             Thread.sleep(50);
-            os.write((
-                "4\r\n" +
-                    "abcd\r\n"
+            os.write(("""
+                4
+                abcd
+                """
             ).getBytes());
             os.flush();
 
             Thread.sleep(50);
-            os.write((
-                "X\r\n" +
-                    "abcd\r\n"
+            os.write(("""
+                X
+                abcd
+                """
             ).getBytes());
             os.flush();
 
@@ -993,8 +1014,9 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
     // Handler that sends big blocks of data in each of 10 writes, and then sends the time it took for each big block.
     protected static class BigBlockHandler extends Handler.Abstract
     {
-        byte[] buf = new byte[128 * 1024];
+        private final byte[] buf = new byte[128 * 1024];
 
+        BigBlockHandler()
         {
             for (int i = 0; i < buf.length; i++)
             {
@@ -1003,7 +1025,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         }
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
             response.setStatus(200);
             response.setContentType("text/plain");
@@ -1023,10 +1045,11 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
             StringBuilder out = new StringBuilder();
             out.append("\n");
             for (long t : times)
+            {
                 out.append(t).append(",");
+            }
 
             response.write(true, request, BufferUtil.toBuffer(out.toString()));
-            return true;
         }
     }
 
@@ -1037,10 +1060,17 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new HelloHandler("Hello\n")
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request) throws Exception
             {
-                served.incrementAndGet();
-                return super.handle(request, response);
+                super.accept(new Incoming.Wrapper(request)
+                {
+                    @Override
+                    public void accept(Processor processor) throws Exception
+                    {
+                        served.incrementAndGet();
+                        super.accept(processor);
+                    }
+                });
             }
         });
 
@@ -1204,18 +1234,24 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
             client.close();
             Thread.sleep(200);
 
-            assertFalse(handler._endp.isOpen());
+            assertFalse(handler._endPoint.isOpen());
         }
     }
 
     public static class CommittedErrorHandler extends Handler.Abstract
     {
-        public EndPoint _endp;
+        private EndPoint _endPoint;
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void accept(Incoming request) throws Exception
         {
-            _endp = request.getConnectionMetaData().getConnection().getEndPoint();
+            _endPoint = request.getConnectionMetaData().getConnection().getEndPoint();
+            super.accept(request);
+        }
+
+        @Override
+        protected void handle(Request request, Response response) throws Exception
+        {
             response.setHeader("test", "value");
             response.setStatus(200);
             response.setContentType("text/plain");
@@ -1224,7 +1260,6 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
                 response.write(false, blocker, BufferUtil.toBuffer("Now is the time for all good men to come to the aid of the party"));
                 blocker.block();
             }
-
             throw new Exception(new Exception("exception after commit"));
         }
     }
@@ -1330,32 +1365,28 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         Socket client = newSocket(_serverURI.getHost(), _serverURI.getPort());
         final OutputStream out = client.getOutputStream();
 
-        new Thread()
+        new Thread(() ->
         {
-            @Override
-            public void run()
+            try
             {
-                try
-                {
-                    byte[] bytes = ("GET / HTTP/1.1\r\n" +
-                        "Host: localhost\r\n" +
-                        "Content-Length: " + cl + "\r\n" +
-                        "\r\n" +
-                        content).getBytes(StandardCharsets.ISO_8859_1);
+                byte[] bytes = ("GET / HTTP/1.1\r\n" +
+                    "Host: localhost\r\n" +
+                    "Content-Length: " + cl + "\r\n" +
+                    "\r\n" +
+                    content).getBytes(StandardCharsets.ISO_8859_1);
 
-                    for (int i = 0; i < REQS; i++)
-                    {
-                        out.write(bytes, 0, bytes.length);
-                    }
-                    out.write("GET /last HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1));
-                    out.flush();
-                }
-                catch (Exception e)
+                for (int i = 0; i < REQS; i++)
                 {
-                    e.printStackTrace();
+                    out.write(bytes, 0, bytes.length);
                 }
+                out.write("GET /last HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1));
+                out.flush();
             }
-        }.start();
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }).start();
 
         String resps = readResponse(client);
 
@@ -1421,23 +1452,21 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
     private static class WriteBodyAfterNoBodyResponseHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response)
         {
             response.setStatus(304);
             response.write(false, request, BufferUtil.toBuffer("yuck"));
-            return true;
         }
     }
 
     public static class NoopHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response)
         {
             //don't read the input, just send something back
             response.setStatus(200);
             request.succeeded();
-            return true;
         }
     }
 
@@ -1493,18 +1522,22 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
             OutputStream os = client.getOutputStream();
 
             // Send two persistent pipelined requests and then shutdown output
-            os.write(("GET / HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Transfer-Encoding: chunked\r\n" +
-                "\r\n" +
-                "1000\r\n").getBytes(StandardCharsets.ISO_8859_1));
+            os.write(("""
+                GET / HTTP/1.1
+                Host: localhost
+                Transfer-Encoding: chunked
+                
+                1000
+                """).getBytes(StandardCharsets.ISO_8859_1));
             os.write(content);
             os.write("\r\n0\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1));
-            os.write(("GET / HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Transfer-Encoding: chunked\r\n" +
-                "\r\n" +
-                "1000\r\n").getBytes(StandardCharsets.ISO_8859_1));
+            os.write(("""
+                GET / HTTP/1.1
+                Host: localhost
+                Transfer-Encoding: chunked
+                
+                1000
+                """).getBytes(StandardCharsets.ISO_8859_1));
             os.write(content);
             os.write("\r\n0\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1));
             os.flush();
@@ -1534,7 +1567,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 request.getChannel().addConnectionCloseListener(t -> closed.countDown());
                 while (true)
@@ -1560,7 +1593,6 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
 
                 response.setStatus(200);
                 request.succeeded();
-                return true;
             }
         });
 
@@ -1571,11 +1603,13 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         {
             OutputStream os = client.getOutputStream();
             BufferedOutputStream out = new BufferedOutputStream(os, bufferSize);
-            out.write(("POST / HTTP/1.1\r\n" +
-                "Host: localhost\r\n" +
-                "Connection: close\r\n" +
-                "Transfer-Encoding: chunked\r\n" +
-                "\r\n").getBytes(StandardCharsets.ISO_8859_1));
+            out.write(("""
+                POST / HTTP/1.1
+                Host: localhost
+                Connection: close
+                Transfer-Encoding: chunked
+                
+                """).getBytes(StandardCharsets.ISO_8859_1));
 
             // single chunk
             out.write((Integer.toHexString(chunk.length) + "\r\n").getBytes(StandardCharsets.ISO_8859_1));
@@ -1617,23 +1651,25 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
 
     public static class TestHandler extends EchoHandler
     {
-        boolean _musthavecontent = true;
+        private final boolean _mustHaveContent;
 
         public TestHandler()
         {
+            this(true);
         }
 
         public TestHandler(boolean content)
         {
-            _musthavecontent = false;
+            _mustHaveContent = content;
         }
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
-            return super.handle(new Request.Wrapper(request)
+            super.handle(new Request.Wrapper(request)
             {
                 volatile boolean hasContent = false;
+
                 @Override
                 public Content readContent()
                 {
@@ -1646,7 +1682,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
                 @Override
                 public void succeeded()
                 {
-                    if (_musthavecontent && !hasContent)
+                    if (_mustHaveContent && !hasContent)
                         super.failed(new IllegalStateException("No Test Content"));
                     else
                         super.succeeded();

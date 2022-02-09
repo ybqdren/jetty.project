@@ -13,16 +13,14 @@
 
 package org.eclipse.jetty.core.server.handler.gzip;
 
-import java.nio.ByteBuffer;
-
-import org.eclipse.jetty.core.server.Content;
 import org.eclipse.jetty.core.server.Handler;
+import org.eclipse.jetty.core.server.Incoming;
+import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.util.Callback;
 
 public class GzipHandler extends Handler.Wrapper
 {
@@ -30,61 +28,62 @@ public class GzipHandler extends Handler.Wrapper
     private static final HttpField CONTENT_ENCODING_GZIP = new HttpField(HttpHeader.CONTENT_ENCODING, "gzip");
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void accept(Incoming request) throws Exception
     {
         // TODO more conditions than this
         // TODO handle other encodings
         // TODO more efficient than this
-        if (!request.getHeaders().contains(ACCEPT_GZIP) && !request.getHeaders().contains(CONTENT_ENCODING_GZIP))
-            return super.handle(request, response);
-
-        HttpFields updated = HttpFields.from(request.getHeaders(), f ->
+        HttpFields headers = request.getHttpFields();
+        if (!headers.contains(ACCEPT_GZIP) && !headers.contains(CONTENT_ENCODING_GZIP))
         {
-            if (f.getHeader() != null)
+            // Delegate.
+            super.accept(request);
+        }
+        else
+        {
+            super.accept(new GzipIncoming(request));
+        }
+    }
+
+    private static class GzipIncoming extends Incoming.Wrapper
+    {
+        private boolean _accepted;
+
+        private GzipIncoming(Incoming delegate)
+        {
+            super(delegate);
+        }
+
+        @Override
+        public void accept(Processor processor) throws Exception
+        {
+            _accepted = true;
+            getWrapped().accept((rq, rs) ->
             {
-                // TODO this is too simple
-                if (CONTENT_ENCODING_GZIP.equals(f))
-                    return null;
-                if (f.getHeader().equals(HttpHeader.CONTENT_LENGTH))
-                    return null;
-            }
-            return f;
-        });
-
-        // TODO look up cached or pool inflaters / deflated
-        final Object inflaterAndOrDeflator = request.getChannel().getAttribute("o.e.j.s.h.gzip.cachedCompression");
-
-        return super.handle(
-            new Request.Wrapper(request)
-            {
-                @Override
-                public HttpFields getHeaders()
+                HttpFields newFields = HttpFields.from(rq.getHttpFields(), f ->
                 {
-                    return updated;
-                }
+                    if (f.getHeader() != null)
+                    {
+                        // TODO this is too simple
+                        if (CONTENT_ENCODING_GZIP.equals(f))
+                            return null;
+                        if (f.getHeader().equals(HttpHeader.CONTENT_LENGTH))
+                            return null;
+                    }
+                    return f;
+                });
 
-                @Override
-                public long getContentLength()
-                {
-                    // TODO hide the content length
-                    return -1;
-                }
+                // TODO look up cached or pool inflaters / deflated
 
-                @Override
-                public Content readContent()
-                {
-                    // TODO inflate data
-                    return super.readContent();
-                }
-            },
-            new Response.Wrapper(request, response)
-            {
-                @Override
-                public void write(boolean last, Callback callback, ByteBuffer... content)
-                {
-                    // TODO deflate data
-                    super.write(last, callback, content);
-                }
+                // TODO: override getHttpFields(), getContentLength(), etc.
+                processor.process(new Request.Wrapper(rq), new Response.Wrapper(rq, rs));
             });
+        }
+
+        @Override
+        public boolean isAccepted()
+        {
+            return _accepted;
+        }
     }
 }

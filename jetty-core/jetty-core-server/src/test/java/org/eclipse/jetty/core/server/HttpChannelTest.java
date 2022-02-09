@@ -325,9 +325,8 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request)
             {
-                return false;
             }
         };
         _server.setHandler(handler);
@@ -356,7 +355,7 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request)
             {
                 throw new UnsupportedOperationException("testing");
             }
@@ -390,7 +389,7 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setStatus(200);
                 response.setContentLength(10);
@@ -398,7 +397,6 @@ public class HttpChannelTest
                 {
                     throw new Error("testing");
                 }));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -428,10 +426,9 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.write(true, request, BufferUtil.toBuffer("12345"));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -460,11 +457,10 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setContentLength(10);
                 response.write(true, request, BufferUtil.toBuffer("12345"));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -493,11 +489,10 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setContentLength(10);
                 response.write(false, Callback.from(() -> response.write(true, request)), BufferUtil.toBuffer("12345"));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -525,11 +520,10 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setContentLength(5);
                 response.write(true, request, BufferUtil.toBuffer("1234567890"));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -558,11 +552,10 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setContentLength(5);
                 response.write(false, Callback.from(() -> response.write(true, request, BufferUtil.toBuffer("567890"))), BufferUtil.toBuffer("1234"));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -624,13 +617,12 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setStatus(200);
                 response.setContentType(MimeTypes.Type.TEXT_PLAIN_UTF_8.asString());
                 response.setContentLength(5);
                 response.write(false, Callback.from(() -> response.write(true, request, BufferUtil.toBuffer("12345"))));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -667,14 +659,13 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 response.setStatus(200);
                 response.addHeader(HttpHeader.CONNECTION, HttpHeaderValue.CLOSE.asString());
                 response.setContentType(MimeTypes.Type.TEXT_PLAIN_UTF_8.asString());
                 response.setContentLength(5);
                 response.write(false, Callback.from(() -> response.write(true, request, BufferUtil.toBuffer("12345"))));
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -964,7 +955,7 @@ public class HttpChannelTest
         _server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 LongAdder contentSize = new LongAdder();
                 CountDownLatch latch = new CountDownLatch(1);
@@ -992,8 +983,6 @@ public class HttpChannelTest
                 {
                     request.failed(new IOException());
                 }
-
-                return true;
             }
         });
         _server.start();
@@ -1046,13 +1035,12 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response)
+            protected void handle(Request request, Response response)
             {
                 handling.set(request);
                 request.addErrorListener(t -> {});
                 request.addErrorListener(error::set);
                 request.addErrorListener(t -> {});
-                return true;
             }
         };
         _server.setHandler(handler);
@@ -1121,10 +1109,20 @@ public class HttpChannelTest
         EchoHandler echoHandler = new EchoHandler()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            public void accept(Incoming request) throws Exception
             {
-                request.addCompletionListener(Callback.from(completed::countDown));
-                return super.handle(request, response);
+                super.accept(new Incoming.Wrapper(request)
+                {
+                    @Override
+                    public void accept(Processor processor) throws Exception
+                    {
+                        getWrapped().accept((rq, rs) ->
+                        {
+                            rq.addCompletionListener(Callback.from(completed::countDown));
+                            processor.process(rq, rs);
+                        });
+                    }
+                });
             }
         };
         _server.setHandler(echoHandler);

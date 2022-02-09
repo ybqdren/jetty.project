@@ -18,13 +18,10 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpScheme;
 import org.eclipse.jetty.http.HttpURI;
-import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.HostPort;
 import org.eclipse.jetty.util.MultiMap;
@@ -32,30 +29,20 @@ import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.UrlEncoded;
 
 // TODO lots of javadoc
-public interface Request extends Attributes, Callback, Executor, Content.Provider
+public interface Request extends Incoming, Callback, Executor, Content.Provider
 {
-    String getId();
+    void read(Processor processor);
 
     HttpChannel getChannel();
 
     boolean isComplete();
 
-    ConnectionMetaData getConnectionMetaData();
-
-    String getMethod();
-
-    HttpURI getHttpURI();
-
     String getPath();
-
-    HttpFields getHeaders();
 
     default boolean isSecure()
     {
         return HttpScheme.HTTPS.is(getHttpURI().getScheme());
     }
-
-    long getContentLength();
 
     @Override
     Content readContent();
@@ -63,7 +50,7 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
     @Override
     void demandContent(Runnable onContentAvailable);
 
-    void addErrorListener(Consumer<Throwable> onError);
+    void addErrorListener(java.util.function.Consumer<Throwable> onError);
 
     void addCompletionListener(Callback onComplete);
 
@@ -207,157 +194,125 @@ public interface Request extends Attributes, Callback, Executor, Content.Provide
         return null;
     }
 
-    class Wrapper implements Request
+    class Wrapper extends Incoming.Wrapper implements Request
     {
-        private final Request _wrapped;
-
-        protected Wrapper(Request wrapped)
+        public Wrapper(Request wrapped)
         {
-            _wrapped = wrapped;
-        }
-
-        @Override
-        public void execute(Runnable task)
-        {
-            _wrapped.execute(task);
-        }
-
-        @Override
-        public boolean isComplete()
-        {
-            return _wrapped.isComplete();
-        }
-
-        @Override
-        public String getId()
-        {
-            return _wrapped.getId();
-        }
-
-        @Override
-        public ConnectionMetaData getConnectionMetaData()
-        {
-            return _wrapped.getConnectionMetaData();
-        }
-
-        @Override
-        public HttpChannel getChannel()
-        {
-            return _wrapped.getChannel();
-        }
-
-        @Override
-        public String getMethod()
-        {
-            return _wrapped.getMethod();
-        }
-
-        @Override
-        public HttpURI getHttpURI()
-        {
-            return _wrapped.getHttpURI();
-        }
-
-        @Override
-        public String getPath()
-        {
-            return _wrapped.getPath();
-        }
-
-        @Override
-        public HttpFields getHeaders()
-        {
-            return _wrapped.getHeaders();
-        }
-
-        @Override
-        public long getContentLength()
-        {
-            return _wrapped.getContentLength();
-        }
-
-        @Override
-        public Content readContent()
-        {
-            return _wrapped.readContent();
-        }
-
-        @Override
-        public void demandContent(Runnable onContentAvailable)
-        {
-            _wrapped.demandContent(onContentAvailable);
-        }
-
-        @Override
-        public void addErrorListener(Consumer<Throwable> onError)
-        {
-            _wrapped.addErrorListener(onError);
-        }
-
-        @Override
-        public void addCompletionListener(Callback onComplete)
-        {
-            _wrapped.addCompletionListener(onComplete);
-        }
-
-        @Override
-        public Response getResponse()
-        {
-            return _wrapped.getResponse();
+            super(wrapped);
         }
 
         @Override
         public Request getWrapped()
         {
-            return _wrapped;
+            return (Request)super.getWrapped();
+        }
+
+        @Override
+        public void read(Processor processor)
+        {
+            getWrapped().read(processor);
+        }
+
+        @Override
+        public void execute(Runnable task)
+        {
+            getWrapped().execute(task);
+        }
+
+        @Override
+        public boolean isComplete()
+        {
+            return getWrapped().isComplete();
+        }
+
+        @Override
+        public HttpChannel getChannel()
+        {
+            return getWrapped().getChannel();
+        }
+
+        @Override
+        public String getPath()
+        {
+            return getWrapped().getPath();
+        }
+
+        @Override
+        public Content readContent()
+        {
+            return getWrapped().readContent();
+        }
+
+        @Override
+        public void demandContent(Runnable onContentAvailable)
+        {
+            getWrapped().demandContent(onContentAvailable);
+        }
+
+        @Override
+        public void addErrorListener(java.util.function.Consumer<Throwable> onError)
+        {
+            getWrapped().addErrorListener(onError);
+        }
+
+        @Override
+        public void addCompletionListener(Callback onComplete)
+        {
+            getWrapped().addCompletionListener(onComplete);
+        }
+
+        @Override
+        public Response getResponse()
+        {
+            return getWrapped().getResponse();
         }
 
         @Override
         public void succeeded()
         {
-            _wrapped.succeeded();
+            getWrapped().succeeded();
         }
 
         @Override
         public void failed(Throwable x)
         {
-            _wrapped.failed(x);
+            getWrapped().failed(x);
         }
 
         @Override
         public InvocationType getInvocationType()
         {
-            return _wrapped.getInvocationType();
+            return getWrapped().getInvocationType();
         }
 
         @Override
         public Object removeAttribute(String name)
         {
-            return _wrapped.removeAttribute(name);
+            return getWrapped().removeAttribute(name);
         }
 
         @Override
         public Object setAttribute(String name, Object attribute)
         {
-            return _wrapped.setAttribute(name, attribute);
+            return getWrapped().setAttribute(name, attribute);
         }
 
         @Override
         public Object getAttribute(String name)
         {
-            return _wrapped.getAttribute(name);
+            return getWrapped().getAttribute(name);
         }
 
         @Override
         public Set<String> getAttributeNamesSet()
         {
-            return _wrapped.getAttributeNamesSet();
+            return getWrapped().getAttributeNamesSet();
         }
 
         @Override
         public void clearAttributes()
         {
-            _wrapped.clearAttributes();
+            getWrapped().clearAttributes();
         }
     }
 }

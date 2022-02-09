@@ -16,25 +16,29 @@ package org.eclipse.jetty.core.server.handler;
 import org.eclipse.jetty.core.server.Handler;
 import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.Processor;
-import org.eclipse.jetty.core.server.Request;
-import org.eclipse.jetty.core.server.Response;
+import org.eclipse.jetty.http.HttpHeader;
 
-public class RewriteHandler extends Handler.Wrapper
+public class DelayUntilContentHandler extends Handler.Wrapper
 {
-    // TODO
-//    private final RuleContainer _rules;
-
     @Override
     public void accept(Incoming request) throws Exception
     {
-        super.accept(new RewriteIncoming(request));
+        // If no content or content available, then don't delay dispatch.
+        if (request.getContentLength() <= 0 && !request.getHttpFields().contains(HttpHeader.CONTENT_TYPE))
+        {
+            super.accept(request);
+        }
+        else
+        {
+            super.accept(new DelayUntilContentIncoming(request));
+        }
     }
 
-    private class RewriteIncoming extends Incoming.Wrapper
+    private static class DelayUntilContentIncoming extends Incoming.Wrapper
     {
         private boolean _accepted;
 
-        private RewriteIncoming(Incoming delegate)
+        private DelayUntilContentIncoming(Incoming delegate)
         {
             super(delegate);
         }
@@ -42,16 +46,20 @@ public class RewriteHandler extends Handler.Wrapper
         @Override
         public void accept(Processor processor) throws Exception
         {
+            // The nested Handler is accepting the exchange.
+
+            // Mark as accepted.
             _accepted = true;
 
+            // Accept the original request.
             getWrapped().accept((rq, rs) ->
             {
-                matchAndApply(rq, rs);
-                if (!rq.isComplete())
+                // Implicitly demand for content.
+                rq.read((req, res) ->
                 {
-                    // TODO: probably request needs wrapping for URI and headers.
-                    processor.process(rq, rs);
-                }
+                    // When the content is available, process the nested exchange.
+                    processor.process(req, res);
+                });
             });
         }
 
@@ -59,11 +67,6 @@ public class RewriteHandler extends Handler.Wrapper
         public boolean isAccepted()
         {
             return _accepted;
-        }
-
-        private void matchAndApply(Request request, Response response)
-        {
-            // TODO: use _rules field here.
         }
     }
 }

@@ -43,20 +43,10 @@ public class DumpHandler extends Handler.Abstract
 {
     private static final Logger LOG = LoggerFactory.getLogger(DumpHandler.class);
 
-    private final Blocking.Shared _blocker = new Blocking.Shared(); 
-    String _label = "Dump Handler";
-
-    public DumpHandler()
-    {
-    }
-
-    public DumpHandler(String label)
-    {
-        this._label = label;
-    }
+    private final Blocking.Shared _blocker = new Blocking.Shared();
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    protected void handle(Request request, Response response) throws Exception
     {
         if (LOG.isDebugEnabled())
             LOG.debug("dump {}", request);
@@ -77,7 +67,7 @@ public class DumpHandler extends Handler.Abstract
         {
             response.setStatus(200);
             request.succeeded();
-            return true;
+            return;
         }
 
         Utf8StringBuilder read = null;
@@ -107,7 +97,7 @@ public class DumpHandler extends Handler.Abstract
                 if (content instanceof Content.Error)
                 {
                     request.failed(((Content.Error)content).getCause());
-                    return true;
+                    return;
                 }
 
                 int l = Math.min(buffer.length, Math.min(len, content.remaining()));
@@ -138,23 +128,24 @@ public class DumpHandler extends Handler.Abstract
         {
             response.setStatus(Integer.parseInt(params.getValue("error")));
             request.succeeded();
-            return true;
+            return;
         }
 
         response.setContentType(MimeTypes.Type.TEXT_HTML.asString());
 
         ByteArrayOutputStream buf = new ByteArrayOutputStream(2048);
         Writer writer = new OutputStreamWriter(buf, StandardCharsets.ISO_8859_1);
+        String _label = "Dump Handler";
         writer.write("<html><h1>" + _label + "</h1>\n");
         writer.write("<pre>httpURI=" + httpURI + "</pre><br/>\n");
         writer.write("<pre>path=" + request.getPath() + "</pre><br/>\n");
-        writer.write("<pre>contentType=" + request.getHeaders().get(HttpHeader.CONTENT_TYPE) + "</pre><br/>\n");
+        writer.write("<pre>contentType=" + request.getHttpFields().get(HttpHeader.CONTENT_TYPE) + "</pre><br/>\n");
         writer.write("<pre>servername=" + request.getServerName() + "</pre><br/>\n");
         writer.write("<pre>local=" + request.getLocalAddr() + ":" + request.getLocalPort() + "</pre><br/>\n");
         writer.write("<pre>remote=" + request.getRemoteAddr() + ":" + request.getRemotePort() + "</pre><br/>\n");
         writer.write("<h3>Header:</h3><pre>");
         writer.write(String.format("%4s %s %s\n", request.getMethod(), httpURI.getPathQuery(), request.getConnectionMetaData().getProtocol()));
-        for (HttpField field : request.getHeaders())
+        for (HttpField field : request.getHttpFields())
         {
             String name = field.getName();
             writer.write(name);
@@ -207,6 +198,5 @@ public class DumpHandler extends Handler.Abstract
         }
 
         request.succeeded();
-        return true;
     }
 }

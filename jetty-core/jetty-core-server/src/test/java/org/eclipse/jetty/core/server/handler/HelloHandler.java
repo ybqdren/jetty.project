@@ -17,8 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Request;
-import org.eclipse.jetty.core.server.Response;
+import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.util.BufferUtil;
 import org.slf4j.Logger;
@@ -52,12 +51,14 @@ public class HelloHandler extends Handler.Abstract
     }
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void accept(Incoming request) throws Exception
     {
-        response.setStatus(200);
-        response.setContentType(MimeTypes.Type.TEXT_PLAIN_UTF_8.asString());
-        response.setContentLength(_byteBuffer.remaining());
-        response.write(true, request, _byteBuffer.slice());
-        return true;
+        request.accept((rq, rs) ->
+        {
+            rs.setStatus(200);
+            rs.setContentType(MimeTypes.Type.TEXT_PLAIN_UTF_8.asString());
+            rs.setContentLength(_byteBuffer.remaining());
+            rs.write(true, rq, _byteBuffer.slice());
+        });
     }
 }

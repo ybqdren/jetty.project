@@ -44,7 +44,7 @@ public class ContextRequest extends Request.Wrapper implements Invocable.Task
     {
         try
         {
-            _contextHandler.getHandler().handle(this, new ContextResponse(this, _response));
+            _contextHandler.getHandler().accept(this);
         }
         catch (Throwable t)
         {
@@ -73,7 +73,7 @@ public class ContextRequest extends Request.Wrapper implements Invocable.Task
     @Override
     public void demandContent(Runnable onContentAvailable)
     {
-        super.demandContent(() -> _contextHandler.getContext().run(onContentAvailable));
+        super.demandContent(onContentAvailable);
     }
 
     @Override

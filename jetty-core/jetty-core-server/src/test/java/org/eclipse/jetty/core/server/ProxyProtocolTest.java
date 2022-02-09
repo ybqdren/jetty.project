@@ -62,12 +62,11 @@ public class ProxyProtocolTest
         start(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 SocketAddress addr = request.getConnectionMetaData().getRemoteAddress();
-                if (addr instanceof InetSocketAddress)
+                if (addr instanceof InetSocketAddress iAddr)
                 {
-                    InetSocketAddress iAddr = (InetSocketAddress)addr;
                     if (iAddr.getHostString().equals(remoteAddr) && iAddr.getPort() == remotePort)
                         request.succeeded();
                     else
@@ -77,8 +76,6 @@ public class ProxyProtocolTest
                 {
                     request.failed(new Throwable("no inet address"));
                 }
-
-                return true;
             }
         });
 
@@ -133,7 +130,7 @@ public class ProxyProtocolTest
         start(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 if (validateEndPoint(request) &&
                     remoteAddr.equals(request.getRemoteAddr()) &&
@@ -141,10 +138,9 @@ public class ProxyProtocolTest
                     request.succeeded();
                 else
                     request.failed(new Throwable());
-                return true;
             }
 
-            private boolean validateEndPoint(Request request) 
+            private boolean validateEndPoint(Request request)
             {
                 HttpConnection con = (HttpConnection)request.getAttribute(HttpConnection.class.getName());
                 EndPoint endPoint = con.getEndPoint();
@@ -232,10 +228,9 @@ public class ProxyProtocolTest
         start(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 request.succeeded();
-                return true;
             }
         });
 

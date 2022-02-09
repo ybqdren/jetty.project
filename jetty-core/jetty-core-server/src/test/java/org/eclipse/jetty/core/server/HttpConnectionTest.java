@@ -222,19 +222,19 @@ public class HttpConnectionTest
     public static Stream<int[]> contentLengths()
     {
         return Stream.of(
-            new int[] {0, 8},
-            new int[] {8, 0},
-            new int[] {8, 8},
-            new int[] {0, 8, 0},
-            new int[] {1, 2, 3, 4, 5, 6, 7, 8},
-            new int[] {8, 2, 1},
-            new int[] {0, 0},
-            new int[] {8, 0, 8},
-            new int[] {-1, 8},
-            new int[] {8, -1},
-            new int[] {-1, 8, -1},
-            new int[] {-1, -1},
-            new int[] {8, -1, 8}
+            new int[]{0, 8},
+            new int[]{8, 0},
+            new int[]{8, 8},
+            new int[]{0, 8, 0},
+            new int[]{1, 2, 3, 4, 5, 6, 7, 8},
+            new int[]{8, 2, 1},
+            new int[]{0, 0},
+            new int[]{8, 0, 8},
+            new int[]{-1, 8},
+            new int[]{8, -1},
+            new int[]{-1, 8, -1},
+            new int[]{-1, -1},
+            new int[]{8, -1, 8}
         );
     }
 
@@ -250,7 +250,9 @@ public class HttpConnectionTest
         request.append("POST / HTTP/1.1\r\n");
         request.append("Host: local\r\n");
         for (int i : clen)
+        {
             request.append("Content-Length: ").append(i).append("\r\n");
+        }
         request.append("Content-Type: text/plain\r\n");
         request.append("Connection: close\r\n");
         request.append("\r\n");
@@ -859,11 +861,10 @@ public class HttpConnectionTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 response.setStatus(200);
                 response.write(false, request);
-                return true;
             }
         });
         server.start();
@@ -1133,7 +1134,7 @@ public class HttpConnectionTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 response.setHeader(HttpHeader.CONTENT_TYPE.toString(), MimeTypes.Type.TEXT_HTML.toString());
                 response.setHeader("LongStr", longstr);
@@ -1145,7 +1146,6 @@ public class HttpConnectionTest
                         request.failed(t);
                     }),
                     BufferUtil.toBuffer("<html><h1>FOO</h1></html>"));
-                return true;
             }
         });
         server.start();
@@ -1184,7 +1184,7 @@ public class HttpConnectionTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 response.setHeader(HttpHeader.CONTENT_TYPE.toString(), MimeTypes.Type.TEXT_HTML.toString());
                 response.setHeader("LongStr", longstr);
@@ -1196,7 +1196,6 @@ public class HttpConnectionTest
                         request.failed(t);
                     }),
                     BufferUtil.toBuffer("<html><h1>FOO</h1></html>"));
-                return true;
             }
         });
         server.start();
@@ -1298,7 +1297,7 @@ public class HttpConnectionTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response)
             {
                 while (true)
                 {
@@ -1330,7 +1329,6 @@ public class HttpConnectionTest
                 assertThat(bytesIn, greaterThan(dataLength));
 
                 request.succeeded();
-                return true;
             }
         });
         server.start();

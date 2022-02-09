@@ -322,11 +322,10 @@ public class SSLSelectChannelConnectorLoadTest
     private static class TestHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
             ByteBuffer input = Content.readBytes(request);
             response.write(true, request, BufferUtil.toBuffer(String.valueOf(input.remaining()).getBytes()));
-            return true;
         }
     }
 }

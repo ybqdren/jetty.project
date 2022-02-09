@@ -458,7 +458,7 @@ public class ForwardedRequestCustomizer implements Customizer
     @Override
     public Request customize(Connector connector, HttpConfiguration config, Request request)
     {
-        HttpFields httpFields = request.getHeaders();
+        HttpFields httpFields = request.getHttpFields();
 
         // Do a single pass through the header fields as it is a more efficient single iteration.
         Forwarded forwarded = new Forwarded(request, config);
@@ -588,8 +588,8 @@ public class ForwardedRequestCustomizer implements Customizer
         };
 
         HttpFields headers = authority == null
-            ? request.getHeaders()
-            : HttpFields.build(request.getHeaders(), authority);
+            ? request.getHttpFields()
+            : HttpFields.build(request.getHttpFields(), authority);
 
         return new Request.Wrapper(request)
         {
@@ -600,7 +600,7 @@ public class ForwardedRequestCustomizer implements Customizer
             }
 
             @Override
-            public HttpFields getHeaders()
+            public HttpFields getHttpFields()
             {
                 return headers;
             }

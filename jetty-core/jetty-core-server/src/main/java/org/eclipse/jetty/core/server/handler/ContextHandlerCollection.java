@@ -24,8 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Request;
-import org.eclipse.jetty.core.server.Response;
+import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.util.ArrayUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Index;
@@ -116,63 +115,65 @@ public class ContextHandlerCollection extends Handler.Collection
             entry.setValue(sorted);
         }
 
-        Mapping mapping = new Mapping(handlers, path2Branches);
+        Mappings mappings = new Mappings(handlers, path2Branches);
         if (LOG.isDebugEnabled())
-            LOG.debug("{}", mapping._pathBranches);
-        return mapping;
+            LOG.debug("{}", mappings._pathBranches);
+        return mappings;
     }
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void accept(Incoming request) throws Exception
     {
         List<Handler> handlers = getHandlers();
 
-        // Handle no contexts
+        // Handle no contexts.
         if (handlers == null || handlers.isEmpty())
-            return false;
+            return;
 
-        if (!(handlers instanceof Mapping))
-            return super.handle(request, response);
+        if (!(handlers instanceof Mappings))
+        {
+            super.accept(request);
+            return;
+        }
 
-        Mapping mapping = (Mapping)getHandlers();
-
-        // handle only a single context.
+        // Handle only a single context.
         if (handlers.size() == 1)
-            return handlers.get(0).handle(request, response);
+        {
+            handlers.get(0).accept(request);
+            return;
+        }
 
-        // handle many contexts
-        Index<Map.Entry<String, Branch[]>> pathBranches = mapping._pathBranches;
+        // Handle many contexts.
+        Mappings mappings = (Mappings)getHandlers();
+        Index<Map.Entry<String, Branch[]>> pathBranches = mappings._pathBranches;
         if (pathBranches == null)
-            return false;
+            return;
 
-        String path = request.getPath();
+        String path = request.getHttpURI().getPath();
         if (!path.startsWith("/"))
-            return super.handle(request, response);
+            return;
 
         int limit = path.length() - 1;
-
         while (limit >= 0)
         {
             // Get best match
             Map.Entry<String, Branch[]> branches = pathBranches.getBest(path, 1, limit);
-
             if (branches == null)
-                break;
+                return;
 
             int l = branches.getKey().length();
             if (l == 1 || path.length() == l || path.charAt(l) == '/')
             {
                 for (Branch branch : branches.getValue())
                 {
-                    if (branch.getHandler().handle(request, response))
-                        return true;
+                    branch.getHandler().accept(request);
+                    if (request.isAccepted())
+                        return;
                 }
             }
 
             limit = l - 2;
         }
-
-        return false;
     }
 
     /**
@@ -299,12 +300,12 @@ public class ContextHandlerCollection extends Handler.Collection
         }
     }
 
-    private static class Mapping extends ArrayList<Handler>
+    private static class Mappings extends ArrayList<Handler>
     {
         private final Map<ContextHandler, Handler> _contextBranches;
         private final Index<Map.Entry<String, Branch[]>> _pathBranches;
 
-        private Mapping(List<Handler> handlers, Map<String, Branch[]> path2Branches)
+        private Mappings(List<Handler> handlers, Map<String, Branch[]> path2Branches)
         {
             super(handlers);
             _pathBranches = new Index.Builder<Map.Entry<String, Branch[]>>()

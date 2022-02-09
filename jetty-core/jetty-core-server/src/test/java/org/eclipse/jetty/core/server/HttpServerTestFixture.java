@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.util.Blocking;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.MultiMap;
@@ -26,14 +27,10 @@ import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // @checkstyle-disable-check : AvoidEscapedUnicodeCharactersCheck
 public class HttpServerTestFixture
 {
-    private static final Logger LOG = LoggerFactory.getLogger(HttpServerTestFixture.class);
-
     // Useful constants
     protected static final long PAUSE = 10L;
     protected static final int LOOPS = 50;
@@ -94,15 +91,14 @@ public class HttpServerTestFixture
     protected static class OptionsHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response)
         {
-            if (request.getMethod().equals("OPTIONS"))
+            if (HttpMethod.OPTIONS.is(request.getMethod()))
                 response.setStatus(200);
             else
                 response.setStatus(500);
             response.setHeader("Allow", "GET");
             request.succeeded();
-            return true;
         }
     }
 
@@ -111,11 +107,6 @@ public class HttpServerTestFixture
         private final int code;
         private final String message;
 
-        public SendErrorHandler()
-        {
-            this(500, null);
-        }
-
         public SendErrorHandler(int code, String message)
         {
             this.code = code;
@@ -123,16 +114,15 @@ public class HttpServerTestFixture
         }
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response)
         {
             response.writeError(code, message, request);
-            return true;
         }
     }
 
     protected static class ReadExactHandler extends Handler.Abstract
     {
-        private int expected;
+        private final int expected;
 
         public ReadExactHandler()
         {
@@ -145,7 +135,7 @@ public class HttpServerTestFixture
         }
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
             long len = expected < 0 ? request.getContentLength() : expected;
             if (len < 0)
@@ -180,29 +170,26 @@ public class HttpServerTestFixture
             String reply = "Read " + offset + "\r\n";
             response.setContentLength(reply.length());
             response.write(true, request, BufferUtil.toBuffer(reply, StandardCharsets.ISO_8859_1));
-
-            return true;
         }
     }
 
     protected static class ReadHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response)
         {
             response.setStatus(200);
             Content.readUtf8String(request, Promise.from(
                 s -> response.write(true, request, "read %d%n" + s.length()),
                 t -> response.write(true, request, String.format("caught %s%n", t))
             ));
-            return true;
         }
     }
 
     protected static class DataHandler extends Handler.Abstract
     {
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        protected void handle(Request request, Response response) throws Exception
         {
             response.setStatus(200);
 
@@ -252,7 +239,6 @@ public class HttpServerTestFixture
                 }
             }
             request.succeeded();
-            return true;
         }
     }
 }

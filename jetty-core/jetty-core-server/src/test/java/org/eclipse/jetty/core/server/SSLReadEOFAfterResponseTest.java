@@ -54,7 +54,7 @@ public class SSLReadEOFAfterResponseTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response) throws Exception
+            protected void handle(Request request, Response response) throws Exception
             {
                 // First: read the whole content exactly
                 int length = bytes.length;
@@ -94,7 +94,6 @@ public class SSLReadEOFAfterResponseTest
                 if (!content.isLast())
                     throw new IllegalStateException();
                 request.succeeded();
-                return true;
             }
         });
         server.start();

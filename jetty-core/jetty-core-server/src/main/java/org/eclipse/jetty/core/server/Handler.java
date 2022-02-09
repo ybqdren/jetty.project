@@ -33,13 +33,13 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Incoming requests to the Server (itself a Handler) are passed to one or more Handlers
  * until the request is handled and a response is produced.  Handlers are asynchronous,
- * so handling may happen during or after a call to {@link #handle(Request, Response)}.
- * A handler indicates that returns true from the {@link #handle(Request, Response)} method
+ * so handling may happen during or after a call to {@link #accept(Incoming)}.
+ * A handler indicates that returns true from the {@link #accept(Incoming)} method
  * is indicated that it (or one of it's contained handlers) has undertaken to produce the
  * response and ultimately call {@link Request#succeeded()} or {@link Request#failed(Throwable)}
  * to indicate the end of the request handling.
  * <p>
- * A call to {@link #handle(Request, Response)} may:
+ * A call to {@link #accept(Incoming)} may:
  * <ul>
                         * <li>return false to indicate that it will not handle the request</li>
  * <li>Completely generate the HTTP Response and call {@link Request#succeeded()}</li>
@@ -52,16 +52,12 @@ import org.slf4j.LoggerFactory;
 @ManagedObject("Handler")
 public interface Handler extends LifeCycle, Destroyable
 {
-
     /**
      * Handle an HTTP request and produce a response.
      * @param request The immutable request, which is also a {@link Callback} used to signal success or failure.
-     * @param response The muttable response
-     * @return True if this handle has or will handle the request. This is a commitment to ultimately call
-     *         either {@link Request#succeeded()} or {@link Request#failed(Throwable)}.
      * @throws Exception Thrown if there is a problem handling.
      */
-    boolean handle(Request request, Response response) throws Exception;
+    void accept(Incoming request) throws Exception;
 
     @ManagedAttribute(value = "the jetty server for this handler", readonly = true)
     Server getServer();
@@ -119,7 +115,19 @@ public interface Handler extends LifeCycle, Destroyable
     abstract class Abstract extends ContainerLifeCycle implements Handler
     {
         private static final Logger LOG = LoggerFactory.getLogger(Abstract.class);
+
+        private final Processor _processor = this::handle;
         private Server _server;
+
+        @Override
+        public void accept(Incoming request) throws Exception
+        {
+            request.accept(_processor);
+        }
+
+        protected void handle(Request request, Response response) throws Exception
+        {
+        }
 
         @Override
         public Server getServer()
@@ -281,10 +289,11 @@ public interface Handler extends LifeCycle, Destroyable
         }
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void accept(Incoming request) throws Exception
         {
             Handler next = getHandler();
-            return next != null && next.handle(request, response);
+            if (next != null)
+                next.accept(request);
         }
     }
 
@@ -312,7 +321,7 @@ public interface Handler extends LifeCycle, Destroyable
 
     /**
      * A Handler Container that wraps a list of other Handlers.
-     * By default, each handler is called in turn until one returns true from {@link Handler#handle(Request, Response)}.
+     * By default, each handler is called in turn until one returns true from {@link Handler#accept(Incoming)}.
      */
     class Collection extends AbstractContainer
     {
@@ -330,14 +339,14 @@ public interface Handler extends LifeCycle, Destroyable
         }
 
         @Override
-        public boolean handle(Request request, Response response) throws Exception
+        public void accept(Incoming request) throws Exception
         {
             for (Handler h : _handlers)
             {
-                if (h.handle(request, response))
-                    return true;
+                h.accept(request);
+                if (request.isAccepted())
+                    return;
             }
-            return false;
         }
 
         @Override

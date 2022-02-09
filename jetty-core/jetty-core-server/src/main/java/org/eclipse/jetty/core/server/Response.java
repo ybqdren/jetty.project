@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.eclipse.jetty.core.server.handler.ContextHandler;
 import org.eclipse.jetty.core.server.handler.ContextRequest;
-import org.eclipse.jetty.core.server.handler.ErrorHandler;
+import org.eclipse.jetty.core.server.handler.ErrorProcessor;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -132,14 +132,15 @@ public interface Response
         setStatus(status);
 
         ContextHandler.Context context = getRequest().get(ContextRequest.class, ContextRequest::getContext);
-        Handler errorHandler = ErrorHandler.getErrorHandler(getRequest().getChannel().getServer(), context == null ? null : context.getContextHandler());
+        Processor errorProcessor = ErrorProcessor.getErrorProcessor(getRequest().getChannel().getServer(), context == null ? null : context.getContextHandler());
 
-        if (errorHandler != null)
+        if (errorProcessor != null)
         {
-            Request request = new ErrorHandler.ErrorRequest(getRequest(), status, message, cause, callback);
+            Request request = new ErrorProcessor.ErrorRequest(getRequest(), status, message, cause, callback);
             try
             {
-                if (errorHandler.handle(request, this))
+                errorProcessor.process(request, this);
+                if (request.isComplete())
                     return;
             }
             catch (Exception e)
@@ -150,7 +151,7 @@ public interface Response
         }
 
         // fall back to very empty error page
-        getHeaders().put(ErrorHandler.ERROR_CACHE_CONTROL);
+        getHeaders().put(ErrorProcessor.ERROR_CACHE_CONTROL);
         write(true, callback);
     }
 
