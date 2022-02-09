@@ -357,18 +357,25 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
 
         // TODO check availability and maybe return a 503
 
-        request.accept((rq, rs) ->
+        super.accept(new Incoming.Wrapper(request)
         {
-            ContextRequest scoped = wrap(rq, rs, pathInContext);
-            if (scoped == null)
-                return; // TODO 404? 500? Error dispatch ???
-            _context.call(scoped);
+            @Override
+            public void accept(Processor processor) throws Exception
+            {
+                getWrapped().accept((rq, rs) ->
+                {
+                    ContextRequest scoped = wrap(rq, rs, pathInContext, processor);
+                    if (scoped == null)
+                        return; // TODO 404? 500? Error dispatch ???
+                    _context.call(scoped);
+                });
+            }
         });
     }
 
-    protected ContextRequest wrap(Request request, Response response, String pathInContext)
+    protected ContextRequest wrap(Request request, Response response, String pathInContext, Processor processor)
     {
-        return new ContextRequest(this, request, response, pathInContext);
+        return new ContextRequest(this, request, response, pathInContext, processor);
     }
 
     @Override

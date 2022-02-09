@@ -112,14 +112,14 @@ public class Server extends Handler.Wrapper implements Attributes
         setServer(this);
     }
 
-    void process(Request request)
+    void process(HttpChannel.ChannelRequest request)
     {
         if (!isStarted())
             return;
 
         try
         {
-            super.accept(new ServerIncoming(request));
+            accept(new ServerIncoming(request));
             if (!request.isAccepted())
                 request.getResponse().writeError(404, request);
         }

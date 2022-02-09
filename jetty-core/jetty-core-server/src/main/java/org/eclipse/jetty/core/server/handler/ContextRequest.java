@@ -15,6 +15,7 @@ package org.eclipse.jetty.core.server.handler;
 
 import java.util.function.Consumer;
 
+import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
 import org.eclipse.jetty.http.BadMessageException;
@@ -30,13 +31,15 @@ public class ContextRequest extends Request.Wrapper implements Invocable.Task
     private final Response _response;
     private final String _pathInContext;
     private final ContextHandler _contextHandler;
+    private final Processor _processor;
 
-    protected ContextRequest(ContextHandler contextHandler, Request wrapped, Response response, String pathInContext)
+    protected ContextRequest(ContextHandler contextHandler, Request wrapped, Response response, String pathInContext, Processor processor)
     {
         super(wrapped);
         _response = response;
         _pathInContext = pathInContext;
         _contextHandler = contextHandler;
+        _processor = processor;
     }
 
     @Override
@@ -44,7 +47,7 @@ public class ContextRequest extends Request.Wrapper implements Invocable.Task
     {
         try
         {
-            _contextHandler.getHandler().accept(this);
+            _processor.process(this, _response);
         }
         catch (Throwable t)
         {

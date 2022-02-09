@@ -369,7 +369,7 @@ public class HttpChannel extends Attributes.Lazy
         }
     }
 
-    private class ChannelRequest implements Request
+    class ChannelRequest implements Incoming, Request
     {
         final MetaData.Request _metaData;
         final String _id;

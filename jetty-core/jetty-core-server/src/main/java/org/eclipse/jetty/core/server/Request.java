@@ -29,7 +29,7 @@ import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.UrlEncoded;
 
 // TODO lots of javadoc
-public interface Request extends Incoming, Callback, Executor, Content.Provider
+public interface Request extends IncomingRequest, Callback, Executor, Content.Provider
 {
     void read(Processor processor);
 
@@ -194,7 +194,7 @@ public interface Request extends Incoming, Callback, Executor, Content.Provider
         return null;
     }
 
-    class Wrapper extends Incoming.Wrapper implements Request
+    class Wrapper extends IncomingRequest.Wrapper implements Request
     {
         public Wrapper(Request wrapped)
         {
