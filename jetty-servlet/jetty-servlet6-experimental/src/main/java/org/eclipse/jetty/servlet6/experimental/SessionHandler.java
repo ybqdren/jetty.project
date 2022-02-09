@@ -19,7 +19,6 @@ import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,16 +47,16 @@ public class SessionHandler extends Handler.Wrapper
     }
 
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
         ServletScopedRequest.MutableHttpServletRequest servletRequest =
             request.get(ServletScopedRequest.class, ServletScopedRequest::getMutableHttpServletRequest);
 
         if (servletRequest == null)
-            return false;
+            return;
 
         LOG.warn("Session are not implemented.");
-        return super.handle(request, response);
+        super.handle(request);
     }
 
     public void setMaxInactiveInterval(int tmp)

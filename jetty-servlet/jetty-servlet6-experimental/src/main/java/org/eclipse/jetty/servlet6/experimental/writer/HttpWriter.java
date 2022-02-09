@@ -45,7 +45,7 @@ public abstract class HttpWriter extends Writer
 
     public void complete()
     {
-        _out.getResponse().getRequest().succeeded();
+        _out.getResponse().getCallback().succeeded();
     }
 
     @Override

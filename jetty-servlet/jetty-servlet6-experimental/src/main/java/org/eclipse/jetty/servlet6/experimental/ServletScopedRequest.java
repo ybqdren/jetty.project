@@ -69,6 +69,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final MutableHttpServletRequest _httpServletRequest;
     final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
+    final Response _response;
     final HttpOutput _httpOutput;
     final HttpInput _httpInput;
     boolean _newContext;
@@ -88,8 +89,15 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _httpServletRequest = new MutableHttpServletRequest();
         _httpServletResponse = new MutableHttpServletResponse(response);
         _mappedServlet = mappedServlet;
+        _response = response;
         _httpOutput = new HttpOutput(response);
         _httpInput = new HttpInput(this);
+    }
+
+    @Override
+    public Response getResponse()
+    {
+        return _response;
     }
 
     public void errorClose()
@@ -677,7 +685,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public DispatcherType getDispatcherType()
         {
-            return null;
+            return DispatcherType.REQUEST;
         }
     }
 

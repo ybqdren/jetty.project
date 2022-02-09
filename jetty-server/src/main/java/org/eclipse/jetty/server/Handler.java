@@ -336,8 +336,9 @@ public interface Handler extends LifeCycle, Destroyable
         {
             for (Handler h : _handlers)
             {
-                if (!request.isAccepted())
-                    h.handle(request);
+                if (request.isAccepted())
+                    break;
+                h.handle(request);
             }
         }
 

@@ -1098,7 +1098,7 @@ public class HttpChannelState
 
     protected void scheduleDispatch()
     {
-        _channel.getMetaConnection().getConnector().getExecutor().execute(_servletRequestState);
+        _channel.getConnectionMetaData().getConnector().getExecutor().execute(_servletRequestState);
     }
 
     protected void cancelTimeout()

@@ -20,12 +20,14 @@ import org.eclipse.jetty.server.Response;
 public class DeferredContentHandler extends Handler.Wrapper
 {
     @Override
-    public boolean handle(Request request, Response response) throws Exception
+    public void handle(Request request) throws Exception
     {
         // If no content or content available, then don't delay dispatch
         if (request.getContentLength() <= 0)
-            return super.handle(request, response);
-
+        {
+            super.handle(request);
+            return;
+        }
         // TODO if the content is a form, asynchronously read the a;; parameters before handling
         //      if the content is multi-part, asynchronous read all parts before handling
 
@@ -34,14 +36,25 @@ public class DeferredContentHandler extends Handler.Wrapper
         {
             try
             {
-                if (!super.handle(request, response))
-                    request.failed(new IllegalStateException());
+                super.handle(request);
+
+                // The request must be accepted.
+                if (!request.isAccepted())
+                {
+                    Response response = request.accept();
+                    if (response != null)
+                        response.getCallback().failed(new IllegalStateException());
+                }
+
+                // TODO: if request is not accepted should we forward it through the
             }
             catch (Exception e)
             {
-                request.failed(e);
+                Response response = request.accept();
+                if (response == null)
+                    response = request.getResponse();
+                response.getCallback().failed(e);
             }
         });
-        return true;
     }
 }

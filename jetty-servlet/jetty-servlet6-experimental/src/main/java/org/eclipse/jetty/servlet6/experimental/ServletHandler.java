@@ -50,11 +50,11 @@ import org.eclipse.jetty.http.pathmap.PathSpec;
 import org.eclipse.jetty.http.pathmap.ServletPathSpec;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.ArrayUtil;
 import org.eclipse.jetty.util.MultiException;
 import org.eclipse.jetty.util.MultiMap;
+import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.DumpableCollection;
@@ -418,15 +418,11 @@ public class ServletHandler extends Handler.Wrapper
     }
 
     @Override
-    public boolean handle(Request request, Response response)
+    public void handle(Request request)
     {
+        // We will always have a ServletScopedRequest and MappedServlet otherwise we will not reach ServletHandler.
         ServletScopedRequest servletRequest = request.as(ServletScopedRequest.class);
-        ServletHandler.MappedServlet mappedServlet = servletRequest.getMappedServlet();
-        if (mappedServlet == null)
-            return false; // TODO or 404 or ISE?
-
         servletRequest.getServletRequestState().handle();
-        return true;
     }
 
     /**
@@ -451,10 +447,9 @@ public class ServletHandler extends Handler.Wrapper
         return _servletNameMap.get(target);
     }
 
-    protected FilterChain getFilterChain(Request request, String pathInContext, ServletHolder servletHolder)
+    protected FilterChain getFilterChain(HttpServletRequest request, String pathInContext, ServletHolder servletHolder)
     {
-        ServletScopedRequest servletRequest = request.as(ServletScopedRequest.class);
-        DispatcherType dispatcherType = servletRequest.getHttpServletRequest().getDispatcherType();
+        DispatcherType dispatcherType = request.getDispatcherType();
         Objects.requireNonNull(servletHolder);
         String key = pathInContext == null ? servletHolder.getName() : pathInContext;
         int dispatch = FilterMapping.dispatch(dispatcherType);
@@ -1463,9 +1458,18 @@ public class ServletHandler extends Handler.Wrapper
             return null;
         }
 
-        public void handle(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
+        public void handle(ServletHandler servletHandler, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
         {
-            _servletHolder.handle(request, response);
+            String pathInContext = URIUtil.addPaths(request.getContextPath(), request.getServletPath());
+            FilterChain filterChain = servletHandler.getFilterChain(request, pathInContext, _servletHolder);
+            if (LOG.isDebugEnabled())
+                LOG.debug("chain={}", filterChain);
+
+            _servletHolder.prepare(request, response);
+            if (filterChain != null)
+                filterChain.doFilter(request, response);
+            else
+                _servletHolder.handle(request, response);
         }
 
         @Override

@@ -172,8 +172,10 @@ public class ServletRequestState implements Runnable
 
                     case DISPATCH:
                         // TODO: filters and customizers.
+
+                        ServletHandler servletHandler = _servletContextContext.getContext().getServletContextHandler().getServletHandler();
                         ServletHandler.MappedServlet mappedServlet = _servletScopedRequest._mappedServlet;
-                        mappedServlet.handle(_servletScopedRequest.getHttpServletRequest(), _servletScopedRequest.getHttpServletResponse());
+                        mappedServlet.handle(servletHandler, _servletScopedRequest.getHttpServletRequest(), _servletScopedRequest.getHttpServletResponse());
                         break;
 
                     case READ_CALLBACK:
@@ -304,7 +306,7 @@ public class ServletRequestState implements Runnable
 
     public ContextHandler getContextHandler()
     {
-        return null;
+        return _servletContextContext.getContextHandler();
     }
 
     public long getTimeout()

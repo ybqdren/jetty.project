@@ -67,7 +67,6 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
-import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.DecoratedObjectFactory;
 import org.eclipse.jetty.util.DeprecationWarning;
 import org.eclipse.jetty.util.Loader;
@@ -1673,7 +1672,7 @@ public class ServletContextHandler extends TempContextHandler
 
         public Set<Map.Entry<String, Object>> getAttributeEntrySet()
         {
-            return null;
+            return servletContext.getAttributeEntrySet();
         }
 
         public ServletContextContext getServletContext()
@@ -1683,7 +1682,7 @@ public class ServletContextHandler extends TempContextHandler
 
         public ServletContextHandler getServletContextHandler()
         {
-            return null;
+            return ServletContextHandler.this;
         }
 
         public <T> T createInstance(BaseHolder<T> holder) throws ServletException

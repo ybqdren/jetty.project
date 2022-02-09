@@ -58,7 +58,7 @@ public class HttpOutput extends ServletOutputStream
                     catch (Throwable t)
                     {
                         _writeListener.onError(t);
-                        _response.getRequest().failed(t);
+                        _response.getCallback().failed(t);
                     }
                 }
 
@@ -82,7 +82,7 @@ public class HttpOutput extends ServletOutputStream
                     {
                         // TODO: Do we need to fail request if the callback was already failed?
                         x.addSuppressed(t);
-                        _response.getRequest().failed(x);
+                        _response.getCallback().failed(x);
                     }
                 }
 
@@ -154,7 +154,7 @@ public class HttpOutput extends ServletOutputStream
                 catch (Throwable t)
                 {
                     _writeListener.onError(t);
-                    _response.getRequest().failed(t);
+                    _response.getCallback().failed(t);
                 }
             }
         }

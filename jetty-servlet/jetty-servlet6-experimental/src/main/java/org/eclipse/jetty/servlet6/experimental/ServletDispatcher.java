@@ -50,7 +50,7 @@ public class ServletDispatcher implements RequestDispatcher
         HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpServletResponse httpResponse = (HttpServletResponse)response;
 
-        _mappedServlet.handle(new ForwardRequest(httpRequest), httpResponse);
+        _mappedServlet.handle(_servletHandler, new ForwardRequest(httpRequest), httpResponse);
 
         if (!httpRequest.isAsyncStarted())
         {
@@ -72,7 +72,7 @@ public class ServletDispatcher implements RequestDispatcher
         HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpServletResponse httpResponse = (HttpServletResponse)response;
 
-        _mappedServlet.handle(new IncludeRequest(httpRequest), new IncludeResponse(httpResponse));
+        _mappedServlet.handle(_servletHandler, new IncludeRequest(httpRequest), new IncludeResponse(httpResponse));
     }
 
     private class ForwardRequest extends HttpServletRequestWrapper
