@@ -20,69 +20,32 @@ package org.eclipse.jetty.plus.webapp;
 
 import java.net.URL;
 import java.util.Enumeration;
+import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.Reference;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
+
 public class EnvConfigurationTest
 {
-    @AfterEach
-    public void resetSystemProps()
+    @BeforeEach
+    public void setJettyJndiFilterProps()
     {
-        System.setProperty("jdk.jndi.object.factoriesFilter", "");
+        System.setProperty("jdk.jndi.object.factoriesFilter", "org.eclipse.jetty.jndi.**");
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"!*", ""})
-    public void testEnvConfiguration(String factoriesFilterValue) throws Exception
+    @Test
+    public void testEnvConfiguration() throws Exception
     {
-        System.out.println("jdk.jndi.object.factoriesFilter(initial) = " + System.getProperty("jdk.jndi.object.factoriesFilter"));
-        System.setProperty("jdk.jndi.object.factoriesFilter", factoriesFilterValue);
-
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        whereIsThisComingFrom(cl, javax.naming.Reference.class);
-        whereIsThisComingFrom(cl, javax.naming.Context.class);
-
         InitialContext ic = new InitialContext();
         Object res = ic.lookup("java:comp");
-        System.out.printf("res (%s) = [%s]%n", res.getClass(), res);
-        if (res instanceof Reference) {
-            Reference ref = (Reference) res;
-            System.out.printf("ref.className = %s%n", ref.getClassName());
-            System.out.printf("ref.factoryClassLocation = %s%n", ref.getFactoryClassLocation());
-            System.out.printf("ref.factoryClassName = %s%n", ref.getFactoryClassName());
-        }
-    }
-
-    public static void whereIsThisComingFrom(ClassLoader cl, Class<?> clazz)
-    {
-        String classAsResource = clazz.getName().replace('.', '/') + ".class";
-        whereIsThisComingFrom(cl, classAsResource);
-    }
-
-    public static void whereIsThisComingFrom(ClassLoader cl, String resourceName)
-    {
-        try
-        {
-            Enumeration<URL> urls = cl.getResources(resourceName);
-            System.out.printf("Looking for: %s%n", resourceName);
-            int count = 0;
-            while (urls.hasMoreElements())
-            {
-                URL url = urls.nextElement();
-                System.out.printf(" - Found: %s%n", url.toExternalForm());
-                count++;
-            }
-            System.out.printf(" Found %d times%n", count);
-        }
-        catch (Throwable t)
-        {
-            System.out.printf("Whoops: cannot locate: %s%n", resourceName);
-            t.printStackTrace();
-        }
+        assertThat(res, instanceOf(javax.naming.Context.class));
     }
 }
