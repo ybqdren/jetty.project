@@ -6,7 +6,7 @@ import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 import org.eclipse.jetty.server.Content;
 
-public class HttpInput extends ServletInputStream
+public class HttpInput extends ServletInputStream implements Runnable
 {
     private final ServletScopedRequest _request;
     private Content _content;
@@ -15,6 +15,12 @@ public class HttpInput extends ServletInputStream
     public HttpInput(ServletScopedRequest request)
     {
         _request = request;
+    }
+
+    @Override
+    public void run()
+    {
+
     }
 
     @Override

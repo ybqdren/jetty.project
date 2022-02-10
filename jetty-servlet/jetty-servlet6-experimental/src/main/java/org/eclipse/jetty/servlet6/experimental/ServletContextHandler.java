@@ -399,16 +399,16 @@ public class ServletContextHandler extends TempContextHandler
         //      the servlet request is still a heavy weight object with state, input streams, cookie caches etc. so it is
         //      probably worth while.
         HttpChannel channel = request.getHttpChannel();
-        ServletRequestState servletRequestState = (ServletRequestState)channel.getAttribute(ServletRequestState.class.getName());
-        if (servletRequestState == null)
+        ServletChannel servletChannel = (ServletChannel)channel.getAttribute(ServletChannel.class.getName());
+        if (servletChannel == null)
         {
-            servletRequestState = new ServletRequestState(_servletContextContext);
+            servletChannel = new ServletChannel(_servletContextContext);
             if (channel.getConnectionMetaData().isPersistent())
-                channel.setAttribute(ServletRequestState.class.getName(), servletRequestState);
+                channel.setAttribute(ServletChannel.class.getName(), servletChannel);
         }
 
-        ServletScopedRequest servletScopedRequest = new ServletScopedRequest(servletRequestState, request, response, pathInContext, mappedServlet);
-        servletRequestState.setServletScopedRequest(servletScopedRequest);
+        ServletScopedRequest servletScopedRequest = new ServletScopedRequest(servletChannel, request, response, pathInContext, mappedServlet);
+        servletChannel.setServletScopedRequest(servletScopedRequest);
         return servletScopedRequest;
     }
 

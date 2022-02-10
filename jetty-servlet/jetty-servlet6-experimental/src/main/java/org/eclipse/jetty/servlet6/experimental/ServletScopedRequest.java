@@ -65,11 +65,11 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
 {
     public static final String __MULTIPART_CONFIG_ELEMENT = "org.eclipse.jetty.multipartConfig";
 
-    final ServletRequestState _servletRequestState;
+    final ServletChannel _servletRequestState;
     final MutableHttpServletRequest _httpServletRequest;
     final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
-    final Response _response;
+    final ServletScopedResponse _response;
     final HttpOutput _httpOutput;
     final HttpInput _httpInput;
     boolean _newContext;
@@ -78,26 +78,36 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
 
     protected ServletScopedRequest(
-        ServletRequestState servletRequestState,
+        ServletChannel servletChannel,
         Request request,
         Response response,
         String pathInContext,
         ServletHandler.MappedServlet mappedServlet)
     {
-        super(servletRequestState.getContextHandler(), request, pathInContext);
-        _servletRequestState = servletRequestState;
+        super(servletChannel.getContextHandler(), request, pathInContext);
+        _servletRequestState = servletChannel;
         _httpServletRequest = new MutableHttpServletRequest();
         _httpServletResponse = new MutableHttpServletResponse(response);
         _mappedServlet = mappedServlet;
-        _response = response;
+        _response = new ServletScopedResponse(response);
         _httpOutput = new HttpOutput(response);
         _httpInput = new HttpInput(this);
     }
 
     @Override
-    public Response getResponse()
+    public ServletScopedResponse getResponse()
     {
         return _response;
+    }
+
+    public HttpInput getHttpInput()
+    {
+        return _httpInput;
+    }
+
+    public HttpOutput getHttpOutput()
+    {
+        return _httpOutput;
     }
 
     public void errorClose()
@@ -140,7 +150,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         return nc;
     }
 
-    ServletRequestState getServletRequestState()
+    ServletChannel getServletRequestState()
     {
         return _servletRequestState;
     }
@@ -169,8 +179,8 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     {
         while (httpServletRequest != null)
         {
-            if (httpServletRequest instanceof ServletRequestState)
-                return ((ServletRequestState)httpServletRequest).getServletScopedRequest();
+            if (httpServletRequest instanceof ServletChannel)
+                return ((ServletChannel)httpServletRequest).getServletScopedRequest();
             if (httpServletRequest instanceof HttpServletRequestWrapper)
                 httpServletRequest = (HttpServletRequest)((HttpServletRequestWrapper)httpServletRequest).getRequest();
             else
@@ -643,7 +653,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public AsyncContext startAsync() throws IllegalStateException
         {
-            ServletRequestState state = _servletRequestState;
+            ServletChannel state = _servletRequestState;
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request
@@ -655,7 +665,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException
         {
-            ServletRequestState state = _servletRequestState;
+            ServletChannel state = _servletRequestState;
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request

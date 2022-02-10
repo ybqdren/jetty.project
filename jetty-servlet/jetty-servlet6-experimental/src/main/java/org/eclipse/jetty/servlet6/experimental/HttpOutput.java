@@ -13,7 +13,7 @@ import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.AutoLock;
 
-public class HttpOutput extends ServletOutputStream
+public class HttpOutput extends ServletOutputStream implements Runnable
 {
     private final Response _response;
     private final AutoLock _lock = new AutoLock();
@@ -24,6 +24,16 @@ public class HttpOutput extends ServletOutputStream
     public HttpOutput(Response response)
     {
         _response = response;
+    }
+
+    public boolean isClosed()
+    {
+        return false;
+    }
+
+    @Override
+    public void run()
+    {
     }
 
     public void completed(Throwable failure)

@@ -16,11 +16,11 @@ import org.eclipse.jetty.server.Response;
 public class AsyncContextState implements AsyncContext
 {
     private final HttpChannel _channel;
-    volatile ServletRequestState _state;
+    volatile ServletChannel _state;
 
-    public AsyncContextState(ServletRequestState state)
+    public AsyncContextState(ServletChannel servletChannel)
     {
-        _state = state;
+        _state = servletChannel;
         _channel = _state.getHttpChannel();
     }
 
@@ -29,9 +29,9 @@ public class AsyncContextState implements AsyncContext
         return _channel;
     }
 
-    ServletRequestState state()
+    ServletChannel state()
     {
-        ServletRequestState state = _state;
+        ServletChannel state = _state;
         if (state == null)
             throw new IllegalStateException("AsyncContext completed and/or Request lifecycle recycled");
         return state;
@@ -146,7 +146,7 @@ public class AsyncContextState implements AsyncContext
         _state = null;
     }
 
-    public ServletRequestState getHttpChannelState()
+    public ServletChannel getHttpChannelState()
     {
         return state();
     }
