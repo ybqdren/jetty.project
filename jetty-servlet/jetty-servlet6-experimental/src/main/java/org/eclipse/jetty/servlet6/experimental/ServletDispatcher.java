@@ -45,30 +45,15 @@ public class ServletDispatcher implements RequestDispatcher
     @Override
     public void forward(ServletRequest request, ServletResponse response) throws ServletException, IOException
     {
-        // TODO stuff about parameters
-
         HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpServletResponse httpResponse = (HttpServletResponse)response;
 
         _mappedServlet.handle(_servletHandler, new ForwardRequest(httpRequest), httpResponse);
-
-        if (!httpRequest.isAsyncStarted())
-        {
-            try
-            {
-                httpResponse.getOutputStream().close();
-            }
-            catch (IllegalStateException e)
-            {
-                httpResponse.getWriter().close();
-            }
-        }
     }
 
     @Override
     public void include(ServletRequest request, ServletResponse response) throws ServletException, IOException
     {
-        // TODO stuff about parameters
         HttpServletRequest httpRequest = (HttpServletRequest)request;
         HttpServletResponse httpResponse = (HttpServletResponse)response;
 

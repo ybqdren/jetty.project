@@ -16,24 +16,24 @@ public class AsyncContextEvent extends AsyncEvent implements Runnable
     private final ContextHandler.Context _context;
     private final AsyncContextState _asyncContext;
     private final HttpURI _baseURI;
-    private final ServletChannel _servletChannel;
+    private final ServletRequestState _state;
     private ServletContext _dispatchContext;
     private String _dispatchPath;
     private volatile Scheduler.Task _timeoutTask;
     private Throwable _throwable;
 
-    public AsyncContextEvent(ContextHandler.Context context, AsyncContextState asyncContext, ServletChannel state, Request baseRequest, ServletRequest request, ServletResponse response)
+    public AsyncContextEvent(ContextHandler.Context context, AsyncContextState asyncContext, ServletRequestState state, Request baseRequest, ServletRequest request, ServletResponse response)
     {
         this(context, asyncContext, state, baseRequest, request, response, null);
     }
 
-    public AsyncContextEvent(ContextHandler.Context context, AsyncContextState asyncContext, ServletChannel state, Request baseRequest, ServletRequest request, ServletResponse response, HttpURI baseURI)
+    public AsyncContextEvent(ContextHandler.Context context, AsyncContextState asyncContext, ServletRequestState state, Request baseRequest, ServletRequest request, ServletResponse response, HttpURI baseURI)
     {
         super(null, request, response, null);
         _context = context;
         _asyncContext = asyncContext;
         _servletContext = ServletContextHandler.getServletContext(context);
-        _servletChannel = state;
+        _state = state;
         _baseURI = baseURI;
 
         // TODO: Should we store a wrapped request with the attributes?
@@ -124,18 +124,13 @@ public class AsyncContextEvent extends AsyncEvent implements Runnable
         _asyncContext.reset();
     }
 
-    public ServletChannel getHttpChannelState()
-    {
-        return _servletChannel;
-    }
-
     @Override
     public void run()
     {
         Scheduler.Task task = _timeoutTask;
         _timeoutTask = null;
         if (task != null)
-            _servletChannel.timeout();
+            _state.timeout();
     }
 
     public void addThrowable(Throwable e)

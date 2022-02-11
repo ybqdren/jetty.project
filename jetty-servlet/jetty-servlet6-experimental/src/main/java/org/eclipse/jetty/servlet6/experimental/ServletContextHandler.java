@@ -402,13 +402,13 @@ public class ServletContextHandler extends TempContextHandler
         ServletChannel servletChannel = (ServletChannel)channel.getAttribute(ServletChannel.class.getName());
         if (servletChannel == null)
         {
-            servletChannel = new ServletChannel(_servletContextContext);
+            servletChannel = new ServletChannel();
             if (channel.getConnectionMetaData().isPersistent())
                 channel.setAttribute(ServletChannel.class.getName(), servletChannel);
         }
 
-        ServletScopedRequest servletScopedRequest = new ServletScopedRequest(servletChannel, request, response, pathInContext, mappedServlet);
-        servletChannel.setServletScopedRequest(servletScopedRequest);
+        ServletScopedRequest servletScopedRequest = new ServletScopedRequest(_servletContextContext, servletChannel, request, response, pathInContext, mappedServlet);
+        servletChannel.init(servletScopedRequest);
         return servletScopedRequest;
     }
 

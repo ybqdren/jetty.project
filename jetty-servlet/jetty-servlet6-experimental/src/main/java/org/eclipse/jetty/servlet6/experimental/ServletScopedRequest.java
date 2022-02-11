@@ -46,6 +46,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.ConnectionMetaData;
@@ -65,7 +66,8 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
 {
     public static final String __MULTIPART_CONFIG_ELEMENT = "org.eclipse.jetty.multipartConfig";
 
-    final ServletChannel _servletRequestState;
+    ServletChannel _servletChannel;
+    ServletRequestState _state;
     final MutableHttpServletRequest _httpServletRequest;
     final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
@@ -78,14 +80,16 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
 
     protected ServletScopedRequest(
+        ServletContextHandler.ServletContextContext servletContextContext,
         ServletChannel servletChannel,
         Request request,
         Response response,
         String pathInContext,
         ServletHandler.MappedServlet mappedServlet)
     {
-        super(servletChannel.getContextHandler(), request, pathInContext);
-        _servletRequestState = servletChannel;
+        super(servletContextContext.getContextHandler(), request, pathInContext);
+        _servletChannel = servletChannel;
+        _state = servletChannel.getState();
         _httpServletRequest = new MutableHttpServletRequest();
         _httpServletResponse = new MutableHttpServletResponse(response);
         _mappedServlet = mappedServlet;
@@ -98,6 +102,12 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     public ServletScopedResponse getResponse()
     {
         return _response;
+    }
+
+    @Override
+    public ServletContextHandler.Context getContext()
+    {
+        return (ServletContextHandler.Context)super.getContext();
     }
 
     public HttpInput getHttpInput()
@@ -113,6 +123,23 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     public void errorClose()
     {
         // Make the response immutable and soft close the output.
+    }
+
+    // TODO: should be on Request instead?
+    private long _timeStamp = 0;
+    public long getTimeStamp()
+    {
+        return 0;
+    }
+
+    public boolean isHead()
+    {
+        return HttpMethod.HEAD.is(getMethod());
+    }
+
+    public void setTimeStamp(long timeStamp)
+    {
+        _timeStamp = timeStamp;
     }
 
     @Override
@@ -140,7 +167,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
      */
     public ContextHandler.Context getErrorContext()
     {
-        return _servletRequestState.getContext();
+        return _servletChannel.getContext();
     }
 
     public boolean takeNewContext()
@@ -152,7 +179,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
 
     ServletChannel getServletRequestState()
     {
-        return _servletRequestState;
+        return _servletChannel;
     }
 
     public HttpServletRequest getHttpServletRequest()
@@ -180,7 +207,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         while (httpServletRequest != null)
         {
             if (httpServletRequest instanceof ServletChannel)
-                return ((ServletChannel)httpServletRequest).getServletScopedRequest();
+                return ((ServletChannel)httpServletRequest).getRequest();
             if (httpServletRequest instanceof HttpServletRequestWrapper)
                 httpServletRequest = (HttpServletRequest)((HttpServletRequestWrapper)httpServletRequest).getRequest();
             else
@@ -192,7 +219,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     @Override
     public void run()
     {
-        _servletRequestState.handle();
+        _servletChannel.handle();
     }
 
     public String getServletName()
@@ -205,7 +232,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     Runnable onContentAvailable()
     {
         // TODO not sure onReadReady is right method or at least could be renamed.
-        return _servletRequestState.onReadReady() ? this : null;
+        return _state.onReadReady() ? this : null;
     }
 
     public void addEventListener(final EventListener listener)
@@ -647,13 +674,13 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public ServletContext getServletContext()
         {
-            return _servletRequestState.getServletContext();
+            return _servletChannel.getServletContext();
         }
 
         @Override
         public AsyncContext startAsync() throws IllegalStateException
         {
-            ServletChannel state = _servletRequestState;
+            ServletRequestState state = _state;
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request
@@ -665,7 +692,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException
         {
-            ServletChannel state = _servletRequestState;
+            ServletRequestState state = _state;
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request
@@ -677,7 +704,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public boolean isAsyncStarted()
         {
-            return _servletRequestState.isAsyncStarted();
+            return _state.isAsyncStarted();
         }
 
         @Override
@@ -739,21 +766,21 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             switch (sc)
             {
                 case -1:
-                    _servletRequestState.getServletScopedRequest().getResponse().getCallback().failed(new IOException(msg));
+                    _servletChannel.getRequest().getResponse().getCallback().failed(new IOException(msg));
                     break;
 
                 case HttpStatus.PROCESSING_102:
                     try (Blocker blocker = _blocker.acquire())
                     {
                         // TODO static MetaData
-                        _servletRequestState.getServletScopedRequest().getHttpChannel().getHttpStream()
+                        _servletChannel.getRequest().getHttpChannel().getHttpStream()
                             .send(new MetaData.Response(null, 102, null), false, blocker);
                     }
                     break;
 
                 default:
                     // This is just a state change
-                    _servletRequestState.sendError(sc, msg);
+                    _state.sendError(sc, msg);
                     break;
             }
         }

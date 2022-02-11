@@ -19,6 +19,22 @@ public class ServletScopedResponse implements Response
         _response = response;
     }
 
+    public void completeOutput(Callback from)
+    {
+
+    }
+
+    public boolean isContentComplete(long written)
+    {
+        // TODO: add content length field here?
+        String contentLengthHeader = getHeaders().get(HttpHeader.CONTENT_LENGTH);
+        if (contentLengthHeader == null)
+            return false;
+
+        long contentLength = Long.parseLong(contentLengthHeader);
+        return (contentLength < 0 || written >= contentLength);
+    }
+
     @Override
     public Request getRequest()
     {

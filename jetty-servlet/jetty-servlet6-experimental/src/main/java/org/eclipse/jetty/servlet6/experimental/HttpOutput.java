@@ -11,6 +11,7 @@ import jakarta.servlet.WriteListener;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.SharedBlockingCallback;
 import org.eclipse.jetty.util.thread.AutoLock;
 
 public class HttpOutput extends ServletOutputStream implements Runnable
@@ -24,6 +25,16 @@ public class HttpOutput extends ServletOutputStream implements Runnable
     public HttpOutput(Response response)
     {
         _response = response;
+    }
+
+    public SharedBlockingCallback.Blocker acquireWriteBlockingCallback()
+    {
+        return null;
+    }
+
+    public long getWritten()
+    {
+        return 0;
     }
 
     public boolean isClosed()

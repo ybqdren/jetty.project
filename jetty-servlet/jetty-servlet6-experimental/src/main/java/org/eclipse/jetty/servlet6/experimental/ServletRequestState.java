@@ -22,7 +22,6 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.QuietException;
@@ -477,8 +476,7 @@ public class ServletRequestState
                     return Action.WRITE_CALLBACK;
                 }
 
-
-                Scheduler scheduler = _servletChannel.getServletScopedRequest()
+                Scheduler scheduler = _servletChannel.getRequest()
                     .getConnectionMetaData().getConnector().getScheduler();
                 if (scheduler != null && _timeoutMs > 0 && !_event.hasTimeoutTask())
                     _event.setTimeoutTask(scheduler.schedule(_event, _timeoutMs, TimeUnit.MILLISECONDS));
@@ -903,9 +901,8 @@ public class ServletRequestState
         //       - after unhandle for sync
         //       - after both unhandle and complete for async
 
-        ServletScopedRequest servletScopedRequest = _servletChannel.getServletScopedRequest();
+        ServletScopedRequest servletScopedRequest = _servletChannel.getRequest();
         HttpServletRequest httpServletRequest = servletScopedRequest.getHttpServletRequest();
-        HttpServletResponse httpServletResponse = servletScopedRequest.getHttpServletResponse();
 
         final Request request = _channel.getRequest();
         final Response response = _channel.getResponse();
@@ -1196,7 +1193,7 @@ public class ServletRequestState
         if (event != null && event.getSuppliedResponse() != null)
             return event.getSuppliedResponse();
 
-        ServletScopedRequest servletScopedRequest = _servletChannel.getServletScopedRequest();
+        ServletScopedRequest servletScopedRequest = _servletChannel.getRequest();
         if (servletScopedRequest != null)
             return servletScopedRequest.getHttpServletResponse();
         return null;
