@@ -15,7 +15,6 @@ package org.eclipse.jetty.servlet6.experimental;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -35,7 +34,6 @@ import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletRequestAttributeListener;
 import jakarta.servlet.ServletResponse;
@@ -47,20 +45,11 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.eclipse.jetty.http.HttpMethod;
-import org.eclipse.jetty.http.HttpStatus;
-import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextRequest;
-import org.eclipse.jetty.servlet6.experimental.writer.EncodingHttpWriter;
-import org.eclipse.jetty.servlet6.experimental.writer.Iso88591HttpWriter;
-import org.eclipse.jetty.servlet6.experimental.writer.ResponseWriter;
-import org.eclipse.jetty.servlet6.experimental.writer.Utf8HttpWriter;
-import org.eclipse.jetty.util.SharedBlockingCallback;
-import org.eclipse.jetty.util.SharedBlockingCallback.Blocker;
-import org.eclipse.jetty.util.StringUtil;
 
 public class ServletScopedRequest extends ContextRequest implements Runnable
 {
@@ -69,7 +58,6 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     ServletChannel _servletChannel;
     ServletRequestState _state;
     final MutableHttpServletRequest _httpServletRequest;
-    final MutableHttpServletResponse _httpServletResponse;
     final ServletHandler.MappedServlet _mappedServlet;
     final ServletScopedResponse _response;
     final HttpOutput _httpOutput;
@@ -91,11 +79,10 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _servletChannel = servletChannel;
         _state = servletChannel.getState();
         _httpServletRequest = new MutableHttpServletRequest();
-        _httpServletResponse = new MutableHttpServletResponse(response);
         _mappedServlet = mappedServlet;
-        _response = new ServletScopedResponse(response);
         _httpOutput = new HttpOutput(response);
         _httpInput = new HttpInput(this);
+        _response = new ServletScopedResponse(_servletChannel, response, _httpOutput);
     }
 
     @Override
@@ -151,7 +138,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             case "o.e.j.s.s.ServletScopedRequest.request":
                 return _httpServletRequest;
             case "o.e.j.s.s.ServletScopedRequest.response":
-                return _httpServletResponse;
+                return _response.getHttpServletResponse();
             case "o.e.j.s.s.ServletScopedRequest.servlet":
                 return _mappedServlet.getServletPathMapping(getPath()).getServletName();
             case "o.e.j.s.s.ServletScopedRequest.url-pattern":
@@ -194,7 +181,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
 
     public HttpServletResponse getHttpServletResponse()
     {
-        return _httpServletResponse;
+        return _response.getHttpServletResponse();
     }
 
     public ServletHandler.MappedServlet getMappedServlet()
@@ -257,16 +244,6 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             return ServletScopedRequest.this;
         }
 
-        public HttpServletResponse getHttpServletResponse()
-        {
-            return _httpServletResponse;
-        }
-
-        public MutableHttpServletResponse getMutableHttpServletResponse()
-        {
-            return _httpServletResponse;
-        }
-        
         @Override
         public String getRequestId()
         {
@@ -684,7 +661,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request
-            AsyncContextEvent event = new AsyncContextEvent(null, _async, state, null, this, _httpServletResponse);
+            AsyncContextEvent event = new AsyncContextEvent(null, _async, state, ServletScopedRequest.this, this, _response.getHttpServletResponse());
             state.startAsync(event);
             return _async;
         }
@@ -723,256 +700,6 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         public DispatcherType getDispatcherType()
         {
             return DispatcherType.REQUEST;
-        }
-    }
-
-    class MutableHttpServletResponse implements HttpServletResponse
-    {
-        private final SharedBlockingCallback _blocker = new SharedBlockingCallback();
-        private final Response _response;
-
-        MutableHttpServletResponse(Response response)
-        {
-            _response = response;
-        }
-
-        @Override
-        public void addCookie(Cookie cookie)
-        {
-            // TODO
-        }
-
-        @Override
-        public boolean containsHeader(String name)
-        {
-            return _response.getHeaders().contains(name);
-        }
-
-        @Override
-        public String encodeURL(String url)
-        {
-            return null;
-        }
-
-        @Override
-        public String encodeRedirectURL(String url)
-        {
-            return null;
-        }
-
-        @Override
-        public void sendError(int sc, String msg) throws IOException
-        {
-            switch (sc)
-            {
-                case -1:
-                    _servletChannel.getRequest().getResponse().getCallback().failed(new IOException(msg));
-                    break;
-
-                case HttpStatus.PROCESSING_102:
-                    try (Blocker blocker = _blocker.acquire())
-                    {
-                        // TODO static MetaData
-                        _servletChannel.getRequest().getHttpChannel().getHttpStream()
-                            .send(new MetaData.Response(null, 102, null), false, blocker);
-                    }
-                    break;
-
-                default:
-                    // This is just a state change
-                    _state.sendError(sc, msg);
-                    break;
-            }
-        }
-
-        @Override
-        public void sendError(int sc) throws IOException
-        {
-            sendError(sc, null);
-        }
-
-        @Override
-        public void sendRedirect(String location) throws IOException
-        {
-            // TODO
-        }
-
-        @Override
-        public void setDateHeader(String name, long date)
-        {
-            _response.getHeaders().putDateField(name, date);
-        }
-
-        @Override
-        public void addDateHeader(String name, long date)
-        {
-
-        }
-
-        @Override
-        public void setHeader(String name, String value)
-        {
-            _response.getHeaders().put(name, value);
-        }
-
-        @Override
-        public void addHeader(String name, String value)
-        {
-            _response.getHeaders().add(name, value);
-        }
-
-        @Override
-        public void setIntHeader(String name, int value)
-        {
-            // TODO do we need int versions?
-            _response.getHeaders().putLongField(name, value);
-        }
-
-        @Override
-        public void addIntHeader(String name, int value)
-        {
-            // TODO do we need a native version?
-            _response.getHeaders().add(name, Integer.toString(value));
-        }
-
-        @Override
-        public void setStatus(int sc)
-        {
-            _response.setStatus(sc);
-        }
-
-        @Override
-        public int getStatus()
-        {
-            return _response.getStatus();
-        }
-
-        @Override
-        public String getHeader(String name)
-        {
-            return _response.getHeaders().get(name);
-        }
-
-        @Override
-        public Collection<String> getHeaders(String name)
-        {
-            return null;
-        }
-
-        @Override
-        public Collection<String> getHeaderNames()
-        {
-            return null;
-        }
-
-        @Override
-        public String getCharacterEncoding()
-        {
-            // TODO
-            return StringUtil.__ISO_8859_1;
-        }
-
-        @Override
-        public String getContentType()
-        {
-            return null;
-        }
-
-        @Override
-        public ServletOutputStream getOutputStream() throws IOException
-        {
-            return _httpOutput;
-        }
-
-        @Override
-        public PrintWriter getWriter() throws IOException
-        {
-            HttpOutput httpOutput = new HttpOutput(_response);
-            String encoding = getCharacterEncoding();
-            Locale locale = getLocale();
-            if (StringUtil.__ISO_8859_1.equalsIgnoreCase(encoding))
-                return new ResponseWriter(new Iso88591HttpWriter(httpOutput), locale, encoding);
-            else if (StringUtil.__UTF8.equalsIgnoreCase(encoding))
-                return new ResponseWriter(new Utf8HttpWriter(httpOutput), locale, encoding);
-            else
-                return new ResponseWriter(new EncodingHttpWriter(httpOutput, encoding), locale, encoding);
-        }
-
-        @Override
-        public void setCharacterEncoding(String charset)
-        {
-
-        }
-
-        @Override
-        public void setContentLength(int len)
-        {
-
-        }
-
-        @Override
-        public void setContentLengthLong(long len)
-        {
-
-        }
-
-        @Override
-        public void setContentType(String type)
-        {
-
-        }
-
-        @Override
-        public void setBufferSize(int size)
-        {
-
-        }
-
-        @Override
-        public int getBufferSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public void flushBuffer() throws IOException
-        {
-            try (Blocker blocker = _blocker.acquire())
-            {
-                _response.write(false, blocker);
-            }
-        }
-
-        @Override
-        public void resetBuffer()
-        {
-            // TODO I don't think this is right... maybe just a HttpWriter reset
-            if (!_response.isCommitted())
-                _response.reset();
-        }
-
-        @Override
-        public boolean isCommitted()
-        {
-            return _response.isCommitted();
-        }
-
-        @Override
-        public void reset()
-        {
-            if (!_response.isCommitted())
-                _response.reset();
-        }
-
-        @Override
-        public void setLocale(Locale loc)
-        {
-        }
-
-        @Override
-        public Locale getLocale()
-        {
-            return null;
         }
     }
 }

@@ -1,27 +1,62 @@
 package org.eclipse.jetty.servlet6.experimental;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.io.PrintWriter;
+import java.util.Collection;
+import java.util.Locale;
 
-import org.eclipse.jetty.http.HttpFields;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.servlet6.experimental.writer.EncodingHttpWriter;
+import org.eclipse.jetty.servlet6.experimental.writer.Iso88591HttpWriter;
+import org.eclipse.jetty.servlet6.experimental.writer.ResponseWriter;
+import org.eclipse.jetty.servlet6.experimental.writer.Utf8HttpWriter;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.SharedBlockingCallback;
+import org.eclipse.jetty.util.StringUtil;
 
-public class ServletScopedResponse implements Response
+public class ServletScopedResponse extends Response.Wrapper
 {
-    private final Response _response;
-
-    public ServletScopedResponse(Response response)
+    public enum OutputType
     {
-        _response = response;
+        NONE, STREAM, WRITER
     }
 
-    public void completeOutput(Callback from)
-    {
+    private final Response _response;
+    private final HttpOutput _httpOutput;
+    private final ServletChannel _servletChannel;
+    private final ServletRequestState _state;
+    private final MutableHttpServletResponse _httpServletResponse;
 
+    private OutputType _outputType = OutputType.NONE;
+    private ResponseWriter _writer;
+
+    public ServletScopedResponse(ServletChannel servletChannel, Response response, HttpOutput httpOutput)
+    {
+        super(response.getRequest(), response);
+        _response = response;
+        _httpOutput = httpOutput;
+        _servletChannel = servletChannel;
+        _state = servletChannel.getState();
+        _httpServletResponse = new MutableHttpServletResponse(response);
+    }
+
+    public HttpServletResponse getHttpServletResponse()
+    {
+        return _httpServletResponse;
+    }
+
+    public void completeOutput(Callback callback)
+    {
+        if (_outputType == OutputType.WRITER)
+            _writer.complete(callback);
+        else
+            _httpOutput.complete(callback);
     }
 
     public boolean isContentComplete(long written)
@@ -29,147 +64,277 @@ public class ServletScopedResponse implements Response
         // TODO: add content length field here?
         String contentLengthHeader = getHeaders().get(HttpHeader.CONTENT_LENGTH);
         if (contentLengthHeader == null)
-            return false;
+            return true;
 
         long contentLength = Long.parseLong(contentLengthHeader);
         return (contentLength < 0 || written >= contentLength);
     }
 
-    @Override
-    public Request getRequest()
+    private String getCharacterEncoding(boolean setContentType)
     {
-        return _response.getRequest();
+        // TODO
+        return StringUtil.__ISO_8859_1;
     }
 
-    @Override
-    public Callback getCallback()
+    public class MutableHttpServletResponse implements HttpServletResponse
     {
-        return _response.getCallback();
-    }
+        private final SharedBlockingCallback _blocker = new SharedBlockingCallback();
+        private final Response _response;
 
-    @Override
-    public int getStatus()
-    {
-        return _response.getStatus();
-    }
+        MutableHttpServletResponse(Response response)
+        {
+            _response = response;
+        }
 
-    @Override
-    public void setStatus(int code)
-    {
-        _response.setStatus(code);
-    }
+        @Override
+        public void addCookie(Cookie cookie)
+        {
+            // TODO
+        }
 
-    @Override
-    public HttpFields.Mutable getHeaders()
-    {
-        return _response.getHeaders();
-    }
+        @Override
+        public boolean containsHeader(String name)
+        {
+            return _response.getHeaders().contains(name);
+        }
 
-    @Override
-    public HttpFields.Mutable getTrailers()
-    {
-        return _response.getTrailers();
-    }
+        @Override
+        public String encodeURL(String url)
+        {
+            return null;
+        }
 
-    @Override
-    public void write(boolean last, Callback callback, ByteBuffer... content)
-    {
-        _response.write(last, callback, content);
-    }
+        @Override
+        public String encodeRedirectURL(String url)
+        {
+            return null;
+        }
 
-    @Override
-    public void write(boolean last, Callback callback, String utf8Content)
-    {
-        _response.write(last, callback, utf8Content);
-    }
+        @Override
+        public void sendError(int sc, String msg) throws IOException
+        {
+            switch (sc)
+            {
+                case -1:
+                    _servletChannel.getRequest().getResponse().getCallback().failed(new IOException(msg));
+                    break;
 
-    @Override
-    public void push(MetaData.Request request)
-    {
-        _response.push(request);
-    }
+                case HttpStatus.PROCESSING_102:
+                    try (SharedBlockingCallback.Blocker blocker = _blocker.acquire())
+                    {
+                        // TODO static MetaData
+                        _servletChannel.getRequest().getHttpChannel().getHttpStream()
+                            .send(new MetaData.Response(null, 102, null), false, blocker);
+                    }
+                    break;
 
-    @Override
-    public boolean isCommitted()
-    {
-        return _response.isCommitted();
-    }
+                default:
+                    // This is just a state change
+                    _state.sendError(sc, msg);
+                    break;
+            }
+        }
 
-    @Override
-    public void reset()
-    {
-        _response.reset();
-    }
+        @Override
+        public void sendError(int sc) throws IOException
+        {
+            sendError(sc, null);
+        }
 
-    @Override
-    public Response getWrapped()
-    {
-        return _response.getWrapped();
-    }
+        @Override
+        public void sendRedirect(String location) throws IOException
+        {
+            // TODO
+        }
 
-    @Override
-    public void addHeader(String name, String value)
-    {
-        _response.addHeader(name, value);
-    }
+        @Override
+        public void setDateHeader(String name, long date)
+        {
+            _response.getHeaders().putDateField(name, date);
+        }
 
-    @Override
-    public void addHeader(HttpHeader header, String value)
-    {
-        _response.addHeader(header, value);
-    }
+        @Override
+        public void addDateHeader(String name, long date)
+        {
+        }
 
-    @Override
-    public void setHeader(String name, String value)
-    {
-        _response.setHeader(name, value);
-    }
+        @Override
+        public void setHeader(String name, String value)
+        {
+            _response.getHeaders().put(name, value);
+        }
 
-    @Override
-    public void setHeader(HttpHeader header, String value)
-    {
-        _response.setHeader(header, value);
-    }
+        @Override
+        public void addHeader(String name, String value)
+        {
+            _response.getHeaders().add(name, value);
+        }
 
-    @Override
-    public void setContentType(String mimeType)
-    {
-        _response.setContentType(mimeType);
-    }
+        @Override
+        public void setIntHeader(String name, int value)
+        {
+            // TODO do we need int versions?
+            _response.getHeaders().putLongField(name, value);
+        }
 
-    @Override
-    public void setContentLength(long length)
-    {
-        _response.setContentLength(length);
-    }
+        @Override
+        public void addIntHeader(String name, int value)
+        {
+            // TODO do we need a native version?
+            _response.getHeaders().add(name, Integer.toString(value));
+        }
 
-    @Override
-    public void sendRedirect(int code, String location, boolean consumeAll) throws IOException
-    {
-        _response.sendRedirect(code, location, consumeAll);
-    }
+        @Override
+        public void setStatus(int sc)
+        {
+            _response.setStatus(sc);
+        }
 
-    @Override
-    public void writeError(Throwable cause, Callback callback)
-    {
-        _response.writeError(cause, callback);
-    }
+        @Override
+        public int getStatus()
+        {
+            return _response.getStatus();
+        }
 
-    @Override
-    public void writeError(int status, Callback callback)
-    {
-        _response.writeError(status, callback);
-    }
+        @Override
+        public String getHeader(String name)
+        {
+            return _response.getHeaders().get(name);
+        }
 
-    @Override
-    public void writeError(int status, String message, Callback callback)
-    {
-        _response.writeError(status, message, callback);
-    }
+        @Override
+        public Collection<String> getHeaders(String name)
+        {
+            return null;
+        }
 
-    @Override
-    public void writeError(int status, String message, Throwable cause, Callback callback)
-    {
-        _response.writeError(status, message, cause, callback);
+        @Override
+        public Collection<String> getHeaderNames()
+        {
+            return null;
+        }
+
+        @Override
+        public String getCharacterEncoding()
+        {
+            return ServletScopedResponse.this.getCharacterEncoding(false);
+        }
+
+        @Override
+        public String getContentType()
+        {
+            return null;
+        }
+
+        @Override
+        public ServletOutputStream getOutputStream() throws IOException
+        {
+            return _httpOutput;
+        }
+
+        @Override
+        public PrintWriter getWriter() throws IOException
+        {
+            if (_outputType == OutputType.STREAM)
+                throw new IllegalStateException("STREAM");
+
+            if (_outputType == OutputType.NONE)
+            {
+                String encoding = ServletScopedResponse.this.getCharacterEncoding(true);
+                Locale locale = getLocale();
+                if (_writer != null && _writer.isFor(locale, encoding))
+                    _writer.reopen();
+                else
+                {
+                    if (StringUtil.__ISO_8859_1.equalsIgnoreCase(encoding))
+                        _writer = new ResponseWriter(new Iso88591HttpWriter(_httpOutput), locale, encoding);
+                    else if (StringUtil.__UTF8.equalsIgnoreCase(encoding))
+                        _writer = new ResponseWriter(new Utf8HttpWriter(_httpOutput), locale, encoding);
+                    else
+                        _writer = new ResponseWriter(new EncodingHttpWriter(_httpOutput, encoding), locale, encoding);
+                }
+
+                // Set the output type at the end, because setCharacterEncoding() checks for it.
+                _outputType = OutputType.WRITER;
+            }
+            return _writer;
+        }
+
+        @Override
+        public void setCharacterEncoding(String charset)
+        {
+
+        }
+
+        @Override
+        public void setContentLength(int len)
+        {
+
+        }
+
+        @Override
+        public void setContentLengthLong(long len)
+        {
+
+        }
+
+        @Override
+        public void setContentType(String type)
+        {
+
+        }
+
+        @Override
+        public void setBufferSize(int size)
+        {
+
+        }
+
+        @Override
+        public int getBufferSize()
+        {
+            return 0;
+        }
+
+        @Override
+        public void flushBuffer() throws IOException
+        {
+            try (SharedBlockingCallback.Blocker blocker = _blocker.acquire())
+            {
+                _response.write(false, blocker);
+            }
+        }
+
+        @Override
+        public void resetBuffer()
+        {
+            // TODO I don't think this is right... maybe just a HttpWriter reset
+            if (!_response.isCommitted())
+                _response.reset();
+        }
+
+        @Override
+        public boolean isCommitted()
+        {
+            return _response.isCommitted();
+        }
+
+        @Override
+        public void reset()
+        {
+            if (!_response.isCommitted())
+                _response.reset();
+        }
+
+        @Override
+        public void setLocale(Locale loc)
+        {
+        }
+
+        @Override
+        public Locale getLocale()
+        {
+            return null;
+        }
     }
 }

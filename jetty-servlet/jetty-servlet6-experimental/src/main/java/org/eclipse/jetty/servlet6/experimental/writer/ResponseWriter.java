@@ -65,7 +65,7 @@ public class ResponseWriter extends PrintWriter
         return _encoding.equalsIgnoreCase(encoding) && _locale.equals(locale);
     }
 
-    protected void reopen()
+    public void reopen()
     {
         synchronized (lock)
         {

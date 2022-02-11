@@ -32,6 +32,11 @@ public class HttpOutput extends ServletOutputStream implements Runnable
         return null;
     }
 
+    public void complete(Callback callback)
+    {
+        _response.write(true, callback);
+    }
+
     public long getWritten()
     {
         return 0;
