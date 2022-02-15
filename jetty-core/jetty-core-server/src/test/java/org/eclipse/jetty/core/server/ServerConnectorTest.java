@@ -64,7 +64,7 @@ public class ServerConnectorTest
     public static class ReuseInfoHandler extends Handler.Abstract
     {
         @Override
-        public void accept(Incoming request) throws Exception
+        public void accept(Request request) throws Exception
         {
             request.accept((rq, rs) ->
             {
@@ -244,7 +244,7 @@ public class ServerConnectorTest
             server.setHandler(new Handler.Abstract()
             {
                 @Override
-                public void accept(Incoming request) throws Exception
+                public void accept(Request request) throws Exception
                 {
                     request.accept((rq, rs) -> rq.succeeded());
                 }

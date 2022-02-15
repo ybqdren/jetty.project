@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Incoming;
+import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.util.ArrayUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Index;
@@ -122,7 +122,7 @@ public class ContextHandlerCollection extends Handler.Collection
     }
 
     @Override
-    public void accept(Incoming request) throws Exception
+    public void accept(Request request) throws Exception
     {
         List<Handler> handlers = getHandlers();
 

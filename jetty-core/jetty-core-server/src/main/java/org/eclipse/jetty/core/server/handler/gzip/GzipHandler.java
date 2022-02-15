@@ -14,7 +14,6 @@
 package org.eclipse.jetty.core.server.handler.gzip;
 
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
@@ -28,7 +27,7 @@ public class GzipHandler extends Handler.Wrapper
     private static final HttpField CONTENT_ENCODING_GZIP = new HttpField(HttpHeader.CONTENT_ENCODING, "gzip");
 
     @Override
-    public void accept(Incoming request) throws Exception
+    public void accept(Request request) throws Exception
     {
         // TODO more conditions than this
         // TODO handle other encodings
@@ -41,15 +40,15 @@ public class GzipHandler extends Handler.Wrapper
         }
         else
         {
-            super.accept(new GzipIncoming(request));
+            super.accept(new GzipRequest(request));
         }
     }
 
-    private static class GzipIncoming extends Incoming.Wrapper
+    private static class GzipRequest extends Request.Wrapper
     {
         private boolean _accepted;
 
-        private GzipIncoming(Incoming delegate)
+        private GzipRequest(Request delegate)
         {
             super(delegate);
         }
@@ -76,7 +75,7 @@ public class GzipHandler extends Handler.Wrapper
                 // TODO look up cached or pool inflaters / deflated
 
                 // TODO: override getHttpFields(), getContentLength(), etc.
-                processor.process(new Request.Wrapper(rq), new Response.Wrapper(rq, rs));
+                processor.process(this, new Response.Wrapper(rq, rs));
             });
         }
 

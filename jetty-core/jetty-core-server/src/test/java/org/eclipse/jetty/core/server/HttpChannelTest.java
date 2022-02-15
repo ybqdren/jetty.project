@@ -325,7 +325,7 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request)
+            public void accept(Request request)
             {
             }
         };
@@ -355,7 +355,7 @@ public class HttpChannelTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request)
+            public void accept(Request request)
             {
                 throw new UnsupportedOperationException("testing");
             }
@@ -1109,9 +1109,9 @@ public class HttpChannelTest
         EchoHandler echoHandler = new EchoHandler()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
-                super.accept(new Incoming.Wrapper(request)
+                super.accept(new Request.Wrapper(request)
                 {
                     @Override
                     public void accept(Processor processor) throws Exception

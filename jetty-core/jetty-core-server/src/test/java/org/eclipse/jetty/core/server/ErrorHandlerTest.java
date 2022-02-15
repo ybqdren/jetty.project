@@ -67,7 +67,7 @@ public class ErrorHandlerTest
         server.setHandler(new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
                 String path = request.getHttpURI().getPath();
                 if (path.startsWith("/badmessage/"))
@@ -664,7 +664,7 @@ public class ErrorHandlerTest
         context.setHandler(new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
                 request.accept((rq, rs) -> rs.writeError(444, rq));
             }

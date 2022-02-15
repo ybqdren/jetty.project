@@ -309,7 +309,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
                 throw new Exception("TEST handler exception");
             }
@@ -1060,9 +1060,9 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         configureServer(new HelloHandler("Hello\n")
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
-                super.accept(new Incoming.Wrapper(request)
+                super.accept(new Request.Wrapper(request)
                 {
                     @Override
                     public void accept(Processor processor) throws Exception
@@ -1243,7 +1243,7 @@ public abstract class HttpServerTestBase extends HttpServerTestFixture
         private EndPoint _endPoint;
 
         @Override
-        public void accept(Incoming request) throws Exception
+        public void accept(Request request) throws Exception
         {
             _endPoint = request.getConnectionMetaData().getConnection().getEndPoint();
             super.accept(request);

@@ -20,8 +20,10 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpScheme;
 import org.eclipse.jetty.http.HttpURI;
+import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.HostPort;
 import org.eclipse.jetty.util.MultiMap;
@@ -29,8 +31,24 @@ import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.UrlEncoded;
 
 // TODO lots of javadoc
-public interface Request extends IncomingRequest, Callback, Executor, Content.Provider
+public interface Request extends Attributes, Callback, Executor, Content.Provider
 {
+    void accept(Processor processor) throws Exception;
+
+    boolean isAccepted();
+
+    String getId();
+
+    ConnectionMetaData getConnectionMetaData();
+
+    String getMethod();
+
+    HttpURI getHttpURI();
+
+    HttpFields getHttpFields();
+
+    long getContentLength();
+
     void read(Processor processor);
 
     HttpChannel getChannel();
@@ -194,7 +212,7 @@ public interface Request extends IncomingRequest, Callback, Executor, Content.Pr
         return null;
     }
 
-    class Wrapper extends IncomingRequest.Wrapper implements Request
+    class Wrapper extends Attributes.Wrapper implements Request
     {
         public Wrapper(Request wrapped)
         {
@@ -205,6 +223,54 @@ public interface Request extends IncomingRequest, Callback, Executor, Content.Pr
         public Request getWrapped()
         {
             return (Request)super.getWrapped();
+        }
+
+        @Override
+        public void accept(Processor processor) throws Exception
+        {
+            getWrapped().accept(processor);
+        }
+
+        @Override
+        public boolean isAccepted()
+        {
+            return getWrapped().isAccepted();
+        }
+
+        @Override
+        public String getId()
+        {
+            return getWrapped().getId();
+        }
+
+        @Override
+        public ConnectionMetaData getConnectionMetaData()
+        {
+            return getWrapped().getConnectionMetaData();
+        }
+
+        @Override
+        public String getMethod()
+        {
+            return getWrapped().getMethod();
+        }
+
+        @Override
+        public HttpURI getHttpURI()
+        {
+            return getWrapped().getHttpURI();
+        }
+
+        @Override
+        public HttpFields getHttpFields()
+        {
+            return getWrapped().getHttpFields();
+        }
+
+        @Override
+        public long getContentLength()
+        {
+            return getWrapped().getContentLength();
         }
 
         @Override

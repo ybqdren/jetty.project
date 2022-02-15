@@ -14,7 +14,6 @@
 package org.eclipse.jetty.core.server.handler;
 
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
@@ -25,16 +24,16 @@ public class RewriteHandler extends Handler.Wrapper
 //    private final RuleContainer _rules;
 
     @Override
-    public void accept(Incoming request) throws Exception
+    public void accept(Request request) throws Exception
     {
-        super.accept(new RewriteIncoming(request));
+        super.accept(new RewriteRequest(request));
     }
 
-    private class RewriteIncoming extends Incoming.Wrapper
+    private class RewriteRequest extends Request.Wrapper
     {
         private boolean _accepted;
 
-        private RewriteIncoming(Incoming delegate)
+        private RewriteRequest(Request delegate)
         {
             super(delegate);
         }

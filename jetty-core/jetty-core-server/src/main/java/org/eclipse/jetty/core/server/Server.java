@@ -119,7 +119,7 @@ public class Server extends Handler.Wrapper implements Attributes
 
         try
         {
-            accept(new ServerIncoming(request));
+            accept(new ServerRequest(request));
             if (!request.isAccepted())
                 request.getResponse().writeError(404, request);
         }
@@ -650,11 +650,11 @@ public class Server extends Handler.Wrapper implements Attributes
 
     private static class DynamicErrorHandler extends ErrorProcessor {}
 
-    private static class ServerIncoming extends Incoming.Wrapper
+    private static class ServerRequest extends Request.Wrapper
     {
         private boolean _accepted;
 
-        private ServerIncoming(Incoming delegate)
+        private ServerRequest(Request delegate)
         {
             super(delegate);
         }

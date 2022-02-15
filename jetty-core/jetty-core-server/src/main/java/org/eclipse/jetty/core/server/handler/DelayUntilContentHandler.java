@@ -14,14 +14,14 @@
 package org.eclipse.jetty.core.server.handler;
 
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.Processor;
+import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.http.HttpHeader;
 
 public class DelayUntilContentHandler extends Handler.Wrapper
 {
     @Override
-    public void accept(Incoming request) throws Exception
+    public void accept(Request request) throws Exception
     {
         // If no content or content available, then don't delay dispatch.
         if (request.getContentLength() <= 0 && !request.getHttpFields().contains(HttpHeader.CONTENT_TYPE))
@@ -30,15 +30,15 @@ public class DelayUntilContentHandler extends Handler.Wrapper
         }
         else
         {
-            super.accept(new DelayUntilContentIncoming(request));
+            super.accept(new DelayUntilContentRequest(request));
         }
     }
 
-    private static class DelayUntilContentIncoming extends Incoming.Wrapper
+    private static class DelayUntilContentRequest extends Request.Wrapper
     {
         private boolean _accepted;
 
-        private DelayUntilContentIncoming(Incoming delegate)
+        private DelayUntilContentRequest(Request delegate)
         {
             super(delegate);
         }

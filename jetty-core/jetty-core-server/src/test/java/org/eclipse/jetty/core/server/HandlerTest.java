@@ -262,7 +262,7 @@ public class HandlerTest
         c.setHandler(new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request)
+            public void accept(Request request)
             {
             }
         });

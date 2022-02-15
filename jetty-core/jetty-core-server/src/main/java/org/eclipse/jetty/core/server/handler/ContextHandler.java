@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 
 import org.eclipse.jetty.core.server.Connector;
 import org.eclipse.jetty.core.server.Handler;
-import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
@@ -220,7 +219,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         }
     }
 
-    private boolean checkVirtualHost(Incoming request)
+    private boolean checkVirtualHost(Request request)
     {
         if (_vhosts.isEmpty())
             return true;
@@ -266,7 +265,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
         return false;
     }
 
-    protected String getPathInContext(Incoming request)
+    protected String getPathInContext(Request request)
     {
         String path = request.getHttpURI().getPath();
         if (!path.startsWith(_context.getContextPath()))
@@ -326,7 +325,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
     }
 
     @Override
-    public void accept(Incoming request) throws Exception
+    public void accept(Request request) throws Exception
     {
         Handler next = getHandler();
         if (next == null)
@@ -357,7 +356,7 @@ public class ContextHandler extends Handler.Wrapper implements Attributes
 
         // TODO check availability and maybe return a 503
 
-        super.accept(new Incoming.Wrapper(request)
+        super.accept(new Request.Wrapper(request)
         {
             @Override
             public void accept(Processor processor) throws Exception

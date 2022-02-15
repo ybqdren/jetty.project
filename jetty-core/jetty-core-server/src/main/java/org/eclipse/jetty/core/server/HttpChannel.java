@@ -155,10 +155,10 @@ public class HttpChannel extends Attributes.Lazy
     }
 
     /**
-     * Start request handling by returning a Runnable that will call {@link Handler#accept(Incoming)}.
+     * Start request handling by returning a Runnable that will call {@link Handler#accept(Request)}.
      *
      * @param request The request metadata to handle.
-     * @return A Runnable that will call {@link Handler#accept(Incoming)}.  Unlike all other Runnables
+     * @return A Runnable that will call {@link Handler#accept(Request)}.  Unlike all other Runnables
      * returned by {@link HttpChannel} methods, this runnable is not mutually excluded or serialized against the other
      * Runnables.
      */
@@ -369,7 +369,7 @@ public class HttpChannel extends Attributes.Lazy
         }
     }
 
-    class ChannelRequest implements Incoming, Request
+    class ChannelRequest implements Request
     {
         final MetaData.Request _metaData;
         final String _id;
@@ -389,12 +389,6 @@ public class HttpChannel extends Attributes.Lazy
             _id = Integer.toString(_requests);
             _metaData = metaData;
             _response = new ChannelResponse(this);
-        }
-
-        @Override
-        public String getTarget()
-        {
-            return null;
         }
 
         @Override

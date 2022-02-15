@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.LongAdder;
 import org.eclipse.jetty.core.server.Content;
 import org.eclipse.jetty.core.server.Handler;
 import org.eclipse.jetty.core.server.HttpStream;
-import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.Processor;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
@@ -37,14 +36,14 @@ public class StatisticsHandler extends Handler.Wrapper
     private final SampleStatistic _handleTimeStats = new SampleStatistic();
 
     @Override
-    public void accept(Incoming request) throws Exception
+    public void accept(Request request) throws Exception
     {
-        super.accept(new StatisticsIncoming(request));
+        super.accept(new StatisticsRequest(request));
     }
 
-    private class StatisticsIncoming extends Incoming.Wrapper
+    private class StatisticsRequest extends Request.Wrapper
     {
-        private StatisticsIncoming(Incoming delegate)
+        private StatisticsRequest(Request delegate)
         {
             super(delegate);
         }

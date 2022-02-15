@@ -651,7 +651,7 @@ public class HttpConfigurationAuthorityOverrideTest
     private static class DumpHandler extends Handler.Abstract
     {
         @Override
-        public void accept(Incoming request) throws Exception
+        public void accept(Request request) throws Exception
         {
             if (request.getHttpURI().getPath().startsWith("/dump"))
             {
@@ -679,7 +679,7 @@ public class HttpConfigurationAuthorityOverrideTest
     private static class RedirectHandler extends Handler.Abstract
     {
         @Override
-        public void accept(Incoming request) throws Exception
+        public void accept(Request request) throws Exception
         {
             if (request.getHttpURI().getPath().startsWith("/redirect"))
                 request.accept(RedirectHandler::process);
@@ -696,7 +696,7 @@ public class HttpConfigurationAuthorityOverrideTest
     private static class ErrorMsgHandler extends Handler.Abstract
     {
         @Override
-        public void accept(Incoming request) throws Exception
+        public void accept(Request request) throws Exception
         {
             if (request.getHttpURI().getPath().startsWith("/error"))
                 request.accept(ErrorMsgHandler::process);

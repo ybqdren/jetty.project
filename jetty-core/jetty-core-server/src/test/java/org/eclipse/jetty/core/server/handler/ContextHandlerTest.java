@@ -30,7 +30,6 @@ import org.eclipse.jetty.core.server.Content;
 import org.eclipse.jetty.core.server.Handler;
 import org.eclipse.jetty.core.server.HttpChannel;
 import org.eclipse.jetty.core.server.HttpConfiguration;
-import org.eclipse.jetty.core.server.Incoming;
 import org.eclipse.jetty.core.server.MockConnectionMetaData;
 import org.eclipse.jetty.core.server.MockConnector;
 import org.eclipse.jetty.core.server.MockHttpStream;
@@ -160,7 +159,7 @@ public class ContextHandlerTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
                 request.accept((rq, rs) ->
                 {
@@ -194,7 +193,7 @@ public class ContextHandlerTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
                 request.accept((rq, rs) ->
                 {
@@ -264,7 +263,7 @@ public class ContextHandlerTest
         Handler handler = new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request) throws Exception
+            public void accept(Request request) throws Exception
             {
                 request.accept((rq, rs) ->
                 {
@@ -383,7 +382,7 @@ public class ContextHandlerTest
         _contextHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public void accept(Incoming request)
+            public void accept(Request request)
             {
                 throw new RuntimeException("Testing");
             }
