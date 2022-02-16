@@ -37,8 +37,10 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.servlet.DispatcherType;
 import javax.servlet.MultipartConfigElement;
@@ -190,6 +192,29 @@ public class RequestTest
 
         String responses = _connector.getResponse(request);
         assertTrue(responses.startsWith("HTTP/1.1 200"));
+    }
+
+    @Test
+    public void testParameterExtractionKeepOrderingIntact() throws Exception
+    {
+        AtomicReference<Map<String, String[]>> reference = new AtomicReference<>();
+        _handler._checker = (request, response) ->
+        {
+            reference.set(request.getParameterMap());
+            return true;
+        };
+
+        String request = "POST /?first=1&second=2&third=3&fourth=4 HTTP/1.1\r\n" +
+            "Host: whatever\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\n" +
+            "Connection: close\n" +
+            "Content-Length: 34\n" +
+            "\n" +
+            "fifth=5&sixth=6&seventh=7&eighth=8";;
+
+        String responses = _connector.getResponse(request);
+        assertTrue(responses.startsWith("HTTP/1.1 200"));
+        assertThat(new ArrayList<>(reference.get().keySet()), is(Arrays.asList("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth")));
     }
 
     @Test
