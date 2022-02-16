@@ -45,6 +45,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -391,13 +392,14 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getRequestURI()
         {
-            return ServletScopedRequest.this.getHttpURI().toString();
+            HttpURI uri = ServletScopedRequest.this.getHttpURI();
+            return uri == null ? null : uri.getPath();
         }
 
         @Override
         public StringBuffer getRequestURL()
         {
-            return null;
+            return new StringBuffer(ServletScopedRequest.this.getHttpURI().asString());
         }
 
         @Override
@@ -528,7 +530,10 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getParameter(String name)
         {
-            return null;
+            List<String> strings = ServletScopedRequest.this.extractQueryParameters().get(name);
+            if (strings == null || strings.isEmpty())
+                return null;
+            return strings.get(0);
         }
 
         @Override

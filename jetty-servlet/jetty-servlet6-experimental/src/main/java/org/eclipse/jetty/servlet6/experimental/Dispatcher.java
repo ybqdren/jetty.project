@@ -105,13 +105,13 @@ public class Dispatcher implements RequestDispatcher
         @Override
         public String getPathInfo()
         {
-            return _mappedServlet.getServletPathMapping(URIUtil.addPaths(getServletPath(), getPathInfo())).getPathInfo();
+            return _mappedServlet.getServletPathMapping(_pathInContext).getPathInfo();
         }
 
         @Override
         public String getServletPath()
         {
-            return _mappedServlet.getServletPathMapping(URIUtil.addPaths(getServletPath(), getPathInfo())).getServletPath();
+            return _mappedServlet.getServletPathMapping(_pathInContext).getServletPath();
         }
 
         @Override
