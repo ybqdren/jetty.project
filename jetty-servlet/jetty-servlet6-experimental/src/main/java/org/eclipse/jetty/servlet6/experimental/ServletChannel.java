@@ -698,6 +698,13 @@ public class ServletChannel implements Runnable
     @Override
     public String toString()
     {
+        if (_request == null)
+        {
+            return String.format("%s@%x{null}",
+                getClass().getSimpleName(),
+                hashCode());
+        }
+
         long timeStamp = _request.getTimeStamp();
         return String.format("%s@%x{s=%s,r=%s,c=%b/%b,a=%s,uri=%s,age=%d}",
             getClass().getSimpleName(),

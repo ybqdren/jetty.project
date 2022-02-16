@@ -29,8 +29,7 @@ public class ServletScopedResponse extends Response.Wrapper
 
     private final Response _response;
     private final HttpOutput _httpOutput;
-    private final ServletChannel _servletChannel;
-    private final ServletRequestState _state;
+    private ServletChannel _servletChannel;
     private final MutableHttpServletResponse _httpServletResponse;
 
     private OutputType _outputType = OutputType.NONE;
@@ -42,8 +41,12 @@ public class ServletScopedResponse extends Response.Wrapper
         _response = response;
         _httpOutput = httpOutput;
         _servletChannel = servletChannel;
-        _state = servletChannel.getState();
         _httpServletResponse = new MutableHttpServletResponse(response);
+    }
+
+    public ServletRequestState getState()
+    {
+        return _servletChannel.getState();
     }
 
     public HttpServletResponse getHttpServletResponse()
@@ -130,7 +133,7 @@ public class ServletScopedResponse extends Response.Wrapper
 
                 default:
                     // This is just a state change
-                    _state.sendError(sc, msg);
+                    getState().sendError(sc, msg);
                     break;
             }
         }

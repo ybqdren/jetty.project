@@ -56,7 +56,6 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     public static final String __MULTIPART_CONFIG_ELEMENT = "org.eclipse.jetty.multipartConfig";
 
     ServletChannel _servletChannel;
-    ServletRequestState _state;
     final MutableHttpServletRequest _httpServletRequest;
     final ServletHandler.MappedServlet _mappedServlet;
     final ServletScopedResponse _response;
@@ -77,12 +76,16 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     {
         super(servletContextContext.getContextHandler(), request, pathInContext);
         _servletChannel = servletChannel;
-        _state = servletChannel.getState();
         _httpServletRequest = new MutableHttpServletRequest();
         _mappedServlet = mappedServlet;
         _httpOutput = new HttpOutput(response);
         _httpInput = new HttpInput(this);
         _response = new ServletScopedResponse(_servletChannel, response, _httpOutput);
+    }
+
+    public ServletRequestState getState()
+    {
+        return _servletChannel.getState();
     }
 
     @Override
@@ -219,7 +222,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     Runnable onContentAvailable()
     {
         // TODO not sure onReadReady is right method or at least could be renamed.
-        return _state.onReadReady() ? this : null;
+        return getState().onReadReady() ? this : null;
     }
 
     public void addEventListener(final EventListener listener)
@@ -657,7 +660,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public AsyncContext startAsync() throws IllegalStateException
         {
-            ServletRequestState state = _state;
+            ServletRequestState state = getState();
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request
@@ -669,7 +672,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException
         {
-            ServletRequestState state = _state;
+            ServletRequestState state = getState();
             if (_async == null)
                 _async = new AsyncContextState(state);
             // TODO adapt to new context and base Request
@@ -681,7 +684,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public boolean isAsyncStarted()
         {
-            return _state.isAsyncStarted();
+            return getState().isAsyncStarted();
         }
 
         @Override
