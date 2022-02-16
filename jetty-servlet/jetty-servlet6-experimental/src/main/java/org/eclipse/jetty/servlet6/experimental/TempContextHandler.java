@@ -125,7 +125,6 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     private boolean _contextPathDefault = true;
     private String _defaultRequestCharacterEncoding;
     private String _defaultResponseCharacterEncoding;
-    private String _contextPath = "/";
     private String _contextPathEncoded = "/";
     private String _displayName;
     private long _stopTimeout;
@@ -508,7 +507,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     @Override
     protected void doStart() throws Exception
     {
-        if (_contextPath == null)
+        if (getContextPath() == null)
             throw new IllegalStateException("Null contextPath");
 
         Resource baseResource = getBaseResource();
@@ -824,12 +823,13 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     public boolean checkContextPath(String uri)
     {
         // Are we not the root context?
-        if (_contextPath.length() > 1)
+        String contextPath = getContextPath();
+        if (contextPath.length() > 1)
         {
             // reject requests that are not for us
-            if (!uri.startsWith(_contextPath))
+            if (!uri.startsWith(contextPath))
                 return false;
-            if (uri.length() > _contextPath.length() && uri.charAt(_contextPath.length()) != '/')
+            if (uri.length() > contextPath.length() && uri.charAt(contextPath.length()) != '/')
                 return false;
         }
         return true;
@@ -854,7 +854,8 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
         {
             // Are we not the root context?
             // redirect null path infos
-            if (!_allowNullPathInfo && _contextPath.length() == target.length() && _contextPath.length() > 1)
+            String contextPath = getContextPath();
+            if (!_allowNullPathInfo && contextPath.length() == target.length() && contextPath.length() > 1)
             {
                 // context request must end with /
                 Response response = baseRequest.accept();
@@ -984,7 +985,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     }
 
     /**
-     * Check the target. Called by {@link #handle(Request, Response)} when a target within a context is determined. If
+     * Check the target. Called by {@link #handle(Request)} when a target within a context is determined. If
      * the target is protected, 404 is returned.
      *
      * @param target the target to test
@@ -1091,6 +1092,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
     /**
      * @param contextPath The _contextPath to set.
      */
+    @Override
     public void setContextPath(String contextPath)
     {
         if (contextPath == null)
@@ -1113,7 +1115,7 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
             contextPath = "/";
         }
 
-        _contextPath = contextPath;
+        super.setContextPath(contextPath);
         _contextPathEncoded = URIUtil.encodePath(contextPath);
         _contextPathDefault = false;
 

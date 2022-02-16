@@ -1726,7 +1726,7 @@ public class ServletContextHandler extends TempContextHandler
         @Override
         public RequestDispatcher getNamedDispatcher(String name)
         {
-            ContextHandler context = ServletContextHandler.this;
+            ServletContextHandler context = ServletContextHandler.this;
             if (_servletHandler == null)
                 return null;
             ServletHolder holder = _servletHandler.getServlet(name);
