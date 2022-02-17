@@ -29,19 +29,24 @@ public class ServletScopedResponse extends Response.Wrapper
 
     private final Response _response;
     private final HttpOutput _httpOutput;
-    private ServletChannel _servletChannel;
+    private final ServletChannel _servletChannel;
     private final MutableHttpServletResponse _httpServletResponse;
 
     private OutputType _outputType = OutputType.NONE;
     private ResponseWriter _writer;
 
-    public ServletScopedResponse(ServletChannel servletChannel, Response response, HttpOutput httpOutput)
+    public ServletScopedResponse(ServletChannel servletChannel, Response response)
     {
         super(response.getRequest(), response);
         _response = response;
-        _httpOutput = httpOutput;
+        _httpOutput = new HttpOutput(response, servletChannel);
         _servletChannel = servletChannel;
         _httpServletResponse = new MutableHttpServletResponse(response);
+    }
+
+    public HttpOutput getHttpOutput()
+    {
+        return _httpOutput;
     }
 
     public ServletRequestState getState()
@@ -62,6 +67,17 @@ public class ServletScopedResponse extends Response.Wrapper
             _httpOutput.complete(callback);
     }
 
+    public boolean isAllContentWritten(long written)
+    {
+        // TODO: add content length field here?
+        String contentLengthHeader = getHeaders().get(HttpHeader.CONTENT_LENGTH);
+        if (contentLengthHeader == null)
+            return true;
+
+        long contentLength = Long.parseLong(contentLengthHeader);
+        return (contentLength >= 0 && written >= contentLength);
+    }
+
     public boolean isContentComplete(long written)
     {
         // TODO: add content length field here?
@@ -73,7 +89,7 @@ public class ServletScopedResponse extends Response.Wrapper
         return (contentLength < 0 || written >= contentLength);
     }
 
-    private String getCharacterEncoding(boolean setContentType)
+    public String getCharacterEncoding(boolean setContentType)
     {
         // TODO
         return StringUtil.__ISO_8859_1;

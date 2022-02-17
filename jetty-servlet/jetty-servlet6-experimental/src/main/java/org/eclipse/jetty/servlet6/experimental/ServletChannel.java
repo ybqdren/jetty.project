@@ -97,6 +97,8 @@ public class ServletChannel implements Runnable
         // TODO: can we do this?
         _configuration = ((HttpConnection)request.getConnectionMetaData().getConnection()).getHttpConfiguration();
 
+        request.getHttpOutput().init();
+
         if (LOG.isDebugEnabled())
             LOG.debug("new {} -> {},{},{}",
                 this,
