@@ -503,12 +503,15 @@ public class ServletChannel implements Runnable
                     {
                         if (!_response.isCommitted())
                         {
-                            if (!_request.getHttpOutput().isClosed())
+                            /*
+                            TODO: isHandled does not exist and HttpOutput might not be explicitly closed.
+                            if (!_request.isHandled() && !_request.getHttpOutput().isClosed())
                             {
                                 // The request was not actually handled
                                 _response.writeError(HttpStatus.NOT_FOUND_404, _response.getCallback());
                                 break;
                             }
+                             */
 
                             // Indicate Connection:close if we can't consume all.
                             if (_response.getStatus() >= 200)

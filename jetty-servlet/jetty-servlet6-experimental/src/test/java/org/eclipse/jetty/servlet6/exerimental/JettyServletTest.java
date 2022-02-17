@@ -5,6 +5,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
+import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
@@ -133,6 +134,8 @@ public class JettyServletTest
             protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
             {
                 resp.setContentType("text/plain");
+
+                AsyncContext asyncContext = req.startAsync();
                 ServletOutputStream outputStream = resp.getOutputStream();
                 outputStream.setWriteListener(new WriteListener()
                 {
@@ -152,6 +155,8 @@ public class JettyServletTest
                             else
                             {
                                 outputStream.close();
+                                asyncContext.complete();
+                                return;
                             }
                         }
                     }
@@ -160,6 +165,7 @@ public class JettyServletTest
                     public void onError(Throwable t)
                     {
                         resp.setStatus(501);
+                        asyncContext.complete();
                     }
                 });
             }

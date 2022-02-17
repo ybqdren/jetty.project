@@ -1180,7 +1180,7 @@ public class ServletRequestState
 
     public ServletContextHandler getContextHandler()
     {
-        return ServletContextHandler.getServletContextHandler(getAsyncContextEvent().getServletContext());
+        return _servletChannel.getContextHandler();
     }
 
     public ServletResponse getServletResponse()

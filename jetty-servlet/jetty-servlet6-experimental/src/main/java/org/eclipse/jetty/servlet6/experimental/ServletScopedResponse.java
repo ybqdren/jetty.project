@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MetaData;
+import org.eclipse.jetty.io.RuntimeIOException;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.servlet6.experimental.writer.EncodingHttpWriter;
 import org.eclipse.jetty.servlet6.experimental.writer.Iso88591HttpWriter;
@@ -34,6 +35,8 @@ public class ServletScopedResponse extends Response.Wrapper
 
     private OutputType _outputType = OutputType.NONE;
     private ResponseWriter _writer;
+
+    private long _contentLength = -1;
 
     public ServletScopedResponse(ServletChannel servletChannel, Response response)
     {
@@ -69,24 +72,69 @@ public class ServletScopedResponse extends Response.Wrapper
 
     public boolean isAllContentWritten(long written)
     {
-        // TODO: add content length field here?
-        String contentLengthHeader = getHeaders().get(HttpHeader.CONTENT_LENGTH);
-        if (contentLengthHeader == null)
-            return true;
-
-        long contentLength = Long.parseLong(contentLengthHeader);
-        return (contentLength >= 0 && written >= contentLength);
+        return (_contentLength >= 0 && written >= _contentLength);
     }
 
     public boolean isContentComplete(long written)
     {
-        // TODO: add content length field here?
-        String contentLengthHeader = getHeaders().get(HttpHeader.CONTENT_LENGTH);
-        if (contentLengthHeader == null)
-            return true;
+        return (_contentLength < 0 || written >= _contentLength);
+    }
 
-        long contentLength = Long.parseLong(contentLengthHeader);
-        return (contentLength < 0 || written >= contentLength);
+    public void setContentLength(int len)
+    {
+        // Protect from setting after committed as default handling
+        // of a servlet HEAD request ALWAYS sets _content length, even
+        // if the getHandling committed the response!
+        if (isCommitted())
+            return;
+
+        if (len > 0)
+        {
+            long written = _httpOutput.getWritten();
+            if (written > len)
+                throw new IllegalArgumentException("setContentLength(" + len + ") when already written " + written);
+
+            _contentLength = len;
+            getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, len);
+            if (isAllContentWritten(written))
+            {
+                try
+                {
+                    closeOutput();
+                }
+                catch (IOException e)
+                {
+                    throw new RuntimeIOException(e);
+                }
+            }
+        }
+        else if (len == 0)
+        {
+            long written = _httpOutput.getWritten();
+            if (written > 0)
+                throw new IllegalArgumentException("setContentLength(0) when already written " + written);
+            _contentLength = len;
+            getHeaders().put(HttpHeader.CONTENT_LENGTH, "0");
+        }
+        else
+        {
+            _contentLength = len;
+            getHeaders().remove(HttpHeader.CONTENT_LENGTH);
+        }
+    }
+
+    public long getContentLength()
+    {
+        return _contentLength;
+    }
+
+
+    public void closeOutput() throws IOException
+    {
+        if (_outputType == OutputType.WRITER)
+            _writer.close();
+        else
+            _httpOutput.close();
     }
 
     public String getCharacterEncoding(boolean setContentType)
