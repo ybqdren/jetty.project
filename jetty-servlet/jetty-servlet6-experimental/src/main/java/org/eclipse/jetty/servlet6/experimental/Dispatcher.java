@@ -201,10 +201,8 @@ public class Dispatcher implements RequestDispatcher
             {
                 case RequestDispatcher.INCLUDE_MAPPING:
                     return _mappedServlet.getServletPathMapping(pathInContext);
-
                 case RequestDispatcher.INCLUDE_SERVLET_PATH:
                     return _mappedServlet.getServletPathMapping(pathInContext).getServletPath();
-
                 case RequestDispatcher.INCLUDE_PATH_INFO:
                     return _mappedServlet.getServletPathMapping(pathInContext).getPathInfo();
 
@@ -336,7 +334,7 @@ public class Dispatcher implements RequestDispatcher
         @Override
         public DispatcherType getDispatcherType()
         {
-            return DispatcherType.FORWARD;
+            return DispatcherType.ASYNC;
         }
 
         @Override
@@ -374,17 +372,17 @@ public class Dispatcher implements RequestDispatcher
         {
             switch (name)
             {
-                case RequestDispatcher.FORWARD_REQUEST_URI:
+                case AsyncContextState.ASYNC_REQUEST_URI:
                     return _httpServletRequest.getRequestURI();
-                case RequestDispatcher.FORWARD_SERVLET_PATH:
-                    return _httpServletRequest.getServletPath();
-                case RequestDispatcher.FORWARD_PATH_INFO:
-                    return _httpServletRequest.getPathInfo();
-                case RequestDispatcher.FORWARD_CONTEXT_PATH:
+                case AsyncContextState.ASYNC_CONTEXT_PATH:
                     return _httpServletRequest.getContextPath();
-                case RequestDispatcher.FORWARD_MAPPING:
+                case AsyncContextState.ASYNC_MAPPING:
                     return _httpServletRequest.getHttpServletMapping();
-                case RequestDispatcher.FORWARD_QUERY_STRING:
+                case AsyncContextState.ASYNC_PATH_INFO:
+                    return _httpServletRequest.getPathInfo();
+                case AsyncContextState.ASYNC_SERVLET_PATH:
+                    return _httpServletRequest.getServletPath();
+                case AsyncContextState.ASYNC_QUERY_STRING:
                     return _httpServletRequest.getQueryString();
                 default:
                     return super.getAttribute(name);

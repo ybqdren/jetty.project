@@ -52,6 +52,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextRequest;
+import org.eclipse.jetty.util.URIUtil;
 
 public class ServletScopedRequest extends ContextRequest implements Runnable
 {
@@ -630,7 +631,23 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public RequestDispatcher getRequestDispatcher(String path)
         {
-            return null;
+            ServletContextHandler.Context context = ServletScopedRequest.this.getContext();
+            if (path == null || context == null)
+                return null;
+
+            // handle relative path
+            if (!path.startsWith("/"))
+            {
+                String relTo = _pathInContext;
+                int slash = relTo.lastIndexOf("/");
+                if (slash > 1)
+                    relTo = relTo.substring(0, slash + 1);
+                else
+                    relTo = "/";
+                path = URIUtil.addPaths(relTo, path);
+            }
+
+            return context.getServletContext().getRequestDispatcher(path);
         }
 
         @Override
