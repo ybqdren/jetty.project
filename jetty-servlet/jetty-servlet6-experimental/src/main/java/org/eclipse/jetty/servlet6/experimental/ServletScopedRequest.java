@@ -38,6 +38,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletRequestAttributeListener;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletMapping;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -61,6 +62,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     final ServletHandler.MappedServlet _mappedServlet;
     final ServletScopedResponse _response;
     final HttpInput _httpInput;
+    final String _pathInContext;
     boolean _newContext;
     private UserIdentity.Scope _scope;
 
@@ -80,6 +82,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _mappedServlet = mappedServlet;
         _httpInput = new HttpInput(_servletChannel);
         _response = new ServletScopedResponse(_servletChannel, response);
+        _pathInContext = pathInContext;
     }
 
     public ServletRequestState getState()
@@ -682,6 +685,12 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             AsyncContextEvent event = new AsyncContextEvent(null, _async, state, null, servletRequest, servletResponse);
             state.startAsync(event);
             return _async;
+        }
+
+        @Override
+        public HttpServletMapping getHttpServletMapping()
+        {
+            return _mappedServlet.getServletPathMapping(_pathInContext);
         }
 
         @Override

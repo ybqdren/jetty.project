@@ -14,8 +14,11 @@
 package org.eclipse.jetty.servlet6.experimental;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
@@ -27,6 +30,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.servlet6.experimental.util.ServletOutputStreamWrapper;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.URIUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,6 +107,12 @@ public class Dispatcher implements RequestDispatcher
         }
 
         @Override
+        public DispatcherType getDispatcherType()
+        {
+            return DispatcherType.FORWARD;
+        }
+
+        @Override
         public String getPathInfo()
         {
             return _mappedServlet.getServletPathMapping(_pathInContext).getPathInfo();
@@ -112,6 +122,24 @@ public class Dispatcher implements RequestDispatcher
         public String getServletPath()
         {
             return _mappedServlet.getServletPathMapping(_pathInContext).getServletPath();
+        }
+
+        @Override
+        public String getQueryString()
+        {
+            if (_uri != null)
+            {
+                String targetQuery = _uri.getQuery();
+                if (!StringUtil.isEmpty(targetQuery))
+                    return targetQuery;
+            }
+            return _httpServletRequest.getQueryString();
+        }
+
+        @Override
+        public String getRequestURI()
+        {
+            return _uri == null ? null : _uri.getPath();
         }
 
         @Override
@@ -125,12 +153,28 @@ public class Dispatcher implements RequestDispatcher
                     return _httpServletRequest.getServletPath();
                 case RequestDispatcher.FORWARD_PATH_INFO:
                     return _httpServletRequest.getPathInfo();
-
-                // TODO etc.
+                case RequestDispatcher.FORWARD_CONTEXT_PATH:
+                    return _httpServletRequest.getContextPath();
+                case RequestDispatcher.FORWARD_MAPPING:
+                    return _httpServletRequest.getHttpServletMapping();
+                case RequestDispatcher.FORWARD_QUERY_STRING:
+                    return _httpServletRequest.getQueryString();
                 default:
-                    break;
+                    return super.getAttribute(name);
             }
-            return super.getAttribute(name);
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames()
+        {
+            ArrayList<String> names = new ArrayList<>(Collections.list(super.getAttributeNames()));
+            names.add(RequestDispatcher.FORWARD_REQUEST_URI);
+            names.add(RequestDispatcher.FORWARD_SERVLET_PATH);
+            names.add(RequestDispatcher.FORWARD_PATH_INFO);
+            names.add(RequestDispatcher.FORWARD_CONTEXT_PATH);
+            names.add(RequestDispatcher.FORWARD_MAPPING);
+            names.add(RequestDispatcher.FORWARD_QUERY_STRING);
+            return Collections.enumeration(names);
         }
     }
 
