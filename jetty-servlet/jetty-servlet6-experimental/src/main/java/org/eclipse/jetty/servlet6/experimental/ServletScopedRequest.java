@@ -782,8 +782,8 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getRemoteHost()
         {
-            // todo??
-            return null;
+            // TODO: review.
+            return ServletScopedRequest.this.getRemoteAddr();
         }
 
         @Override

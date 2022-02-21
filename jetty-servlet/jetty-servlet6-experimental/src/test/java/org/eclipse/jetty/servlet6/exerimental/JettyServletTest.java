@@ -1,12 +1,11 @@
 package org.eclipse.jetty.servlet6.exerimental;
 
-import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import jakarta.servlet.AsyncContext;
@@ -190,7 +189,7 @@ public class JettyServletTest
         _contextHandler.addServlet(new HttpServlet()
         {
             @Override
-            protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
             {
                 resp.setContentType("text/plain");
 
@@ -202,7 +201,6 @@ public class JettyServletTest
                 resp.getWriter().write("success");
             }
         }, "/");
-
 
         testResponse();
     }
@@ -221,34 +219,20 @@ public class JettyServletTest
                 ServletInputStream inputStream = req.getInputStream();
                 ServletOutputStream outputStream = resp.getOutputStream();
 
+                byte[] bytes = new byte[100];
                 inputStream.setReadListener(new ReadListener()
                 {
                     @Override
                     public void onDataAvailable() throws IOException
                     {
-                        while (true)
+                        while (inputStream.isReady())
                         {
-                            if (!inputStream.isReady())
-                            {
-                                System.err.println("breaking");
-                                return;
-                            }
-
-                            int available = inputStream.available();
-
-                            // TODO: we need to do this or we get stuck in loop (happens on jetty 11 as well????)
-                            if (available == 0)
+                            int read = inputStream.read(bytes);
+                            if (read < 0)
                                 return;
 
-                            System.err.println("reading data " + available);
-                            byte[] bytes = inputStream.readNBytes(available);
-
-//                            int read = inputStream.read();
-//                            if (read < 0)
-//                                return;
-//                            byte[] bytes = new byte[]{(byte)read};
-
-                            System.err.println("read data: " + BufferUtil.toDetailString(BufferUtil.toBuffer(bytes)));
+                            ByteBuffer content = BufferUtil.toBuffer(bytes, 0, read);
+                            System.err.println("read data: " + BufferUtil.toDetailString(content));
                         }
                     }
 
@@ -269,23 +253,7 @@ public class JettyServletTest
             }
         }, "/");
 
-
-        _connector.setIdleTimeout(1000000000);
-        _server.join();
         testSlowRequest();
-    }
-
-    private static byte[] readNBytes(InputStream inputStream, int numBytes) throws IOException
-    {
-        byte[] bytes = new byte[numBytes];
-        for (int i = 0; i < numBytes; i++)
-        {
-            int read = inputStream.read();
-            if (read < 0)
-                throw new EOFException();
-            bytes[i] = (byte)read;
-        }
-        return bytes;
     }
 
     private void testSlowRequest() throws Exception
@@ -295,6 +263,8 @@ public class JettyServletTest
 
         connection.setDoOutput(true);
         connection.setRequestMethod(HttpMethod.POST.asString());
+        connection.setFixedLengthStreamingMode("message1".length() * 2);
+
         OutputStream outputStream = connection.getOutputStream();
         OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
         writer.write("message1");
@@ -307,17 +277,13 @@ public class JettyServletTest
 
         writer.close();
         outputStream.close();
-
         connection.connect();
 
-
-        System.err.println();
         System.err.println(connection.getHeaderField(null));
         connection.getHeaderFields().entrySet()
             .stream()
             .filter(e -> e.getKey() != null)
             .forEach(e -> System.err.printf("  %s: %s\n", e.getKey(), e.getValue()));
-
 
         if (connection.getContentLengthLong() != 0)
             System.err.println("\n" + IO.toString(connection.getInputStream()));
