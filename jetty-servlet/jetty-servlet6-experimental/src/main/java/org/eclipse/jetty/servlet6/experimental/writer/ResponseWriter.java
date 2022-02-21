@@ -171,7 +171,7 @@ public class ResponseWriter extends PrintWriter
         {
             _isClosed = true;
         }
-        _httpWriter.complete();
+        _httpWriter.complete(callback);
     }
 
     @Override

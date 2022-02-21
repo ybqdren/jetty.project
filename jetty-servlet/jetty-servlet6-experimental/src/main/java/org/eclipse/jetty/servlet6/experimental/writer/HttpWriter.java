@@ -18,6 +18,7 @@ import java.io.Writer;
 
 import org.eclipse.jetty.servlet6.experimental.HttpOutput;
 import org.eclipse.jetty.util.ByteArrayOutputStream2;
+import org.eclipse.jetty.util.Callback;
 
 /**
  *
@@ -43,9 +44,9 @@ public abstract class HttpWriter extends Writer
         _out.close();
     }
 
-    public void complete()
+    public void complete(Callback callback)
     {
-        _out.getResponse().getCallback().succeeded();
+        _out.complete(callback);
     }
 
     @Override

@@ -28,6 +28,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.QuietException;
@@ -416,12 +417,14 @@ public class ServletChannel implements Runnable
                     {
                         dispatch(DispatcherType.ASYNC, () ->
                         {
-                            ServletContextHandler.ServletContextContext servletContextContext = getServletContextContext();
-                            ServletHandler servletHandler = servletContextContext.getContext().getServletContextHandler().getServletHandler();
-                            ServletHandler.MappedServlet mappedServlet = _request._mappedServlet;
+                            AsyncContextEvent asyncContextEvent = _state.getAsyncContextEvent();
+                            String dispatchPath = asyncContextEvent.getDispatchPath();
+                            HttpURI baseURI = asyncContextEvent.getBaseURI();
+                            if (baseURI == null)
+                                baseURI = HttpURI.from(dispatchPath);
 
-                            // TODO: override the dispatcher type.
-                            mappedServlet.handle(servletHandler, _request.getHttpServletRequest(), _request.getHttpServletResponse());
+                            Dispatcher dispatcher = new Dispatcher(getContextHandler(), baseURI, dispatchPath);
+                            dispatcher.async(_request.getHttpServletRequest(), _response.getHttpServletResponse());
                         });
                         break;
                     }

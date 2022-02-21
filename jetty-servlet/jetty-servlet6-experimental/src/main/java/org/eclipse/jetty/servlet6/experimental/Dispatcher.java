@@ -96,6 +96,14 @@ public class Dispatcher implements RequestDispatcher
         _mappedServlet.handle(_servletHandler, new IncludeRequest(httpRequest), new IncludeResponse(httpResponse));
     }
 
+    public void async(ServletRequest request, ServletResponse response) throws ServletException, IOException
+    {
+        HttpServletRequest httpRequest = (HttpServletRequest)request;
+        HttpServletResponse httpResponse = (HttpServletResponse)response;
+
+        _mappedServlet.handle(_servletHandler, new AsyncRequest(httpRequest), httpResponse);
+    }
+
     private class ForwardRequest extends HttpServletRequestWrapper
     {
         private final HttpServletRequest _httpServletRequest;
@@ -312,6 +320,88 @@ public class Dispatcher implements RequestDispatcher
         public void setStatus(int sc)
         {
             // NOOP for include.
+        }
+    }
+
+    private class AsyncRequest extends HttpServletRequestWrapper
+    {
+        private final HttpServletRequest _httpServletRequest;
+
+        public AsyncRequest(HttpServletRequest httpRequest)
+        {
+            super(httpRequest);
+            _httpServletRequest = httpRequest;
+        }
+
+        @Override
+        public DispatcherType getDispatcherType()
+        {
+            return DispatcherType.FORWARD;
+        }
+
+        @Override
+        public String getPathInfo()
+        {
+            return _mappedServlet.getServletPathMapping(_pathInContext).getPathInfo();
+        }
+
+        @Override
+        public String getServletPath()
+        {
+            return _mappedServlet.getServletPathMapping(_pathInContext).getServletPath();
+        }
+
+        @Override
+        public String getQueryString()
+        {
+            if (_uri != null)
+            {
+                String targetQuery = _uri.getQuery();
+                if (!StringUtil.isEmpty(targetQuery))
+                    return targetQuery;
+            }
+            return _httpServletRequest.getQueryString();
+        }
+
+        @Override
+        public String getRequestURI()
+        {
+            return _uri == null ? null : _uri.getPath();
+        }
+
+        @Override
+        public Object getAttribute(String name)
+        {
+            switch (name)
+            {
+                case RequestDispatcher.FORWARD_REQUEST_URI:
+                    return _httpServletRequest.getRequestURI();
+                case RequestDispatcher.FORWARD_SERVLET_PATH:
+                    return _httpServletRequest.getServletPath();
+                case RequestDispatcher.FORWARD_PATH_INFO:
+                    return _httpServletRequest.getPathInfo();
+                case RequestDispatcher.FORWARD_CONTEXT_PATH:
+                    return _httpServletRequest.getContextPath();
+                case RequestDispatcher.FORWARD_MAPPING:
+                    return _httpServletRequest.getHttpServletMapping();
+                case RequestDispatcher.FORWARD_QUERY_STRING:
+                    return _httpServletRequest.getQueryString();
+                default:
+                    return super.getAttribute(name);
+            }
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames()
+        {
+            ArrayList<String> names = new ArrayList<>(Collections.list(super.getAttributeNames()));
+            names.add(RequestDispatcher.FORWARD_REQUEST_URI);
+            names.add(RequestDispatcher.FORWARD_SERVLET_PATH);
+            names.add(RequestDispatcher.FORWARD_PATH_INFO);
+            names.add(RequestDispatcher.FORWARD_CONTEXT_PATH);
+            names.add(RequestDispatcher.FORWARD_MAPPING);
+            names.add(RequestDispatcher.FORWARD_QUERY_STRING);
+            return Collections.enumeration(names);
         }
     }
 
