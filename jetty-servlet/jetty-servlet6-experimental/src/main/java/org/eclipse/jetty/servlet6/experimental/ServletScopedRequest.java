@@ -45,6 +45,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.server.ConnectionMetaData;
@@ -250,6 +251,11 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
             return ServletScopedRequest.this;
         }
 
+        public HttpFields getFields()
+        {
+            return ServletScopedRequest.this.getHeaders();
+        }
+
         @Override
         public String getRequestId()
         {
@@ -310,31 +316,33 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public long getDateHeader(String name)
         {
-            return 0;
+            HttpFields fields = getFields();
+            return fields == null ? -1 : fields.getDateField(name);
         }
 
         @Override
         public String getHeader(String name)
         {
-            return ServletScopedRequest.this.getHeaders().get(name);
+            return getFields().get(name);
         }
 
         @Override
         public Enumeration<String> getHeaders(String name)
         {
-            return ServletScopedRequest.this.getHeaders().getValues(name);
+            return getFields().getValues(name);
         }
 
         @Override
         public Enumeration<String> getHeaderNames()
         {
-            return ServletScopedRequest.this.getHeaders().getFieldNames();
+            return getFields().getFieldNames();
         }
 
         @Override
         public int getIntHeader(String name)
         {
-            return (int)ServletScopedRequest.this.getHeaders().getLongField(name);
+            HttpFields fields = getFields();
+            return fields == null ? -1 : (int)fields.getLongField(name);
         }
 
         @Override
@@ -352,7 +360,10 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getPathTranslated()
         {
-            return null;
+            String pathInfo = getPathInfo();
+            if (pathInfo == null || getContext() == null)
+                return null;
+            return getContext().getServletContext().getRealPath(pathInfo);
         }
 
         @Override
@@ -370,7 +381,10 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getRemoteUser()
         {
-            return null;
+            Principal p = getUserPrincipal();
+            if (p == null)
+                return null;
+            return p.getName();
         }
 
         @Override
