@@ -188,10 +188,50 @@ public class Dispatcher implements RequestDispatcher
 
     private class IncludeRequest extends HttpServletRequestWrapper
     {
+        private final HttpServletRequest _httpServletRequest;
+
         public IncludeRequest(HttpServletRequest request)
         {
             super(request);
+            _httpServletRequest = request;
         }
+
+        @Override
+        public DispatcherType getDispatcherType()
+        {
+            return DispatcherType.INCLUDE;
+        }
+
+        @Override
+        public String getPathInfo()
+        {
+            return _mappedServlet.getServletPathMapping(_pathInContext).getPathInfo();
+        }
+
+        @Override
+        public String getServletPath()
+        {
+            return _mappedServlet.getServletPathMapping(_pathInContext).getServletPath();
+        }
+
+        @Override
+        public String getQueryString()
+        {
+            if (_uri != null)
+            {
+                String targetQuery = _uri.getQuery();
+                if (!StringUtil.isEmpty(targetQuery))
+                    return targetQuery;
+            }
+            return _httpServletRequest.getQueryString();
+        }
+
+        @Override
+        public String getRequestURI()
+        {
+            return _uri == null ? null : _uri.getPath();
+        }
+
 
         @Override
         public Object getAttribute(String name)

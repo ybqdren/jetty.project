@@ -15,7 +15,10 @@ package org.eclipse.jetty.servlet6.experimental;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,6 +28,7 @@ import java.util.EventListener;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.AsyncListener;
@@ -45,19 +49,37 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpScheme;
 import org.eclipse.jetty.http.HttpURI;
+import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextRequest;
+import org.eclipse.jetty.util.HostPort;
+import org.eclipse.jetty.util.MultiMap;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.URIUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ServletScopedRequest extends ContextRequest implements Runnable
 {
     public static final String __MULTIPART_CONFIG_ELEMENT = "org.eclipse.jetty.multipartConfig";
+
+    private static final Logger LOG = LoggerFactory.getLogger(ServletScopedRequest.class);
+    private static final Collection<Locale> __defaultLocale = Collections.singleton(Locale.getDefault());
+    private static final int INPUT_NONE = 0;
+    private static final int INPUT_STREAM = 1;
+    private static final int INPUT_READER = 2;
+
+    private static final MultiMap<String> NO_PARAMS = new MultiMap<>();
+    private static final MultiMap<String> BAD_PARAMS = new MultiMap<>();
 
     ServletChannel _servletChannel;
     final MutableHttpServletRequest _httpServletRequest;
@@ -245,7 +267,12 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
     public class MutableHttpServletRequest implements HttpServletRequest
     {
         private AsyncContextState _async;
-        
+        private String _characterEncoding;
+        private int _inputState = INPUT_NONE;
+        private BufferedReader _reader;
+        private String _readerEncoding;
+        private String _contentType;
+
         public Request getRequest()
         {
             return ServletScopedRequest.this;
@@ -304,12 +331,14 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getAuthType()
         {
+            // TODO
             return null;
         }
 
         @Override
         public Cookie[] getCookies()
         {
+            // TODO
             return new Cookie[0];
         }
 
@@ -390,18 +419,21 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public boolean isUserInRole(String role)
         {
+            // TODO
             return false;
         }
 
         @Override
         public Principal getUserPrincipal()
         {
+            // TODO
             return null;
         }
 
         @Override
         public String getRequestedSessionId()
         {
+            // TODO
             return null;
         }
 
@@ -427,72 +459,82 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public HttpSession getSession(boolean create)
         {
+            // TODO
             return null;
         }
 
         @Override
         public HttpSession getSession()
         {
+            // TODO
             return null;
         }
 
         @Override
         public String changeSessionId()
         {
+            // TODO
             return null;
         }
 
         @Override
         public boolean isRequestedSessionIdValid()
         {
+            // TODO
             return false;
         }
 
         @Override
         public boolean isRequestedSessionIdFromCookie()
         {
+            // TODO
             return false;
         }
 
         @Override
         public boolean isRequestedSessionIdFromURL()
         {
+            // TODO
             return false;
         }
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException
         {
+            // TODO
             return false;
         }
 
         @Override
         public void login(String username, String password) throws ServletException
         {
-
+            // TODO
         }
 
         @Override
         public void logout() throws ServletException
         {
-
+            // TODO
         }
 
         @Override
         public Collection<Part> getParts() throws IOException, ServletException
         {
+            // TODO
             return null;
         }
 
         @Override
         public Part getPart(String name) throws IOException, ServletException
         {
+            // TODO
             return null;
         }
 
         @Override
         public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException
         {
+            // TODO
             return null;
         }
 
@@ -511,35 +553,87 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getCharacterEncoding()
         {
-            return null;
+            if (_characterEncoding == null)
+            {
+                if (getContext() != null)
+                    _characterEncoding = getContext().getServletContext().getRequestCharacterEncoding();
+
+                if (_characterEncoding == null)
+                {
+                    String contentType = getContentType();
+                    if (contentType != null)
+                    {
+                        MimeTypes.Type mime = MimeTypes.CACHE.get(contentType);
+                        String charset = (mime == null || mime.getCharset() == null) ? MimeTypes.getCharsetFromContentType(contentType) : mime.getCharset().toString();
+                        if (charset != null)
+                            _characterEncoding = charset;
+                    }
+                }
+            }
+            return _characterEncoding;
         }
 
         @Override
-        public void setCharacterEncoding(String env) throws UnsupportedEncodingException
+        public void setCharacterEncoding(String encoding) throws UnsupportedEncodingException
         {
+            if (_inputState != INPUT_NONE)
+                return;
+
+            _characterEncoding = encoding;
+
+            // check encoding is supported
+            if (!StringUtil.isUTF8(encoding))
+            {
+                try
+                {
+                    Charset.forName(encoding);
+                }
+                catch (UnsupportedCharsetException e)
+                {
+                    throw new UnsupportedEncodingException(e.getMessage());
+                }
+            }
         }
 
         @Override
         public int getContentLength()
         {
-            return 0;
+            long contentLength = getContentLengthLong();
+            if (contentLength > Integer.MAX_VALUE)
+                // Per ServletRequest#getContentLength() javadoc this must return -1 for values exceeding Integer.MAX_VALUE
+                return -1;
+            return (int)contentLength;
         }
 
         @Override
         public long getContentLengthLong()
         {
-            return 0;
+            // Even thought the metadata might know the real content length,
+            // we always look at the headers because the length may be changed by interceptors.
+            if (getFields() == null)
+                return -1;
+
+            return getFields().getLongField(HttpHeader.CONTENT_LENGTH);
         }
 
         @Override
         public String getContentType()
         {
-            return null;
+            if (_contentType == null)
+                _contentType = getFields().get(HttpHeader.CONTENT_TYPE);
+            return _contentType;
         }
 
         @Override
         public ServletInputStream getInputStream() throws IOException
         {
+            if (_inputState != INPUT_NONE && _inputState != INPUT_STREAM)
+                throw new IllegalStateException("READER");
+            _inputState = INPUT_STREAM;
+
+            if (_servletChannel.isExpecting100Continue())
+                _servletChannel.continue100(_httpInput.available());
+
             return _httpInput;
         }
 
@@ -555,18 +649,21 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public Enumeration<String> getParameterNames()
         {
+            // TODO
             return null;
         }
 
         @Override
         public String[] getParameterValues(String name)
         {
+            // TODO
             return new String[0];
         }
 
         @Override
         public Map<String, String[]> getParameterMap()
         {
+            // TODO
             return null;
         }
 
@@ -579,67 +676,186 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getScheme()
         {
-            return null;
+            return ServletScopedRequest.this.getHttpURI().getScheme();
         }
 
         @Override
         public String getServerName()
         {
-            return null;
+            HttpURI uri = ServletScopedRequest.this.getHttpURI();
+            if ((uri != null) && StringUtil.isNotBlank(uri.getAuthority()))
+                return formatAddrOrHost(uri.getHost());
+            else
+                return findServerName();
+        }
+
+        private String formatAddrOrHost(String name)
+        {
+            return _servletChannel == null ? HostPort.normalizeHost(name) : _servletChannel.formatAddrOrHost(name);
+        }
+
+        private String findServerName()
+        {
+            if (_servletChannel != null)
+            {
+                HostPort serverAuthority = _servletChannel.getServerAuthority();
+                if (serverAuthority != null)
+                    return formatAddrOrHost(serverAuthority.getHost());
+            }
+
+            // Return host from connection
+            String name = getLocalName();
+            if (name != null)
+                return formatAddrOrHost(name);
+
+            return ""; // not allowed to be null
         }
 
         @Override
         public int getServerPort()
         {
-            return 0;
+            int port = -1;
+
+            HttpURI uri = ServletScopedRequest.this.getHttpURI();
+            if ((uri != null) && StringUtil.isNotBlank(uri.getAuthority()))
+                port = uri.getPort();
+            else
+                port = findServerPort();
+
+            // If no port specified, return the default port for the scheme
+            if (port <= 0)
+                return HttpScheme.getDefaultPort(getScheme());
+
+            // return a specific port
+            return port;
+        }
+
+        private int findServerPort()
+        {
+            if (_servletChannel != null)
+            {
+                HostPort serverAuthority = _servletChannel.getServerAuthority();
+                if (serverAuthority != null)
+                    return serverAuthority.getPort();
+            }
+
+            // Return host from connection
+            return getLocalPort();
         }
 
         @Override
         public BufferedReader getReader() throws IOException
         {
-            return null;
+            if (_inputState != INPUT_NONE && _inputState != INPUT_READER)
+                throw new IllegalStateException("STREAMED");
+
+            if (_inputState == INPUT_READER)
+                return _reader;
+
+            String encoding = getCharacterEncoding();
+            if (encoding == null)
+                encoding = StringUtil.__ISO_8859_1;
+
+            if (_reader == null || !encoding.equalsIgnoreCase(_readerEncoding))
+            {
+                final ServletInputStream in = getInputStream();
+                _readerEncoding = encoding;
+                _reader = new BufferedReader(new InputStreamReader(in, encoding))
+                {
+                    @Override
+                    public void close() throws IOException
+                    {
+                        in.close();
+                    }
+                };
+            }
+            _inputState = INPUT_READER;
+            return _reader;
         }
 
         @Override
         public String getRemoteAddr()
         {
-            return null;
+            return ServletScopedRequest.this.getRemoteAddr();
         }
 
         @Override
         public String getRemoteHost()
         {
+            // todo??
             return null;
         }
 
         @Override
         public void setAttribute(String name, Object o)
         {
-
+            ServletScopedRequest.this.setAttribute(name, o);
         }
 
         @Override
         public void removeAttribute(String name)
         {
-
+            ServletScopedRequest.this.removeAttribute(name);
         }
 
         @Override
         public Locale getLocale()
         {
-            return null;
+            HttpFields fields = getFields();
+            if (fields == null)
+                return Locale.getDefault();
+
+            List<String> acceptable = fields.getQualityCSV(HttpHeader.ACCEPT_LANGUAGE);
+
+            // handle no locale
+            if (acceptable.isEmpty())
+                return Locale.getDefault();
+
+            String language = acceptable.get(0);
+            language = HttpField.stripParameters(language);
+            String country = "";
+            int dash = language.indexOf('-');
+            if (dash > -1)
+            {
+                country = language.substring(dash + 1).trim();
+                language = language.substring(0, dash).trim();
+            }
+            return new Locale(language, country);
         }
 
         @Override
         public Enumeration<Locale> getLocales()
         {
-            return null;
+            HttpFields fields = getFields();
+            if (fields == null)
+                return Collections.enumeration(__defaultLocale);
+
+            List<String> acceptable = fields.getQualityCSV(HttpHeader.ACCEPT_LANGUAGE);
+
+            // handle no locale
+            if (acceptable.isEmpty())
+                return Collections.enumeration(__defaultLocale);
+
+            List<Locale> locales = acceptable.stream().map(language ->
+            {
+                language = HttpField.stripParameters(language);
+                String country = "";
+                int dash = language.indexOf('-');
+                if (dash > -1)
+                {
+                    country = language.substring(dash + 1).trim();
+                    language = language.substring(0, dash).trim();
+                }
+                return new Locale(language, country);
+            }).collect(Collectors.toList());
+
+            return Collections.enumeration(locales);
         }
 
         @Override
         public boolean isSecure()
         {
-            return false;
+            return ServletScopedRequest.this.getConnectionMetaData().isSecure();
         }
 
         @Override
@@ -667,25 +883,31 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public int getRemotePort()
         {
-            return 0;
+            return ServletScopedRequest.this.getRemotePort();
         }
 
         @Override
         public String getLocalName()
         {
-            return null;
+            if (_servletChannel != null)
+            {
+                String localName = _servletChannel.getLocalName();
+                return formatAddrOrHost(localName);
+            }
+
+            return ""; // not allowed to be null
         }
 
         @Override
         public String getLocalAddr()
         {
-            return null;
+            return ServletScopedRequest.this.getLocalAddr();
         }
 
         @Override
         public int getLocalPort()
         {
-            return 0;
+            return ServletScopedRequest.this.getLocalPort();
         }
 
         @Override
@@ -733,13 +955,17 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public boolean isAsyncSupported()
         {
-            return false;
+            return true;
         }
 
         @Override
         public AsyncContext getAsyncContext()
         {
-            return null;
+            ServletRequestState state = _servletChannel.getState();
+            if (_async == null || !state.isAsyncStarted())
+                throw new IllegalStateException(state.getStatusString());
+
+            return _async;
         }
 
         @Override
