@@ -84,6 +84,25 @@ public class ServletChannel implements Runnable
     {
     }
 
+    public boolean failAllContent(Throwable x)
+    {
+        // TODO: what to do with x?
+        while (true)
+        {
+            Content content = _request.readContent();
+            if (content == null)
+                return false;
+
+            if (content.isSpecial())
+            {
+                content.release();
+                return content.isLast();
+            }
+
+            content.release();
+        }
+    }
+
     public void init(ServletScopedRequest request)
     {
         _servletContextContext = request.getContext().getServletContext();
@@ -97,6 +116,7 @@ public class ServletChannel implements Runnable
         // TODO: can we do this?
         _configuration = ((HttpConnection)request.getConnectionMetaData().getConnection()).getHttpConfiguration();
 
+        request.getHttpInput().init();
         request.getHttpOutput().init();
 
         if (LOG.isDebugEnabled())

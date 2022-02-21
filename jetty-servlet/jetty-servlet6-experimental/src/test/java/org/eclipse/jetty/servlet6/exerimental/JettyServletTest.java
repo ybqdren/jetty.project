@@ -1,20 +1,28 @@
 package org.eclipse.jetty.servlet6.exerimental;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet6.experimental.ServletContextHandler;
+import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.IO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +42,7 @@ public class JettyServletTest
     {
         _server = new Server();
         _connector = new ServerConnector(_server);
+        _connector.setPort(8080);
         _server.addConnector(_connector);
         _server.setHandler(_contextHandler);
         _server.start();
@@ -173,5 +182,147 @@ public class JettyServletTest
 
 
         testResponse();
+    }
+
+    @Test
+    public void testRead() throws Exception
+    {
+        _contextHandler.addServlet(new HttpServlet()
+        {
+            @Override
+            protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+            {
+                resp.setContentType("text/plain");
+
+                ServletInputStream inputStream = req.getInputStream();
+                String body = IO.toString(inputStream);
+                System.err.println(body);
+
+                resp.setStatus(200);
+                resp.getWriter().write("success");
+            }
+        }, "/");
+
+
+        testResponse();
+    }
+
+    @Test
+    public void testAsyncRead() throws Exception
+    {
+        _contextHandler.addServlet(new HttpServlet()
+        {
+            @Override
+            protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+            {
+                resp.setContentType("text/plain");
+
+                AsyncContext asyncContext = req.startAsync();
+                ServletInputStream inputStream = req.getInputStream();
+                ServletOutputStream outputStream = resp.getOutputStream();
+
+                inputStream.setReadListener(new ReadListener()
+                {
+                    @Override
+                    public void onDataAvailable() throws IOException
+                    {
+                        while (true)
+                        {
+                            if (!inputStream.isReady())
+                            {
+                                System.err.println("breaking");
+                                return;
+                            }
+
+                            int available = inputStream.available();
+
+                            // TODO: we need to do this or we get stuck in loop (happens on jetty 11 as well????)
+                            if (available == 0)
+                                return;
+
+                            System.err.println("reading data " + available);
+                            byte[] bytes = inputStream.readNBytes(available);
+
+//                            int read = inputStream.read();
+//                            if (read < 0)
+//                                return;
+//                            byte[] bytes = new byte[]{(byte)read};
+
+                            System.err.println("read data: " + BufferUtil.toDetailString(BufferUtil.toBuffer(bytes)));
+                        }
+                    }
+
+                    @Override
+                    public void onAllDataRead() throws IOException
+                    {
+                        System.err.println("all received");
+                        outputStream.close();
+                        asyncContext.complete();
+                    }
+
+                    @Override
+                    public void onError(Throwable t)
+                    {
+                        t.printStackTrace();
+                    }
+                });
+            }
+        }, "/");
+
+
+        _connector.setIdleTimeout(1000000000);
+        _server.join();
+        testSlowRequest();
+    }
+
+    private static byte[] readNBytes(InputStream inputStream, int numBytes) throws IOException
+    {
+        byte[] bytes = new byte[numBytes];
+        for (int i = 0; i < numBytes; i++)
+        {
+            int read = inputStream.read();
+            if (read < 0)
+                throw new EOFException();
+            bytes[i] = (byte)read;
+        }
+        return bytes;
+    }
+
+    private void testSlowRequest() throws Exception
+    {
+        URL uri = new URL("http://localhost:" + _connector.getLocalPort());
+        HttpURLConnection connection = (HttpURLConnection)uri.openConnection();
+
+        connection.setDoOutput(true);
+        connection.setRequestMethod(HttpMethod.POST.asString());
+        OutputStream outputStream = connection.getOutputStream();
+        OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+        writer.write("message1");
+        writer.flush();
+        outputStream.flush();
+        Thread.sleep(1000);
+        writer.write("message2");
+        writer.flush();
+        outputStream.flush();
+
+        writer.close();
+        outputStream.close();
+
+        connection.connect();
+
+
+        System.err.println();
+        System.err.println(connection.getHeaderField(null));
+        connection.getHeaderFields().entrySet()
+            .stream()
+            .filter(e -> e.getKey() != null)
+            .forEach(e -> System.err.printf("  %s: %s\n", e.getKey(), e.getValue()));
+
+
+        if (connection.getContentLengthLong() != 0)
+            System.err.println("\n" + IO.toString(connection.getInputStream()));
+        System.err.println();
+
+        assertThat(connection.getResponseCode(), equalTo(200));
     }
 }

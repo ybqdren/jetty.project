@@ -78,7 +78,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _servletChannel = servletChannel;
         _httpServletRequest = new MutableHttpServletRequest();
         _mappedServlet = mappedServlet;
-        _httpInput = new HttpInput(this);
+        _httpInput = new HttpInput(_servletChannel);
         _response = new ServletScopedResponse(_servletChannel, response);
     }
 
@@ -555,7 +555,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getProtocol()
         {
-            return null;
+            return ServletScopedRequest.this.getConnectionMetaData().getProtocol();
         }
 
         @Override
