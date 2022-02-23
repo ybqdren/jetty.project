@@ -81,6 +81,7 @@ public class HttpChannel extends Attributes.Lazy
     private final HttpConfiguration _configuration;
     private final SerializedInvoker _serializedInvoker;
     private final Attributes _requestAttributes = new Attributes.Lazy();
+    private final Listener _listener;
     private long _requests;
 
     private HttpStream _stream;
@@ -91,6 +92,10 @@ public class HttpChannel extends Attributes.Lazy
     {
         _server = server;
         _connectionMetaData = connectionMetaData;
+        Listener listener = server.getBean(Listener.class);
+        if (listener == null)
+            listener = new Listener() {};
+        _listener = listener;
         _configuration = Objects.requireNonNull(configuration);
         // The SerializedInvoker is used to prevent infinite recursion of callbacks calling methods calling callbacks etc.
         _serializedInvoker = new SerializedInvoker()
@@ -198,9 +203,11 @@ public class HttpChannel extends Attributes.Lazy
                     throw new BadMessageException(badMessage);
             }
 
-            // This is deliberately not serialized as to allow a handler to block.
-            return _handle;
         }
+        _listener.onRequestBegin(_request);
+
+        // This is deliberately not serialized as to allow a handler to block.
+        return _handle;
     }
 
     protected Request getRequest()
@@ -642,6 +649,7 @@ public class HttpChannel extends Attributes.Lazy
                 HttpStream stream;
                 boolean commit;
                 long written;
+                Request request;
                 try (AutoLock ignored = _lock.lock())
                 {
                     if (!_processing)
@@ -660,6 +668,7 @@ public class HttpChannel extends Attributes.Lazy
                         return;
                     stream = _stream;
                     _stream = null;
+                    request = _request;
                     _request = null;
 
                     written = _response._written;
@@ -673,11 +682,20 @@ public class HttpChannel extends Attributes.Lazy
                 if (LOG.isDebugEnabled())
                     LOG.debug("consumeAll {} ", this, unconsumed);
                 if (unconsumed != null && getConnectionMetaData().isPersistent())
+                {
                     stream.failed(unconsumed);
+                    _listener.onComplete(request);
+                }
                 else if (_response._committedContentLength >= 0L && _response._committedContentLength != written)
+                {
                     stream.failed(new IOException("content-length %d != %d written".formatted(_response._committedContentLength, written)));
+                    _listener.onComplete(request);
+                }
                 else
-                    stream.send(responseMetaData, true, stream);
+                {
+                    Callback cb = Callback.combine(stream, Callback.from(() -> _listener.onComplete(request)));
+                    stream.send(responseMetaData, true, cb);
+                }
             }
 
             @Override
@@ -748,6 +766,8 @@ public class HttpChannel extends Attributes.Lazy
                         }
                     ), x);
                 }
+
+                _listener.onComplete(request);
             }
 
             @Override
@@ -1017,6 +1037,17 @@ public class HttpChannel extends Attributes.Lazy
 
             // Do the write
             _stream.send(responseMetaData, last, callback, content);
+        }
+    }
+
+    public interface Listener
+    {
+        default void onRequestBegin(Request request)
+        {
+        }
+
+        default void onComplete(Request request)
+        {
         }
     }
 }
