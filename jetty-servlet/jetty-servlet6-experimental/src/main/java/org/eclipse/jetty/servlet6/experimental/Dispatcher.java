@@ -15,8 +15,11 @@ package org.eclipse.jetty.servlet6.experimental;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
@@ -30,8 +33,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.servlet6.experimental.util.ServletOutputStreamWrapper;
+import org.eclipse.jetty.util.MultiMap;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.URIUtil;
+import org.eclipse.jetty.util.UrlEncoded;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,8 +86,8 @@ public class Dispatcher implements RequestDispatcher
     @Override
     public void forward(ServletRequest request, ServletResponse response) throws ServletException, IOException
     {
-        HttpServletRequest httpRequest = (HttpServletRequest)request;
-        HttpServletResponse httpResponse = (HttpServletResponse)response;
+        HttpServletRequest httpRequest = (request instanceof HttpServletRequest) ? (HttpServletRequest)request : new ServletRequestHttpWrapper(request);
+        HttpServletResponse httpResponse = (response instanceof HttpServletResponse) ? (HttpServletResponse)response : new ServletResponseHttpWrapper(response);
 
         _mappedServlet.handle(_servletHandler, new ForwardRequest(httpRequest), httpResponse);
     }
@@ -90,21 +95,77 @@ public class Dispatcher implements RequestDispatcher
     @Override
     public void include(ServletRequest request, ServletResponse response) throws ServletException, IOException
     {
-        HttpServletRequest httpRequest = (HttpServletRequest)request;
-        HttpServletResponse httpResponse = (HttpServletResponse)response;
+        HttpServletRequest httpRequest = (request instanceof HttpServletRequest) ? (HttpServletRequest)request : new ServletRequestHttpWrapper(request);
+        HttpServletResponse httpResponse = (response instanceof HttpServletResponse) ? (HttpServletResponse)response : new ServletResponseHttpWrapper(response);
 
         _mappedServlet.handle(_servletHandler, new IncludeRequest(httpRequest), new IncludeResponse(httpResponse));
     }
 
     public void async(ServletRequest request, ServletResponse response) throws ServletException, IOException
     {
-        HttpServletRequest httpRequest = (HttpServletRequest)request;
-        HttpServletResponse httpResponse = (HttpServletResponse)response;
+        HttpServletRequest httpRequest = (request instanceof HttpServletRequest) ? (HttpServletRequest)request : new ServletRequestHttpWrapper(request);
+        HttpServletResponse httpResponse = (response instanceof HttpServletResponse) ? (HttpServletResponse)response : new ServletResponseHttpWrapper(response);
 
         _mappedServlet.handle(_servletHandler, new AsyncRequest(httpRequest), httpResponse);
     }
 
-    private class ForwardRequest extends HttpServletRequestWrapper
+    public class ParameterRequestWrapper extends HttpServletRequestWrapper
+    {
+        private Map<String, String[]> params;
+
+        public ParameterRequestWrapper(HttpServletRequest request)
+        {
+            super(request);
+        }
+
+        @Override
+        public String getParameter(String name)
+        {
+            String[] strings = getParameterMap().get(name);
+            if (strings == null || strings.length == 0)
+                return null;
+            return strings[0];
+        }
+
+        @Override
+        public Map<String, String[]> getParameterMap()
+        {
+            if (params != null)
+                return params;
+
+            Map<String, String[]> oldParams = super.getParameterMap();
+            if (_uri == null || _uri.getQuery() == null)
+            {
+                params = oldParams;
+                return oldParams;
+            }
+
+            MultiMap<String> newParams = new MultiMap<>();
+            UrlEncoded.decodeTo(_uri.getQuery(), newParams, UrlEncoded.ENCODING);
+            for (Map.Entry<String, String[]> entry : oldParams.entrySet())
+            {
+                newParams.addValues(entry.getKey(), entry.getValue());
+            }
+            params = newParams.toStringArrayMap();
+            return params;
+        }
+
+        @Override
+        public Enumeration<String> getParameterNames()
+        {
+            return Collections.enumeration(getParameterMap().entrySet().stream()
+                .flatMap(o -> Arrays.stream(o.getValue()))
+                .collect(Collectors.toList()));
+        }
+
+        @Override
+        public String[] getParameterValues(String name)
+        {
+            return getParameterMap().get(name);
+        }
+    }
+
+    private class ForwardRequest extends ParameterRequestWrapper
     {
         private final HttpServletRequest _httpServletRequest;
 
@@ -186,7 +247,7 @@ public class Dispatcher implements RequestDispatcher
         }
     }
 
-    private class IncludeRequest extends HttpServletRequestWrapper
+    private class IncludeRequest extends ParameterRequestWrapper
     {
         private final HttpServletRequest _httpServletRequest;
 
@@ -361,7 +422,7 @@ public class Dispatcher implements RequestDispatcher
         }
     }
 
-    private class AsyncRequest extends HttpServletRequestWrapper
+    private class AsyncRequest extends ParameterRequestWrapper
     {
         private final HttpServletRequest _httpServletRequest;
 

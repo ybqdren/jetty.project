@@ -49,6 +49,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -264,6 +265,19 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _requestAttributeListeners.remove(listener);
     }
 
+    /**
+     * Compare inputParameters to NO_PARAMS by Reference
+     *
+     * @param inputParameters The parameters to compare to NO_PARAMS
+     * @return True if the inputParameters reference is equal to NO_PARAMS otherwise False
+     */
+    private static boolean isNoParams(MultiMap<String> inputParameters)
+    {
+        @SuppressWarnings("ReferenceEquality")
+        boolean isNoParams = (inputParameters == NO_PARAMS);
+        return isNoParams;
+    }
+
     public class MutableHttpServletRequest implements HttpServletRequest
     {
         private AsyncContextState _async;
@@ -272,6 +286,10 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         private BufferedReader _reader;
         private String _readerEncoding;
         private String _contentType;
+        private boolean _contentParamsExtracted;
+        private MultiMap<String> _contentParameters;
+        private MultiMap<String> _parameters;
+        private MultiMap<String> _queryParameters;
 
         public Request getRequest()
         {
@@ -640,31 +658,107 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         @Override
         public String getParameter(String name)
         {
-            List<String> strings = ServletScopedRequest.this.extractQueryParameters().get(name);
-            if (strings == null || strings.isEmpty())
-                return null;
-            return strings.get(0);
+            return getParameters().getValue(name, 0);
         }
 
         @Override
         public Enumeration<String> getParameterNames()
         {
-            // TODO
-            return null;
+            return Collections.enumeration(getParameters().keySet());
         }
 
         @Override
         public String[] getParameterValues(String name)
         {
-            // TODO
-            return new String[0];
+            List<String> vals = getParameters().getValues(name);
+            if (vals == null)
+                return null;
+            return vals.toArray(new String[0]);
         }
 
         @Override
         public Map<String, String[]> getParameterMap()
         {
-            // TODO
-            return null;
+            return Collections.unmodifiableMap(getParameters().toStringArrayMap());
+        }
+
+        private MultiMap<String> getParameters()
+        {
+            if (!_contentParamsExtracted)
+            {
+                // content parameters need boolean protection as they can only be read
+                // once, but may be reset to null by a reset
+                _contentParamsExtracted = true;
+
+                // Extract content parameters; these cannot be replaced by a forward()
+                // once extracted and may have already been extracted by getParts() or
+                // by a processing happening after a form-based authentication.
+                if (_contentParameters == null)
+                {
+                    try
+                    {
+                        extractContentParameters();
+                    }
+                    catch (IllegalStateException | IllegalArgumentException e)
+                    {
+                        LOG.warn(e.toString());
+                        throw new BadMessageException("Unable to parse form content", e);
+                    }
+                }
+            }
+
+            // Extract query string parameters; these may be replaced by a forward()
+            // and may have already been extracted by mergeQueryParameters().
+            if (_queryParameters == null)
+                extractQueryParameters();
+
+            // Do parameters need to be combined?
+            if (isNoParams(_queryParameters) || _queryParameters.size() == 0)
+                _parameters = _contentParameters;
+            else if (isNoParams(_contentParameters) || _contentParameters.size() == 0)
+                _parameters = _queryParameters;
+            else if (_parameters == null)
+            {
+                _parameters = new MultiMap<>();
+                _parameters.addAllValues(_queryParameters);
+                _parameters.addAllValues(_contentParameters);
+            }
+
+            // protect against calls to recycled requests (which is illegal, but
+            // this gives better failures
+            MultiMap<String> parameters = _parameters;
+            return parameters == null ? NO_PARAMS : parameters;
+        }
+
+        private void extractContentParameters()
+        {
+            String contentType = getContentType();
+            if (contentType == null || contentType.isEmpty())
+                _contentParameters = NO_PARAMS;
+            else
+            {
+                _contentParameters = new MultiMap<>();
+                // TODO
+            }
+        }
+
+        private void extractQueryParameters()
+        {
+            HttpURI httpURI = ServletScopedRequest.this.getHttpURI();
+            if (httpURI == null || StringUtil.isEmpty(httpURI.getQuery()))
+                _queryParameters = NO_PARAMS;
+            else
+            {
+                try
+                {
+                    _queryParameters = ServletScopedRequest.this.extractQueryParameters();
+                }
+                catch (IllegalStateException | IllegalArgumentException e)
+                {
+                    _queryParameters = BAD_PARAMS;
+                    throw new BadMessageException("Unable to parse URI query", e);
+                }
+            }
         }
 
         @Override
