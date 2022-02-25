@@ -106,7 +106,7 @@ public class ServletScopedRequest extends ContextRequest implements Runnable
         _httpServletRequest = new MutableHttpServletRequest();
         _mappedServlet = mappedServlet;
         _httpInput = new HttpInput(_servletChannel);
-        _response = new ServletScopedResponse(_servletChannel, response);
+        _response = new ServletScopedResponse(_servletChannel, this, response);
         _pathInContext = pathInContext;
     }
 

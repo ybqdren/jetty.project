@@ -17,6 +17,7 @@ import java.util.Set;
 
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
+import jakarta.servlet.http.HttpSession;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.slf4j.Logger;
@@ -36,12 +37,22 @@ public class SessionHandler extends Handler.Wrapper
         return null;
     }
 
+    public String getExtendedId(HttpSession session)
+    {
+        return null;
+    }
+
     public int getMaxInactiveInterval()
     {
         return 0;
     }
 
     public SessionCookieConfig getSessionCookieConfig()
+    {
+        return null;
+    }
+
+    public String getSessionIdPathParameterNamePrefix()
     {
         return null;
     }
@@ -57,6 +68,26 @@ public class SessionHandler extends Handler.Wrapper
 
         LOG.warn("Session are not implemented.");
         super.handle(request);
+    }
+
+    public boolean isCheckingRemoteSessionIdEncoding()
+    {
+        return false;
+    }
+
+    public boolean isUsingCookies()
+    {
+        return false;
+    }
+
+    public boolean isUsingURLs()
+    {
+        return false;
+    }
+
+    public boolean isValid(HttpSession session)
+    {
+        return false;
     }
 
     public void setMaxInactiveInterval(int tmp)
