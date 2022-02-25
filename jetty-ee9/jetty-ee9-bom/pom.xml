@@ -135,6 +135,11 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.ee9</groupId>
+        <artifactId>jetty-ee9-session</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.ee9</groupId>
         <artifactId>jetty-ee9-webapp</artifactId>
         <version>${project.version}</version>
       </dependency>
