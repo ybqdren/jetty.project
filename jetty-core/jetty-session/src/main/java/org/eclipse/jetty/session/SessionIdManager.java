@@ -13,8 +13,8 @@
 
 package org.eclipse.jetty.session;
 
+import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty.server.Request;
 
 /**
  * Session ID Manager.

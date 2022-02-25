@@ -17,8 +17,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.locks.Condition;
 
+import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.util.thread.AutoLock;
-import org.eclipse.jetty.server.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

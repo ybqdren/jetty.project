@@ -13,15 +13,18 @@
 
 package org.eclipse.jetty.session;
 
+import java.util.List;
+import java.util.Objects;
+
+import org.eclipse.jetty.core.server.handler.ContextHandler;
+import org.eclipse.jetty.core.server.handler.ContextHandler.Context;
 import org.eclipse.jetty.util.StringUtil;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
 
 /**
  * SessionContext
  *
  * Information about the context to which sessions belong: the Context,
- * the SessionHandler of the context, and the unique name of the node.
+ * the SessionManager of the context, and the unique name of the node.
  *
  * A SessionManager is 1:1 with a SessionContext.
  */
@@ -36,7 +39,7 @@ public class SessionContext
 
     public SessionContext(SessionManager sessionManager)
     {
-        _sessionManager = sessionManager;
+        _sessionManager = Objects.requireNonNull(sessionManager);
         _workerName = _sessionManager.getSessionIdManager().getWorkerName();
         _context = sessionManager.getContext();
         _canonicalContextPath = canonicalizeContextPath(_context);
@@ -109,11 +112,11 @@ public class SessionContext
         if (context == null)
             return vhost;
 
-        String[] vhosts = context.getContextHandler().getVirtualHosts();
-        if (vhosts == null || vhosts.length == 0 || vhosts[0] == null)
+        List<String> vhosts = context.getContextHandler().getVirtualHosts();
+        if (vhosts == null || vhosts.size() == 0 || vhosts.get(0) == null)
             return vhost;
 
-        return vhosts[0];
+        return vhosts.get(0);
     }
 
     /**
