@@ -26,6 +26,7 @@ import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -65,6 +66,7 @@ public class ServletRequestLogTest
 
     public static class CaptureLog extends AbstractLifeCycle implements RequestLog
     {
+        ServletRequest _request;
         public List<String> captured = new ArrayList<>();
 
         @Override
