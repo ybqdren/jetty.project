@@ -23,8 +23,9 @@ import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.ee9.handler.AbstractHandler;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.io.Connection;
-import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.util.IO;
 import org.junit.jupiter.api.Test;
 

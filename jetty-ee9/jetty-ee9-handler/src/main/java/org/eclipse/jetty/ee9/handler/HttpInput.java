@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.LongAdder;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
-import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.ee9.handler.gzip.GzipHttpInputInterceptor;
+import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.component.Destroyable;
@@ -456,7 +457,7 @@ public class HttpInput extends ServletInputStream implements Runnable
      *     <li>Implementations implementing both this interface and {@link Destroyable} will have their
      *     {@link Destroyable#destroy()} method called when {@link #recycle()} is called.</li>
      * </ul>
-     * @see org.eclipse.jetty.server.handler.gzip.GzipHttpInputInterceptor
+     * @see GzipHttpInputInterceptor
      */
     public interface Interceptor
     {

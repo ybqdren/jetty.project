@@ -11,13 +11,12 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.eclipse.jetty.server.handler.ContextHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

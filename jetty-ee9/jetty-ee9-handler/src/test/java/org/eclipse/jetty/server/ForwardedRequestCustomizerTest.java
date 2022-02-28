@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.ee9.handler.AbstractHandler;
 import org.eclipse.jetty.http.HttpTester;
-import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1264,7 +1264,7 @@ public class ForwardedRequestCustomizerTest
         private RequestTester requestTester;
 
         @Override
-        public void handle(String target, org.eclipse.jetty.server.Request baseRequest,
+        public void handle(String target, org.eclipse.jetty.ee9.handler.Request baseRequest,
                            HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
         {
             baseRequest.setHandled(true);

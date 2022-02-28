@@ -11,10 +11,10 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.security;
+package org.eclipse.jetty.ee9.security;
 
 import jakarta.servlet.ServletRequest;
-import org.eclipse.jetty.server.UserIdentity;
+import org.eclipse.jetty.ee9.handler.UserIdentity;
 
 /**
  * LoginService implementation which always denies any attempt to login.

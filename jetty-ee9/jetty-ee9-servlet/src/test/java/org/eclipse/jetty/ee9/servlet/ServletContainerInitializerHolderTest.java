@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlet;
+package org.eclipse.jetty.ee9.servlet;
 
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import jakarta.servlet.ServletContainerInitializer;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
-import org.eclipse.jetty.servlet.Source.Origin;
+import org.eclipse.jetty.ee9.servlet.Source.Origin;
 import org.eclipse.jetty.util.StringUtil;
 import org.junit.jupiter.api.Test;
 

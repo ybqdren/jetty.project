@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlet;
+package org.eclipse.jetty.ee9.servlet;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,19 +44,19 @@ import jakarta.servlet.ServletSecurityElement;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.ee9.handler.ContextHandler;
+import org.eclipse.jetty.ee9.handler.Request;
+import org.eclipse.jetty.ee9.handler.ScopedHandler;
+import org.eclipse.jetty.ee9.handler.ServletPathMapping;
+import org.eclipse.jetty.ee9.handler.ServletRequestHttpWrapper;
+import org.eclipse.jetty.ee9.handler.ServletResponseHttpWrapper;
+import org.eclipse.jetty.ee9.handler.UserIdentity;
+import org.eclipse.jetty.ee9.security.IdentityService;
+import org.eclipse.jetty.ee9.security.SecurityHandler;
 import org.eclipse.jetty.http.pathmap.MappedResource;
 import org.eclipse.jetty.http.pathmap.PathMappings;
 import org.eclipse.jetty.http.pathmap.PathSpec;
 import org.eclipse.jetty.http.pathmap.ServletPathSpec;
-import org.eclipse.jetty.security.IdentityService;
-import org.eclipse.jetty.security.SecurityHandler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.ServletPathMapping;
-import org.eclipse.jetty.server.ServletRequestHttpWrapper;
-import org.eclipse.jetty.server.ServletResponseHttpWrapper;
-import org.eclipse.jetty.server.UserIdentity;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ScopedHandler;
 import org.eclipse.jetty.util.ArrayUtil;
 import org.eclipse.jetty.util.MultiException;
 import org.eclipse.jetty.util.MultiMap;

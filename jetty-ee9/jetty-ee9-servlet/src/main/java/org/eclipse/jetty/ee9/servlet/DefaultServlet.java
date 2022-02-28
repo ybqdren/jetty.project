@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlet;
+package org.eclipse.jetty.ee9.servlet;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,17 +24,17 @@ import jakarta.servlet.UnavailableException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.ee9.handler.CachedContentFactory;
+import org.eclipse.jetty.ee9.handler.ContextHandler;
+import org.eclipse.jetty.ee9.handler.ResourceContentFactory;
+import org.eclipse.jetty.ee9.handler.ResourceHandler;
+import org.eclipse.jetty.ee9.handler.ResourceService;
+import org.eclipse.jetty.ee9.handler.ResourceService.WelcomeFactory;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.PreEncodedHttpField;
-import org.eclipse.jetty.server.CachedContentFactory;
-import org.eclipse.jetty.server.ResourceContentFactory;
-import org.eclipse.jetty.server.ResourceService;
-import org.eclipse.jetty.server.ResourceService.WelcomeFactory;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;

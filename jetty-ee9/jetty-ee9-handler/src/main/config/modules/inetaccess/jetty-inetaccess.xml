@@ -4,7 +4,7 @@
 <Configure id="Server" class="org.eclipse.jetty.server.Server">
   <Call name="insertHandler">
     <Arg>
-      <New id="InetAccessHandler" class="org.eclipse.jetty.server.handler.InetAccessHandler">
+      <New id="InetAccessHandler" class="org.eclipse.jetty.ee9.handler.InetAccessHandler">
         <Call name="include">
           <Arg>
             <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">

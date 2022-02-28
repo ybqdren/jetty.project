@@ -11,12 +11,11 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler;
+package org.eclipse.jetty.ee9.handler;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.eclipse.jetty.server.handler.ContextHandler.AliasCheck;
 import org.eclipse.jetty.util.resource.PathResource;
 import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
@@ -24,14 +23,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Symbolic Link AliasChecker.
- * <p>An instance of this class can be registered with {@link ContextHandler#addAliasCheck(AliasCheck)}
+ * <p>An instance of this class can be registered with {@link ContextHandler#addAliasCheck(ContextHandler.AliasCheck)}
  * to check resources that are aliased to other locations.   The checker uses the
  * Java {@link Files#readSymbolicLink(Path)} and {@link Path#toRealPath(java.nio.file.LinkOption...)}
  * APIs to check if a file is aliased with symbolic links.</p>
- * @deprecated use {@link org.eclipse.jetty.server.SymlinkAllowedResourceAliasChecker} instead.
+ * @deprecated use {@link SymlinkAllowedResourceAliasChecker} instead.
  */
 @Deprecated
-public class AllowSymLinkAliasChecker implements AliasCheck
+public class AllowSymLinkAliasChecker implements ContextHandler.AliasCheck
 {
     private static final Logger LOG = LoggerFactory.getLogger(AllowSymLinkAliasChecker.class);
 

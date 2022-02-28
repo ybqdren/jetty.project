@@ -19,6 +19,7 @@ import java.lang.invoke.MethodType;
 import java.net.InetSocketAddress;
 
 import jakarta.servlet.ServletRequest;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HostPortHttpField;
 import org.eclipse.jetty.http.HttpField;

@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -37,8 +37,6 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.QuotedQualityCSV;
 import org.eclipse.jetty.io.ByteBufferOutputStream;
-import org.eclipse.jetty.server.Dispatcher;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.QuotedStringTokenizer;

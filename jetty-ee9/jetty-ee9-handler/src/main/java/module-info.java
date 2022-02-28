@@ -24,11 +24,11 @@ module org.eclipse.jetty.server
     requires static org.eclipse.jetty.jmx;
 
     exports org.eclipse.jetty.server;
-    exports org.eclipse.jetty.server.handler;
-    exports org.eclipse.jetty.server.handler.gzip;
+    exports org.eclipse.jetty.ee9.handler;
+    exports org.eclipse.jetty.ee9.handler.gzip;
     exports org.eclipse.jetty.server.session;
 
-    exports org.eclipse.jetty.server.handler.jmx to
+    exports org.eclipse.jetty.ee9.handler.jmx to
          org.eclipse.jetty.jmx;
 
     exports org.eclipse.jetty.server.jmx to

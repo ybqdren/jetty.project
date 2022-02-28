@@ -23,6 +23,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
 import jakarta.servlet.ServletRequest;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;

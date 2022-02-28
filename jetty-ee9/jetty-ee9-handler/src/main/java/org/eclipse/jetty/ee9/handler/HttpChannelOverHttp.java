@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,6 +36,11 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.EofException;
+import org.eclipse.jetty.server.ConnectionFactory;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnection;
+import org.eclipse.jetty.server.HttpTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -676,7 +681,7 @@ public class HttpChannelOverHttp extends HttpChannel implements HttpParser.Reque
         return true;
     }
 
-    boolean onIdleTimeout(Throwable timeout)
+    public boolean onIdleTimeout(Throwable timeout)
     {
         if (_delayedForContent)
         {

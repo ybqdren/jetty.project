@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlets;
+package org.eclipse.jetty.ee9.servlets;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +30,7 @@ import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.server.HttpOutput;
+import org.eclipse.jetty.ee9.handler.HttpOutput;
 import org.eclipse.jetty.util.ProcessorUtils;
 
 /**

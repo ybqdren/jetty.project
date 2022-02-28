@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
@@ -20,8 +20,8 @@ import org.eclipse.jetty.util.component.LifeCycle;
 /**
  * A Handler that contains other Handlers.
  * <p>
- * The contained handlers may be one (see @{link {@link org.eclipse.jetty.server.handler.HandlerWrapper})
- * or many (see {@link org.eclipse.jetty.server.handler.HandlerList} or {@link org.eclipse.jetty.server.handler.HandlerCollection}.
+ * The contained handlers may be one (see @{link {@link HandlerWrapper})
+ * or many (see {@link HandlerList} or {@link HandlerCollection}.
  */
 @ManagedObject("Handler of Multiple Handlers")
 public interface HandlerContainer extends LifeCycle

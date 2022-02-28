@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.slf4j.Logger;

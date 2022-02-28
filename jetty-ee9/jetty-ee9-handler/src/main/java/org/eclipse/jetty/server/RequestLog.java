@@ -15,10 +15,12 @@ package org.eclipse.jetty.server;
 
 import java.io.IOException;
 
-import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.ee9.handler.Request;
+import org.eclipse.jetty.ee9.handler.RequestLogHandler;
+import org.eclipse.jetty.ee9.handler.Response;
 
 /**
- * A <code>RequestLog</code> can be attached to a {@link org.eclipse.jetty.server.handler.RequestLogHandler} to enable
+ * A <code>RequestLog</code> can be attached to a {@link RequestLogHandler} to enable
  * logging of requests/responses.
  *
  * @see RequestLogHandler#setRequestLog(RequestLog)

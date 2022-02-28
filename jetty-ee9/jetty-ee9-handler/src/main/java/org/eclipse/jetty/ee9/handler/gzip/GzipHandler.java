@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler.gzip;
+package org.eclipse.jetty.ee9.handler.gzip;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -27,6 +27,9 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.ee9.handler.HandlerWrapper;
+import org.eclipse.jetty.ee9.handler.HttpOutput;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
@@ -35,10 +38,7 @@ import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.pathmap.PathSpecSet;
-import org.eclipse.jetty.server.HttpOutput;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.eclipse.jetty.util.AsciiLowerCaseSet;
 import org.eclipse.jetty.util.IncludeExclude;
 import org.eclipse.jetty.util.StringUtil;
@@ -122,7 +122,7 @@ import org.slf4j.LoggerFactory;
  * Note that the suffix used is determined by {@link CompressedContentFormat#ETAG_SEPARATOR}
  * </p>
  * <p>
- * This implementation relies on an Jetty internal {@link org.eclipse.jetty.server.HttpOutput.Interceptor}
+ * This implementation relies on an Jetty internal {@link HttpOutput.Interceptor}
  * mechanism to allow for effective and efficient compression of the response on all Output API usages:
  * </p>
  * <ul>

@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -28,9 +28,6 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletRequestEvent;
 import jakarta.servlet.ServletRequestListener;
 import jakarta.servlet.http.HttpServletRequest;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
-import org.eclipse.jetty.server.handler.ContextHandler.ContextScopeListener;
 import org.eclipse.jetty.util.DateCache;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
@@ -45,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * This listener if added to a ContextHandler, will produce additional debug information to
  * either/or a specific log stream or the standard debug log.
  * The events produced by {@link ServletContextListener}, {@link ServletRequestListener},
- * {@link AsyncListener} and {@link ContextScopeListener} are logged.
+ * {@link AsyncListener} and {@link ContextHandler.ContextScopeListener} are logged.
  */
 @ManagedObject("Debug Listener")
 public class DebugListener extends AbstractLifeCycle implements ServletContextListener
@@ -288,7 +285,7 @@ public class DebugListener extends AbstractLifeCycle implements ServletContextLi
     final ContextHandler.ContextScopeListener _contextScopeListener = new ContextHandler.ContextScopeListener()
     {
         @Override
-        public void enterScope(Context context, Request request, Object reason)
+        public void enterScope(ContextHandler.Context context, Request request, Object reason)
         {
             String cname = findContextName(context);
             if (request == null)
@@ -308,7 +305,7 @@ public class DebugListener extends AbstractLifeCycle implements ServletContextLi
         }
 
         @Override
-        public void exitScope(Context context, Request request)
+        public void exitScope(ContextHandler.Context context, Request request)
         {
             String cname = findContextName(context);
             if (request == null)

@@ -19,6 +19,10 @@ import java.nio.channels.WritePendingException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.eclipse.jetty.ee9.handler.HttpChannel;
+import org.eclipse.jetty.ee9.handler.HttpChannelOverHttp;
+import org.eclipse.jetty.ee9.handler.HttpInput;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpField;
@@ -327,7 +331,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Http
      * Parse and fill data, looking for content.
      * We do parse first, and only fill if we're out of bytes to avoid unnecessary system calls.
      */
-    void parseAndFillForContent()
+    public void parseAndFillForContent()
     {
         // Defensive check to avoid an infinite select/wakeup/fillAndParseForContent/wait loop
         // in case the parser was mistakenly closed and the connection was not aborted.
@@ -585,7 +589,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Http
         }
     }
 
-    HttpInput.Content newContent(ByteBuffer c)
+    public HttpInput.Content newContent(ByteBuffer c)
     {
         return new Content(c);
     }

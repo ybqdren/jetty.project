@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 
@@ -21,7 +21,9 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletRequestWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.LocalConnector;
+import org.eclipse.jetty.server.Server;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -69,7 +71,7 @@ public class ServletRequestWrapperTest
     {
         @Override
         public void handle(String target, Request baseRequest, HttpServletRequest request,
-                            HttpServletResponse response)
+                           HttpServletResponse response)
             throws IOException, ServletException
         {
             RequestWrapper requestWrapper = new RequestWrapper(request);

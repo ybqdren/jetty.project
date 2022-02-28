@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -22,15 +22,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.pathmap.PathSpec;
-import org.eclipse.jetty.server.HttpChannel;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.IncludeExcludeSet;
 import org.eclipse.jetty.util.InetAddressPattern;
 import org.eclipse.jetty.util.InetAddressSet;
 import org.eclipse.jetty.util.component.DumpableCollection;
-
-import static org.eclipse.jetty.server.handler.InetAccessSet.AccessTuple;
-import static org.eclipse.jetty.server.handler.InetAccessSet.PatternTuple;
 
 /**
  * InetAddress Access Handler
@@ -43,7 +38,7 @@ import static org.eclipse.jetty.server.handler.InetAccessSet.PatternTuple;
  */
 public class InetAccessHandler extends HandlerWrapper
 {
-    private final IncludeExcludeSet<PatternTuple, AccessTuple> _set = new IncludeExcludeSet<>(InetAccessSet.class);
+    private final IncludeExcludeSet<InetAccessSet.PatternTuple, InetAccessSet.AccessTuple> _set = new IncludeExcludeSet<>(InetAccessSet.class);
 
     /**
      * Clears all the includes, excludes, included connector names and excluded
@@ -75,7 +70,7 @@ public class InetAccessHandler extends HandlerWrapper
      */
     public void include(String pattern)
     {
-        _set.include(PatternTuple.from(pattern));
+        _set.include(InetAccessSet.PatternTuple.from(pattern));
     }
 
     /**
@@ -101,7 +96,7 @@ public class InetAccessHandler extends HandlerWrapper
      */
     public void include(String connectorName, String addressPattern, PathSpec pathSpec)
     {
-        _set.include(new PatternTuple(connectorName, InetAddressPattern.from(addressPattern), pathSpec));
+        _set.include(new InetAccessSet.PatternTuple(connectorName, InetAddressPattern.from(addressPattern), pathSpec));
     }
 
     /**
@@ -125,7 +120,7 @@ public class InetAccessHandler extends HandlerWrapper
      */
     public void exclude(String pattern)
     {
-        _set.exclude(PatternTuple.from(pattern));
+        _set.exclude(InetAccessSet.PatternTuple.from(pattern));
     }
 
     /**
@@ -151,7 +146,7 @@ public class InetAccessHandler extends HandlerWrapper
      */
     public void exclude(String connectorName, String addressPattern, PathSpec pathSpec)
     {
-        _set.exclude(new PatternTuple(connectorName, InetAddressPattern.from(addressPattern), pathSpec));
+        _set.exclude(new InetAccessSet.PatternTuple(connectorName, InetAddressPattern.from(addressPattern), pathSpec));
     }
 
     /**
@@ -175,7 +170,7 @@ public class InetAccessHandler extends HandlerWrapper
     @Deprecated
     public void excludeConnector(String name)
     {
-        _set.exclude(new PatternTuple(name, null, null));
+        _set.exclude(new InetAccessSet.PatternTuple(name, null, null));
     }
 
     /**
@@ -240,7 +235,7 @@ public class InetAccessHandler extends HandlerWrapper
     {
         String connectorName = baseRequest.getHttpChannel().getConnector().getName();
         String path = baseRequest.getMetaData().getURI().getDecodedPath();
-        return _set.test(new AccessTuple(connectorName, addr, path));
+        return _set.test(new InetAccessSet.AccessTuple(connectorName, addr, path));
     }
 
     @Override

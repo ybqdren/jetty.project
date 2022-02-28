@@ -18,9 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import org.eclipse.jetty.ee9.handler.DumpHandler;
+import org.eclipse.jetty.ee9.handler.ErrorHandler;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.logging.StacklessLogging;
-import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.toolchain.test.Net;
 import org.eclipse.jetty.util.TypeUtil;
 import org.hamcrest.Matchers;

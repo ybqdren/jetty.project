@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -82,8 +82,9 @@ import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.RuntimeIOException;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
+import org.eclipse.jetty.server.HttpConnection;
+import org.eclipse.jetty.server.RequestLog;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.session.Session;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.util.Attributes;
@@ -108,9 +109,9 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *
  * <li>the {@link Request#getContextPath()} method will return null, until the request has been passed to a {@link ContextHandler} which matches the
- * {@link Request#getPathInfo()} with a context path and calls {@link Request#setContext(Context,String)} as a result.  For
+ * {@link Request#getPathInfo()} with a context path and calls {@link Request#setContext(ContextHandler.Context,String)} as a result.  For
  * some dispatch types (ie include and named dispatch) the context path may not reflect the {@link ServletContext} set
- * by {@link Request#setContext(Context, String)}.</li>
+ * by {@link Request#setContext(ContextHandler.Context, String)}.</li>
  *
  * <li>the HTTP session methods will all return null sessions until such time as a request has been passed to a
  * {@link org.eclipse.jetty.server.session.SessionHandler} which checks for session cookies and enables the ability to create new sessions.</li>
@@ -777,18 +778,18 @@ public class Request implements HttpServletRequest
     }
 
     /**
-     * @return The current {@link Context context} used for this request, or <code>null</code> if {@link #setContext} has not yet been called.
+     * @return The current {@link ContextHandler.Context context} used for this request, or <code>null</code> if {@link #setContext} has not yet been called.
      */
-    public Context getContext()
+    public ContextHandler.Context getContext()
     {
         return _context;
     }
 
     /**
-     * @return The current {@link Context context} used for this error handling for this request.  If the request is asynchronous,
+     * @return The current {@link ContextHandler.Context context} used for this error handling for this request.  If the request is asynchronous,
      * then it is the context that called async. Otherwise it is the last non-null context passed to #setContext
      */
-    public Context getErrorContext()
+    public ContextHandler.Context getErrorContext()
     {
         if (isAsyncStarted())
         {
@@ -806,7 +807,7 @@ public class Request implements HttpServletRequest
         // The context path returned is normally for the current context.  Except during a cross context
         // INCLUDE dispatch, in which case this method returns the context path of the source context,
         // which we recover from the IncludeAttributes wrapper.
-        Context context;
+        ContextHandler.Context context;
         if (_dispatcherType == DispatcherType.INCLUDE)
         {
             Dispatcher.IncludeAttributes include = Attributes.unwrap(_attributes, Dispatcher.IncludeAttributes.class);
@@ -829,7 +830,7 @@ public class Request implements HttpServletRequest
      * If no context is set, then the path in context is the full path.
      * @return The decoded part of the {@link #getRequestURI()} path after any {@link #getContextPath()}
      *         up to any {@link #getQueryString()}, excluding path parameters.
-     * @see #setContext(Context, String)
+     * @see #setContext(ContextHandler.Context, String)
      */
     public String getPathInContext()
     {
@@ -2069,7 +2070,7 @@ public class Request implements HttpServletRequest
      * @param pathInContext the part of the URI path that is withing the context.
      *                      For servlets, this is equal to servletPath + pathInfo
      */
-    public void setContext(Context context, String pathInContext)
+    public void setContext(ContextHandler.Context context, String pathInContext)
     {
         _newContext = _context != context;
         _context = context;
@@ -2080,7 +2081,7 @@ public class Request implements HttpServletRequest
 
     /**
      * @return True if this is the first call of <code>takeNewContext()</code> since the last
-     * {@link #setContext(org.eclipse.jetty.server.handler.ContextHandler.Context, String)} call.
+     * {@link #setContext(ContextHandler.Context, String)} call.
      */
     public boolean takeNewContext()
     {

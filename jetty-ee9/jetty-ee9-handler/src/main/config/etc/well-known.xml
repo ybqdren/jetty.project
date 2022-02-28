@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "https://www.eclipse.org/jetty/configure_10_0.dtd">
 
-<Configure id="Contexts" class="org.eclipse.jetty.server.handler.ContextHandlerCollection">
-  <New id="WellKnownHandler" class="org.eclipse.jetty.server.handler.ContextHandler">
+<Configure id="Contexts" class="org.eclipse.jetty.ee9.handler.ContextHandlerCollection">
+  <New id="WellKnownHandler" class="org.eclipse.jetty.ee9.handler.ContextHandler">
     <Set name="contextPath">/.well-known</Set>
     <Set name="handler">
-      <New class="org.eclipse.jetty.server.handler.ResourceHandler">
+      <New class="org.eclipse.jetty.ee9.handler.ResourceHandler">
         <Set name="resourceBase">
           <Call name="resolvePath" class="org.eclipse.jetty.xml.XmlConfiguration">
             <Arg><Property name="jetty.base"/></Arg>

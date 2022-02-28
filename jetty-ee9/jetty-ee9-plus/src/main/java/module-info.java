@@ -11,6 +11,9 @@
 // ========================================================================
 //
 
+import org.eclipse.jetty.ee9.plus.webapp.EnvConfiguration;
+import org.eclipse.jetty.ee9.plus.webapp.PlusConfiguration;
+
 module org.eclipse.jetty.plus
 {
     requires org.eclipse.jetty.jndi;
@@ -26,11 +29,12 @@ module org.eclipse.jetty.plus
     requires static org.eclipse.jetty.servlet;
 
     exports org.eclipse.jetty.plus.annotation;
-    exports org.eclipse.jetty.plus.jndi;
-    exports org.eclipse.jetty.plus.security;
-    exports org.eclipse.jetty.plus.webapp;
+    exports org.eclipse.jetty.ee9.plus.jndi;
+    exports org.eclipse.jetty.ee9.plus.security;
+    exports org.eclipse.jetty.ee9.plus.webapp;
+    exports org.eclipse.jetty.ee9.plus.annotation;
 
-    provides org.eclipse.jetty.webapp.Configuration with
-        org.eclipse.jetty.plus.webapp.EnvConfiguration,
-        org.eclipse.jetty.plus.webapp.PlusConfiguration;
+    provides Configuration with
+        EnvConfiguration,
+        PlusConfiguration;
 }

@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -31,7 +31,6 @@ import jakarta.servlet.MultipartConfigElement;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.Part;
-import org.eclipse.jetty.server.MultiPartFormInputStream.MultiPart;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.util.IO;
 import org.junit.jupiter.api.Test;
@@ -459,7 +458,7 @@ public class MultiPartFormInputStreamTest
         mpis.setDeleteOnExit(true);
         mpis.getParts();
 
-        MultiPart part = (MultiPart)mpis.getPart("stuff");
+        MultiPartFormInputStream.MultiPart part = (MultiPartFormInputStream.MultiPart)mpis.getPart("stuff");
         File stuff = part.getFile();
         assertThat(stuff, notNullValue()); // longer than 50 bytes, should already be a tmp file
         part.write("tptfd.txt");
@@ -482,7 +481,7 @@ public class MultiPartFormInputStreamTest
         mpis.setDeleteOnExit(true);
         mpis.getParts();
 
-        MultiPart part = (MultiPart)mpis.getPart("stuff");
+        MultiPartFormInputStream.MultiPart part = (MultiPartFormInputStream.MultiPart)mpis.getPart("stuff");
         File stuff = part.getFile();
         assertThat(stuff, notNullValue()); // longer than 50 bytes, should already be a tmp file
         Path path = MavenTestingUtils.getTargetTestingPath().resolve("tpfa.txt");
@@ -506,7 +505,7 @@ public class MultiPartFormInputStreamTest
         mpis.setDeleteOnExit(true);
         mpis.getParts();
 
-        MultiPart part = (MultiPart)mpis.getPart("stuff");
+        MultiPartFormInputStream.MultiPart part = (MultiPartFormInputStream.MultiPart)mpis.getPart("stuff");
         //Content should still be in the buffer, because the length is < 5000, 
         assertNull(part.getFile());
         //test writing to an absolute filename
@@ -530,7 +529,7 @@ public class MultiPartFormInputStreamTest
         mpis.setDeleteOnExit(true);
         mpis.getParts();
 
-        MultiPart part = (MultiPart)mpis.getPart("stuff");
+        MultiPartFormInputStream.MultiPart part = (MultiPartFormInputStream.MultiPart)mpis.getPart("stuff");
         //Content should still be in the buffer, because the length is < 5000, 
         assertNull(part.getFile());
         //test writing to a relative filename
@@ -553,7 +552,7 @@ public class MultiPartFormInputStreamTest
         mpis.setDeleteOnExit(true);
         mpis.getParts();
 
-        MultiPart part = (MultiPart)mpis.getPart("stuff");
+        MultiPartFormInputStream.MultiPart part = (MultiPartFormInputStream.MultiPart)mpis.getPart("stuff");
         File stuff = part.getFile();
         assertThat(stuff, notNullValue()); // longer than 50 bytes, should already be a tmp file
         assertThat(stuff.exists(), is(true));
@@ -911,7 +910,7 @@ public class MultiPartFormInputStreamTest
         assertFalse(f.exists()); //original file was renamed
         assertFalse(f2.exists()); //2nd written file was explicitly deleted
 
-        MultiPart stuff = (MultiPart)mpis.getPart("stuff");
+        MultiPartFormInputStream.MultiPart stuff = (MultiPartFormInputStream.MultiPart)mpis.getPart("stuff");
         assertThat(stuff.getSubmittedFileName(), is(filename));
         assertThat(stuff.getContentType(), is("text/plain"));
         assertThat(stuff.getHeader("Content-Type"), is("text/plain"));

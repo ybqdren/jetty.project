@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,15 +63,9 @@ import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.server.AllowedResourceAliasChecker;
 import org.eclipse.jetty.server.ClassLoaderDump;
 import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Dispatcher;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.HandlerContainer;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.SymlinkAllowedResourceAliasChecker;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.Index;
@@ -3034,7 +3028,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
 
     /**
      * Approve all aliases.
-     * @deprecated use {@link org.eclipse.jetty.server.AllowedResourceAliasChecker} instead.
+     * @deprecated use {@link AllowedResourceAliasChecker} instead.
      */
     @Deprecated
     public static class ApproveAliases implements AliasCheck

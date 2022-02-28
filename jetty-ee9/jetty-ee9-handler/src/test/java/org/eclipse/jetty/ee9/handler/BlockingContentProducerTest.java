@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,9 +25,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 
+import org.eclipse.jetty.ee9.handler.gzip.GzipHttpInputInterceptor;
 import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.EofException;
-import org.eclipse.jetty.server.handler.gzip.GzipHttpInputInterceptor;
+import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.util.component.Destroyable;
 import org.eclipse.jetty.util.compression.InflaterPool;
 import org.eclipse.jetty.util.thread.AutoLock;

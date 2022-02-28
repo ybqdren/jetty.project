@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,12 +26,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpTester;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -78,7 +77,7 @@ public class ShutdownHandlerTest
         assertEquals(HttpStatus.OK_200, response.getStatus());
 
         assertTrue(stopLatch.await(5, TimeUnit.SECONDS));
-        assertEquals(AbstractLifeCycle.STOPPED, server.getState());
+        Assertions.assertEquals(AbstractLifeCycle.STOPPED, server.getState());
     }
 
     @Test
@@ -90,7 +89,7 @@ public class ShutdownHandlerTest
         assertEquals(HttpStatus.UNAUTHORIZED_401, response.getStatus());
 
         Thread.sleep(1000);
-        assertEquals(AbstractLifeCycle.STARTED, server.getState());
+        Assertions.assertEquals(AbstractLifeCycle.STARTED, server.getState());
     }
 
     @Test
@@ -110,7 +109,7 @@ public class ShutdownHandlerTest
         assertEquals(HttpStatus.UNAUTHORIZED_401, response.getStatus());
 
         Thread.sleep(1000);
-        assertEquals(AbstractLifeCycle.STARTED, server.getState());
+        Assertions.assertEquals(AbstractLifeCycle.STARTED, server.getState());
     }
 
     private HttpTester.Response shutdown(String shutdownToken) throws IOException

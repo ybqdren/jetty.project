@@ -12,7 +12,7 @@
 //
 
 /**
- * Jetty Server : Core Server API
+ * Jetty Server : Core Handler API
  */
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 

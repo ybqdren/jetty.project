@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
@@ -32,10 +32,10 @@ import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.io.ByteBufferPool;
-import org.eclipse.jetty.server.HttpOutput.Interceptor;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.LocalConnector;
 import org.eclipse.jetty.server.LocalConnector.LocalEndPoint;
-import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.eclipse.jetty.server.handler.HotSwapHandler;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.FuturePromise;
@@ -725,7 +725,7 @@ public class HttpOutputTest
         _handler._arrayBuffer = new byte[1024];
         _handler._interceptor = new ChainedInterceptor()
         {
-            Interceptor _next;
+            HttpOutput.Interceptor _next;
 
             @Override
             public void write(ByteBuffer content, boolean complete, Callback callback)
@@ -735,13 +735,13 @@ public class HttpOutputTest
             }
 
             @Override
-            public Interceptor getNextInterceptor()
+            public HttpOutput.Interceptor getNextInterceptor()
             {
                 return _next;
             }
 
             @Override
-            public void setNext(Interceptor interceptor)
+            public void setNext(HttpOutput.Interceptor interceptor)
             {
                 _next = interceptor;
             }
@@ -962,12 +962,12 @@ public class HttpOutputTest
         }
     }
 
-    private static class AggregationChecker implements Interceptor
+    private static class AggregationChecker implements HttpOutput.Interceptor
     {
         static final int MAX_SIZE = OUTPUT_AGGREGATION_SIZE / 2 - 1;
-        private final Interceptor interceptor;
+        private final HttpOutput.Interceptor interceptor;
 
-        public AggregationChecker(Interceptor interceptor)
+        public AggregationChecker(HttpOutput.Interceptor interceptor)
         {
             this.interceptor = interceptor;
         }
@@ -981,7 +981,7 @@ public class HttpOutputTest
         }
 
         @Override
-        public Interceptor getNextInterceptor()
+        public HttpOutput.Interceptor getNextInterceptor()
         {
             return interceptor;
         }
@@ -1101,8 +1101,8 @@ public class HttpOutputTest
             {
                 baseRequest.setHandled(true);
                 HttpOutput out = (HttpOutput)response.getOutputStream();
-                Interceptor interceptor = out.getInterceptor();
-                out.setInterceptor(new Interceptor()
+                HttpOutput.Interceptor interceptor = out.getInterceptor();
+                out.setInterceptor(new HttpOutput.Interceptor()
                 {
                     @Override
                     public void write(ByteBuffer content, boolean last, Callback callback)
@@ -1111,7 +1111,7 @@ public class HttpOutputTest
                     }
 
                     @Override
-                    public Interceptor getNextInterceptor()
+                    public HttpOutput.Interceptor getNextInterceptor()
                     {
                         return interceptor;
                     }
@@ -1189,7 +1189,7 @@ public class HttpOutputTest
         {
         }
 
-        void setNext(Interceptor interceptor);
+        void setNext(HttpOutput.Interceptor interceptor);
     }
 
     static class ContentHandler extends AbstractHandler

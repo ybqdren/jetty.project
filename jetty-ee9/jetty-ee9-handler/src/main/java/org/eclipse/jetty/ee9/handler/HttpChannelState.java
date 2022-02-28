@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,9 +24,6 @@ import jakarta.servlet.UnavailableException;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.QuietException;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
-import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.Scheduler;
 import org.slf4j.Logger;
@@ -1180,7 +1177,7 @@ public class HttpChannelState
     {
         if (event != null)
         {
-            Context context = ((Context)event.getServletContext());
+            ContextHandler.Context context = ((ContextHandler.Context)event.getServletContext());
             if (context != null)
                 return context.getContextHandler();
         }

@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
-    <artifactId>jetty-project</artifactId>
+    <artifactId>jetty-ee9</artifactId>
     <groupId>org.eclipse.jetty</groupId>
     <version>12.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jetty-servlet</artifactId>
-  <name>Jetty :: Servlet Handling</name>
-  <description>Jetty Servlet Container</description>
+  <artifactId>jetty-ee9-servlet</artifactId>
+  <name>Jetty EE9:: Servlet Handling</name>
+  <description>Jetty EE9 Servlet Container</description>
 
   <properties>
     <bundle-symbolic-name>${project.groupId}.servlet</bundle-symbolic-name>
@@ -33,7 +33,7 @@
   <dependencies>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-security</artifactId>
+      <artifactId>jetty-ee9-security</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>

@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.resource;
+package org.eclipse.jetty.ee9.handler.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;

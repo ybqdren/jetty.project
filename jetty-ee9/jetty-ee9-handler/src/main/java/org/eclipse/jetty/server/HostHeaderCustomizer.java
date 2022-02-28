@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty.server;
 
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.http.HostPortHttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;

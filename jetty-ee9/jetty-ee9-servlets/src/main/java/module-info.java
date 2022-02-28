@@ -28,5 +28,5 @@ module org.eclipse.jetty.servlets
     // Only required if using CrossOriginFilter, DoSFilter, etc.
     requires static org.eclipse.jetty.util;
 
-    exports org.eclipse.jetty.servlets;
+    exports org.eclipse.jetty.ee9.servlets;
 }

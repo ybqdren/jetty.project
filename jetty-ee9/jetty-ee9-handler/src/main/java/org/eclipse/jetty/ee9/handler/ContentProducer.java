@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import org.eclipse.jetty.util.component.Destroyable;
 import org.eclipse.jetty.util.thread.AutoLock;
@@ -131,8 +131,8 @@ public interface ContentProducer
     boolean isReady();
 
     /**
-     * Get the {@link org.eclipse.jetty.server.HttpInput.Interceptor}.
-     * @return The {@link org.eclipse.jetty.server.HttpInput.Interceptor}, or null if none set.
+     * Get the {@link HttpInput.Interceptor}.
+     * @return The {@link HttpInput.Interceptor}, or null if none set.
      */
     HttpInput.Interceptor getInterceptor();
 

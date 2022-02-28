@@ -11,11 +11,14 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 
-class MockConnector extends AbstractConnector
+import org.eclipse.jetty.server.AbstractConnector;
+import org.eclipse.jetty.server.Server;
+
+public class MockConnector extends AbstractConnector
 {
     public MockConnector()
     {

@@ -11,13 +11,15 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.util.ArrayList;
 
+import org.eclipse.jetty.server.RequestLog;
+
 import static java.util.Arrays.asList;
 
-class RequestLogCollection
+public class RequestLogCollection
     implements RequestLog
 {
     private final ArrayList<RequestLog> delegates;

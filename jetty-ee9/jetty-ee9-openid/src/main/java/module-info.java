@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-import org.eclipse.jetty.security.openid.OpenIdAuthenticatorFactory;
+import org.eclipse.jetty.ee9.security.openid.OpenIdAuthenticatorFactory;
 
 module org.eclipse.jetty.security.openid
 {
@@ -20,7 +20,7 @@ module org.eclipse.jetty.security.openid
     requires transitive org.eclipse.jetty.client;
     requires transitive org.eclipse.jetty.security;
 
-    exports org.eclipse.jetty.security.openid;
+    exports org.eclipse.jetty.ee9.security.openid;
 
-    provides org.eclipse.jetty.security.Authenticator.Factory with OpenIdAuthenticatorFactory;
+    provides Authenticator.Factory with OpenIdAuthenticatorFactory;
 }

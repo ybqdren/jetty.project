@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -29,7 +29,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.UriCompliance;
-import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.MultiMap;
 import org.slf4j.Logger;
@@ -372,7 +371,7 @@ public class Dispatcher implements RequestDispatcher
     /**
      * Attributes Wrapper to provide the {@link DispatcherType#INCLUDE} attributes.
      *
-     * The source {@link org.eclipse.jetty.server.handler.ContextHandler.Context} and
+     * The source {@link ContextHandler.Context} and
      * {@link ServletPathMapping} instances are also retained by this wrapper so they
      * may be used by {@link Request#getContextPath()}, {@link Request#getServletPath()},
      * {@link Request#getPathInfo()} and {@link Request#getHttpServletMapping()}.

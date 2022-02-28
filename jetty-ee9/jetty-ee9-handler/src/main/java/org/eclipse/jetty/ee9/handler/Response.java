@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -51,7 +51,6 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.io.RuntimeIOException;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.util.AtomicBiInteger;
 import org.eclipse.jetty.util.Callback;
@@ -815,7 +814,7 @@ public class Response implements HttpServletResponse
         }
 
         // Try any default char encoding for the context.
-        Context context = _channel.getRequest().getContext();
+        ContextHandler.Context context = _channel.getRequest().getContext();
         if (context != null)
         {
             encoding = context.getResponseCharacterEncoding();
@@ -1335,7 +1334,7 @@ public class Response implements HttpServletResponse
             if (_outputType != OutputType.NONE)
                 return;
 
-            Context context = _channel.getRequest().getContext();
+            ContextHandler.Context context = _channel.getRequest().getContext();
             if (context == null)
                 return;
 

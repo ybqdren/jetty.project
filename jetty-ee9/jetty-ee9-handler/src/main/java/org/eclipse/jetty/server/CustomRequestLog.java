@@ -30,10 +30,14 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.http.Cookie;
+import org.eclipse.jetty.ee9.handler.Authentication;
+import org.eclipse.jetty.ee9.handler.ContextHandler;
+import org.eclipse.jetty.ee9.handler.Request;
+import org.eclipse.jetty.ee9.handler.Response;
+import org.eclipse.jetty.ee9.handler.UserIdentity;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.QuotedCSV;
 import org.eclipse.jetty.http.pathmap.PathMappings;
-import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.DateCache;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;

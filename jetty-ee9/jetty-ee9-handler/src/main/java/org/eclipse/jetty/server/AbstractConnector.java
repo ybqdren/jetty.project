@@ -31,6 +31,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
 
+import org.eclipse.jetty.ee9.handler.HttpChannel;
+import org.eclipse.jetty.ee9.handler.HttpChannelListeners;
 import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.ArrayRetainableByteBufferPool;
 import org.eclipse.jetty.io.ByteBufferPool;

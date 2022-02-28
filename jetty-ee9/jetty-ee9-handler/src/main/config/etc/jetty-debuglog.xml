@@ -8,7 +8,7 @@
 <Configure id="Server" class="org.eclipse.jetty.server.Server">
   <Call name="insertHandler">
     <Arg>
-      <New id="DebugHandler" class="org.eclipse.jetty.server.handler.DebugHandler">
+      <New id="DebugHandler" class="org.eclipse.jetty.ee9.handler.DebugHandler">
 	<Set name="outputStream">
 	  <New class="org.eclipse.jetty.util.RolloverFileOutputStream">
 	    <Arg type="String"><Property name="jetty.debuglog.dir" default="./logs"/>/yyyy_mm_dd.debug.log</Arg>

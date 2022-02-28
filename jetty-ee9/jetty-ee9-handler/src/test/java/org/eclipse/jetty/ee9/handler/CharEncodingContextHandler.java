@@ -11,9 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
-
-import org.eclipse.jetty.server.handler.ContextHandler;
+package org.eclipse.jetty.ee9.handler;
 
 /**
  * ContextHandler for testing that implements some

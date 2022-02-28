@@ -11,9 +11,9 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server.handler.gzip;
+package org.eclipse.jetty.ee9.handler.gzip;
 
-import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.util.compression.DeflaterPool;
 
 public interface GzipFactory

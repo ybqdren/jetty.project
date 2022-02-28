@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.ee9.handler.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SessionIdManager;
 import org.eclipse.jetty.util.StringUtil;

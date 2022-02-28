@@ -11,11 +11,11 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlets;
+package org.eclipse.jetty.ee9.servlets;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.ee9.handler.Request;
 
 /**
  * This is an extension to {@link DoSFilter} that uses Jetty APIs to

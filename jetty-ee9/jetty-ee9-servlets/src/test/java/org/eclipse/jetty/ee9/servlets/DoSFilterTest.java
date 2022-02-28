@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlets;
+package org.eclipse.jetty.ee9.servlets;
 
 import java.net.InetSocketAddress;
 import java.util.Collections;
@@ -22,9 +22,8 @@ import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.servlets.DoSFilter.RateTracker;
+import org.eclipse.jetty.ee9.handler.ContextHandler;
+import org.eclipse.jetty.ee9.handler.Request;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
 import org.hamcrest.Matchers;
@@ -95,7 +94,7 @@ public class DoSFilterTest extends AbstractDoSFilterTest
 
         try
         {
-            RateTracker tracker = doSFilter.getRateTracker(request);
+            DoSFilter.RateTracker tracker = doSFilter.getRateTracker(request);
             assertThat("tracker.id", tracker.getId(),
                 anyOf(
                     is("[::192.9.5.5]:12345"), // short form
@@ -118,7 +117,7 @@ public class DoSFilterTest extends AbstractDoSFilterTest
 
         try
         {
-            RateTracker tracker = doSFilter.getRateTracker(request);
+            DoSFilter.RateTracker tracker = doSFilter.getRateTracker(request);
             assertThat("tracker.id", tracker.getId(), is("127.0.0.1:12345"));
         }
         finally
@@ -169,7 +168,7 @@ public class DoSFilterTest extends AbstractDoSFilterTest
     {
         boolean exceeded = false;
         ServletContext context = new ContextHandler.StaticContext();
-        RateTracker rateTracker = new RateTracker(context, doSFilter.getName(), "test2", DoSFilter.RateType.UNKNOWN, 4);
+        DoSFilter.RateTracker rateTracker = new DoSFilter.RateTracker(context, doSFilter.getName(), "test2", DoSFilter.RateType.UNKNOWN, 4);
 
         for (int i = 0; i < 5; i++)
         {

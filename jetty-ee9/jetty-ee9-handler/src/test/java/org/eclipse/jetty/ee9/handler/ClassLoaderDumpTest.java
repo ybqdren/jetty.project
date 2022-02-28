@@ -11,12 +11,14 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.ee9.handler;
 
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import org.eclipse.jetty.server.ClassLoaderDump;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.component.Dumpable;
 import org.junit.jupiter.api.Test;
 

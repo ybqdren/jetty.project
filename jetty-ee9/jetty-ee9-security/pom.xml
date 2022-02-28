@@ -1,14 +1,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
     <groupId>org.eclipse.jetty</groupId>
-    <artifactId>jetty-project</artifactId>
+    <artifactId>jetty-ee9</artifactId>
     <version>12.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jetty-security</artifactId>
-  <name>Jetty :: Security</name>
-  <description>Jetty security infrastructure</description>
+  <artifactId>jetty-ee9-security</artifactId>
+  <name>Jetty EE9:: Security</name>
+  <description>Jetty EE9 security infrastructure</description>
 
   <properties>
     <bundle-symbolic-name>${project.groupId}.security</bundle-symbolic-name>
@@ -28,7 +28,7 @@
             </goals>
             <configuration>
               <instructions>
-                <Require-Capability>osgi.serviceloader; filter:="(osgi.serviceloader=org.eclipse.jetty.security.Authenticator$Factory)";resolution:=optional;cardinality:=multiple, osgi.extender; filter:="(osgi.extender=osgi.serviceloader.processor)";resolution:=optional</Require-Capability>
+                <Require-Capability>osgi.serviceloader; filter:="(osgi.serviceloader=org.eclipse.jetty.ee9.security.Authenticator$Factory)";resolution:=optional;cardinality:=multiple, osgi.extender; filter:="(osgi.extender=osgi.serviceloader.processor)";resolution:=optional</Require-Capability>
               </instructions>
             </configuration>
           </execution>

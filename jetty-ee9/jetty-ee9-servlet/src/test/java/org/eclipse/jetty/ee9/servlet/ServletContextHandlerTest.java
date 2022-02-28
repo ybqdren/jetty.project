@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.servlet;
+package org.eclipse.jetty.ee9.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -59,25 +59,24 @@ import jakarta.servlet.http.HttpSessionBindingEvent;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
+import org.eclipse.jetty.ee9.handler.AbstractHandler;
+import org.eclipse.jetty.ee9.handler.AbstractHandlerContainer;
+import org.eclipse.jetty.ee9.handler.ContextHandler;
+import org.eclipse.jetty.ee9.handler.ContextHandlerCollection;
+import org.eclipse.jetty.ee9.handler.HandlerList;
+import org.eclipse.jetty.ee9.handler.HandlerWrapper;
+import org.eclipse.jetty.ee9.handler.Request;
+import org.eclipse.jetty.ee9.handler.ResourceHandler;
+import org.eclipse.jetty.ee9.handler.Response;
+import org.eclipse.jetty.ee9.handler.UserIdentity;
+import org.eclipse.jetty.ee9.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.ee9.security.RoleInfo;
+import org.eclipse.jetty.ee9.security.SecurityHandler;
 import org.eclipse.jetty.http.HttpTester;
 import org.eclipse.jetty.logging.StacklessLogging;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.security.RoleInfo;
-import org.eclipse.jetty.security.SecurityHandler;
 import org.eclipse.jetty.server.LocalConnector;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.UserIdentity;
-import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.eclipse.jetty.server.handler.AbstractHandlerContainer;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
-import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.session.SessionHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler.ServletContainerInitializerStarter;
 import org.eclipse.jetty.util.DecoratedObjectFactory;
 import org.eclipse.jetty.util.Decorator;
 import org.eclipse.jetty.util.component.AbstractLifeCycle;
@@ -1628,7 +1627,7 @@ public class ServletContextHandlerTest
         
         _server.setHandler(context);
         _server.start();
-        ServletContainerInitializerStarter starter = context.getBean(ServletContainerInitializerStarter.class);
+        ServletContextHandler.ServletContainerInitializerStarter starter = context.getBean(ServletContextHandler.ServletContainerInitializerStarter.class);
         assertNotNull(starter);
         Collection<ServletContainerInitializerHolder> holders = starter.getContainedBeans(ServletContainerInitializerHolder.class);
         assertEquals(1, holders.size());
@@ -1654,7 +1653,7 @@ public class ServletContextHandlerTest
         _server.setHandler(context);
         _server.start();
         
-        ServletContainerInitializerStarter starter = context.getBean(ServletContainerInitializerStarter.class);
+        ServletContextHandler.ServletContainerInitializerStarter starter = context.getBean(ServletContextHandler.ServletContainerInitializerStarter.class);
         assertNotNull(starter);
         Collection<ServletContainerInitializerHolder> holders = starter.getContainedBeans(ServletContainerInitializerHolder.class);
         assertEquals(1, holders.size());
@@ -1681,7 +1680,7 @@ public class ServletContextHandlerTest
         context.addServletContainerInitializer(holder);
         _server.setHandler(context);
         _server.start();
-        ServletContainerInitializerStarter starter = context.getBean(ServletContainerInitializerStarter.class);
+        ServletContextHandler.ServletContainerInitializerStarter starter = context.getBean(ServletContextHandler.ServletContainerInitializerStarter.class);
         assertNotNull(starter);
         Collection<ServletContainerInitializerHolder> holders = starter.getContainedBeans(ServletContainerInitializerHolder.class);
         assertEquals(1, holders.size());

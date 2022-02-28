@@ -15,7 +15,6 @@ package org.eclipse.jetty.server.session;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jetty.util.FuturePromise;

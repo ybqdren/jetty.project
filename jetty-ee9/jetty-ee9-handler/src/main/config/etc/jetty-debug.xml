@@ -6,7 +6,7 @@
 <!-- =============================================================== -->
 
 <Configure id="Server" class="org.eclipse.jetty.server.Server">
-  <New id="DebugListener" class="org.eclipse.jetty.server.DebugListener">
+  <New id="DebugListener" class="org.eclipse.jetty.ee9.handler.DebugListener">
     <Arg name="outputStream">
       <New class="org.eclipse.jetty.util.RolloverFileOutputStream">
         <Arg type="String"><Property name="jetty.logs" default="./logs"/>/yyyy_mm_dd.debug.log</Arg>
