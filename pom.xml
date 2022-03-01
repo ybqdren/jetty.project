@@ -210,6 +210,7 @@
     <module>jetty-http2</module>
     <module>jetty-http3</module>
     <module>jetty-server</module>
+    <module>jetty-session</module>
     <module>jetty-ee9</module>
     <module>jetty-ee10</module>
     <module>jetty-xml</module>

@@ -19,6 +19,7 @@
     <module>jetty-ee9-servlet</module>
     <module>jetty-ee9-security</module>
     <module>jetty-ee9-servlets</module>
+    <module>jetty-ee9-session</module>
     <module>jetty-ee9-webapp</module>
     <module>jetty-ee9-plus</module>
     <module>jetty-ee9-openid</module>

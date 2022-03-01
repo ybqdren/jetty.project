@@ -1,6 +1,6 @@
 //
 // ========================================================================
-// Copyright (c) 1995-2022 Mort Bay Consulting Pty Ltd and others.
+// Copyright (c) 1995-2021 Mort Bay Consulting Pty Ltd and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,9 +13,9 @@
 
 package org.eclipse.jetty.session.infinispan;
 
-import org.eclipse.jetty.server.session.AbstractSessionDataStoreFactory;
-import org.eclipse.jetty.server.session.SessionDataStore;
-import org.eclipse.jetty.server.session.SessionHandler;
+import org.eclipse.jetty.session.AbstractSessionDataStoreFactory;
+import org.eclipse.jetty.session.SessionDataStore;
+import org.eclipse.jetty.session.SessionManager;
 import org.infinispan.commons.api.BasicCache;
 
 /**
@@ -45,7 +45,7 @@ public class InfinispanSessionDataStoreFactory extends AbstractSessionDataStoreF
     }
 
     @Override
-    public SessionDataStore getSessionDataStore(SessionHandler handler) throws Exception
+    public SessionDataStore getSessionDataStore(SessionManager sessionManager) throws Exception
     {
         InfinispanSessionDataStore store = new InfinispanSessionDataStore();
         store.setGracePeriodSec(getGracePeriodSec());
