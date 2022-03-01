@@ -21,7 +21,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 
-import org.eclipse.jetty.core.server.handler.ContextHandler;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.session.SessionContext;
 import org.eclipse.jetty.session.SessionData;
 import org.eclipse.jetty.session.infinispan.InfinispanSerializationContextInitializer;

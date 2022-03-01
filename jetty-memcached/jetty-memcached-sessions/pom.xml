@@ -14,6 +14,7 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-session</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.googlecode.xmemcached</groupId>

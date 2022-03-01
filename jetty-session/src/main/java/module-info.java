@@ -11,11 +11,15 @@
 // ========================================================================
 //
 
-module org.eclipse.jetty.hazelcast.session
+module org.eclipse.jetty.session
 {
-    requires transitive com.hazelcast.core;
-    requires transitive org.eclipse.jetty.session;
+    requires transitive org.eclipse.jetty.server;
     requires transitive org.eclipse.jetty.util;
+    requires transitive org.slf4j;
 
-    exports org.eclipse.jetty.hazelcast.session;
+    // Only required if using DatabaseAdaptor/JDBCSessionDataStore.
+    requires static java.sql;
+    requires static java.naming;
+
+    exports org.eclipse.jetty.session;
 }
