@@ -47,7 +47,7 @@
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-webapp</artifactId>
+      <artifactId>jetty-ee9-webapp</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>

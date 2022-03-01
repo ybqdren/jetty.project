@@ -14,7 +14,7 @@
 import org.eclipse.jetty.ee9.plus.webapp.EnvConfiguration;
 import org.eclipse.jetty.ee9.plus.webapp.PlusConfiguration;
 
-module org.eclipse.jetty.plus
+module org.eclipse.jetty.ee9.plus
 {
     requires org.eclipse.jetty.jndi;
     requires org.slf4j;
@@ -26,15 +26,14 @@ module org.eclipse.jetty.plus
     // Only required if using Transaction.
     requires static jakarta.transaction;
     // Only required if using RunAs.
-    requires static org.eclipse.jetty.servlet;
+    requires static org.eclipse.jetty.ee9.servlet;
 
-    exports org.eclipse.jetty.plus.annotation;
+    exports org.eclipse.jetty.ee9.plus.annotation;
     exports org.eclipse.jetty.ee9.plus.jndi;
     exports org.eclipse.jetty.ee9.plus.security;
     exports org.eclipse.jetty.ee9.plus.webapp;
-    exports org.eclipse.jetty.ee9.plus.annotation;
 
-    provides Configuration with
+    provides org.eclipse.jetty.ee9.webapp.Configuration with
         EnvConfiguration,
         PlusConfiguration;
 }

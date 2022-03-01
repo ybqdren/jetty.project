@@ -13,11 +13,12 @@
 
 import org.eclipse.jetty.ee9.security.Authenticator;
 
-module org.eclipse.jetty.security
+module org.eclipse.jetty.ee9.security
 {
     requires org.slf4j;
 
     requires transitive org.eclipse.jetty.server;
+    requires transitive org.eclipse.jetty.ee9.handler;
 
     // Only required if using SPNEGO.
     requires static java.security.jgss;

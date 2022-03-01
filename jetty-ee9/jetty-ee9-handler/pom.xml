@@ -6,7 +6,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jetty-handler</artifactId>
+  <artifactId>jetty-ee9-handler</artifactId>
   <name>Jetty EE9 :: Handler</name>
   <description>The jetty handler adapted to ee9.</description>
 
@@ -43,6 +43,10 @@
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-jmx</artifactId>
       <optional>true</optional>
     </dependency>
@@ -50,7 +54,6 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-xml</artifactId>

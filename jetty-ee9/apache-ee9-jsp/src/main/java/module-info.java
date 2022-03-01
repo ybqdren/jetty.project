@@ -14,7 +14,7 @@
 import org.eclipse.jetty.ee9.jsp.apache.JettyJasperInitializer;
 import org.eclipse.jetty.ee9.jsp.apache.JuliLog;
 
-module org.eclipse.jetty.apache.jsp
+module org.eclipse.jetty.ee9.apache.jsp
 {
     requires java.xml;
     requires jetty.servlet.api;

@@ -14,7 +14,7 @@
 // This module is a mixed bag of things.
 // There are some utility classes that only depend on Servlet APIs,
 // but other utility classes that depend on some Jetty module.
-module org.eclipse.jetty.servlets
+module org.eclipse.jetty.ee9.servlets
 {
     requires org.slf4j;
 
