@@ -46,7 +46,6 @@ import org.eclipse.jetty.core.server.Handler;
 import org.eclipse.jetty.core.server.Request;
 import org.eclipse.jetty.core.server.Response;
 import org.eclipse.jetty.core.server.Server;
-import org.eclipse.jetty.core.server.Stream;
 import org.eclipse.jetty.core.server.handler.ContextHandler;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpCookie;
@@ -75,7 +74,7 @@ import org.eclipse.jetty.util.thread.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SessionHandler extends Handler.Nested implements SessionManager
+public class SessionHandler extends Handler.Wrapper implements SessionManager
 {    
     static final Logger LOG = LoggerFactory.getLogger(SessionHandler.class);
 
@@ -1619,7 +1618,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
     }
 
     @Override
-    public boolean handle(Request request, Response response)
+    public Request.Processor handle(Request request) throws Exception
     {
         ServletScopedRequest.MutableHttpServletRequest servletRequest =
             request.get(ServletScopedRequest.class, ServletScopedRequest::getMutableHttpServletRequest);
@@ -1683,7 +1682,7 @@ public class SessionHandler extends Handler.Nested implements SessionManager
             }
         });
 
-        return super.handle(request, response);
+        return super.handle(request);
     }
     
     /**
