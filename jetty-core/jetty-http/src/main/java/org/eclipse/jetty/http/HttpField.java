@@ -311,11 +311,11 @@ public class HttpField
         if (!(o instanceof HttpField))
             return false;
         HttpField field = (HttpField)o;
-        if (_header != field.getHeader())
+        if (_header != field._header)
             return false;
-        if (!_name.equalsIgnoreCase(field.getName()))
+        if (!_name.equalsIgnoreCase(field._name))
             return false;
-        return Objects.equals(_value, field.getValue());
+        return Objects.equals(_value, field._value);
     }
 
     public HttpHeader getHeader()
@@ -387,17 +387,21 @@ public class HttpField
         int h = this.hash;
         int len = _name.length();
         if (h == 0 && len > 0)
+            this.hash = h = hashCodeName(_name);
+        return h;
+    }
+
+    public static int hashCodeName(String name)
+    {
+        int h = 0;
+        for (int i = 0; i < name.length(); i++)
         {
-            for (int i = 0; i < len; i++)
-            {
-                // simple case insensitive hash
-                char c = _name.charAt(i);
-                // assuming us-ascii (per last paragraph on http://tools.ietf.org/html/rfc7230#section-3.2.4)
-                if ((c >= 'a' && c <= 'z'))
-                    c -= 0x20;
-                h = 31 * h + c;
-            }
-            this.hash = h;
+            // simple case insensitive hash
+            char c = name.charAt(i);
+            // assuming us-ascii (per last paragraph on http://tools.ietf.org/html/rfc7230#section-3.2.4)
+            if ((c >= 'a' && c <= 'z'))
+                c -= 0x20;
+            h = 31 * h + c;
         }
         return h;
     }

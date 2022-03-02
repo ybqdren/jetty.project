@@ -146,9 +146,8 @@ public class ContinuationParseTest
             MetaData.Request request = (MetaData.Request)frame.getMetaData();
             assertEquals(metaData.getMethod(), request.getMethod());
             assertEquals(metaData.getURI(), request.getURI());
-            for (int j = 0; j < fields.size(); ++j)
+            for (HttpField field : fields)
             {
-                HttpField field = fields.getField(j);
                 assertTrue(request.getFields().contains(field));
             }
             PriorityFrame priority = frame.getPriority();

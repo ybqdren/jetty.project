@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -270,14 +269,6 @@ public interface HttpFields extends Iterable<HttpField>
         return date;
     }
 
-    /**
-     * Get a Field by index.
-     *
-     * @param index the field index
-     * @return A Field value or null if the Field value has not been set
-     */
-    HttpField getField(int index);
-
     default HttpField getField(HttpHeader header)
     {
         for (HttpField f : this)
@@ -296,19 +287,6 @@ public interface HttpFields extends Iterable<HttpField>
                 return f;
         }
         return null;
-    }
-
-    /**
-     * Get enumeration of header _names. Returns an enumeration of strings representing the header
-     * _names for this request.
-     *
-     * @return an enumeration of field names
-     * @deprecated use {@link #getFieldNamesCollection()}
-     */
-    @Deprecated
-    default Enumeration<String> getFieldNames()
-    {
-        return Collections.enumeration(getFieldNamesCollection());
     }
 
     /**
@@ -428,50 +406,6 @@ public interface HttpFields extends Iterable<HttpField>
             }
         }
         return values == null ? Collections.emptyList() : values.getValues();
-    }
-
-    /**
-     * Get multi headers
-     *
-     * @param name the case-insensitive field name
-     * @return Enumeration of the values
-     */
-    default Enumeration<String> getValues(String name)
-    {
-        Iterator<HttpField> i = iterator();
-        return new Enumeration<>()
-        {
-            HttpField _field;
-
-            @Override
-            public boolean hasMoreElements()
-            {
-                if (_field != null)
-                    return true;
-                while (i.hasNext())
-                {
-                    HttpField f = i.next();
-                    if (f.is(name) && f.getValue() != null)
-                    {
-                        _field = f;
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            @Override
-            public String nextElement()
-            {
-                if (hasMoreElements())
-                {
-                    String value = _field.getValue();
-                    _field = null;
-                    return value;
-                }
-                throw new NoSuchElementException();
-            }
-        };
     }
 
     /**
@@ -1163,20 +1097,6 @@ public interface HttpFields extends Iterable<HttpField>
             return isEqualTo((HttpFields)o);
         }
 
-        /**
-         * Get a Field by index.
-         *
-         * @param index the field index
-         * @return A Field value or null if the Field value has not been set
-         */
-        @Override
-        public HttpField getField(int index)
-        {
-            if (index >= _size || index < 0)
-                throw new NoSuchElementException();
-            return _fields[index];
-        }
-
         @Override
         public int hashCode()
         {
@@ -1640,14 +1560,6 @@ public interface HttpFields extends Iterable<HttpField>
                 if (f != null && f.is(name))
                     return f;
             return null;
-        }
-
-        @Override
-        public HttpField getField(int index)
-        {
-            if (index >= _fields.length)
-                throw new NoSuchElementException();
-            return _fields[index];
         }
 
         @Override

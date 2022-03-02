@@ -891,7 +891,7 @@ public class Request implements HttpServletRequest
     public Enumeration<String> getHeaderNames()
     {
         HttpFields fields = _httpFields;
-        return fields == null ? Collections.emptyEnumeration() : fields.getFieldNames();
+        return fields == null ? Collections.emptyEnumeration() : Collections.enumeration(fields.getFieldNamesCollection());
     }
 
     @Override
@@ -900,10 +900,7 @@ public class Request implements HttpServletRequest
         HttpFields fields = _httpFields;
         if (fields == null)
             return Collections.emptyEnumeration();
-        Enumeration<String> e = fields.getValues(name);
-        if (e == null)
-            return Collections.enumeration(Collections.emptyList());
-        return e;
+        return Collections.enumeration(fields.getValuesList(name));
     }
 
     /**

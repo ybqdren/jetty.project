@@ -2107,10 +2107,8 @@ public class ResponseTest
         assertThat(response.getHeader("SomeHeader"), is("SomeValue"));
 
         // check cookies are still there
-        Enumeration<String> set = response.getHttpFields().getValues("Set-Cookie");
-
-        assertNotNull(set);
-        ArrayList<String> list = Collections.list(set);
+        List<String> list = response.getHttpFields().getValuesList("Set-Cookie");
+        assertNotNull(list);
         assertThat(list, containsInAnyOrder(
             "name=value; Path=/path; Domain=domain; Secure; HttpOnly",
             "name2=value2; Path=/path; Domain=domain"
@@ -2119,8 +2117,8 @@ public class ResponseTest
         //get rid of the cookies
         response.reset();
 
-        set = response.getHttpFields().getValues("Set-Cookie");
-        assertFalse(set.hasMoreElements());
+        list = response.getHttpFields().getValuesList("Set-Cookie");
+        assertTrue(list.isEmpty());
     }
 
     @Test
@@ -2153,7 +2151,7 @@ public class ResponseTest
             "Bar=value; Path=/right"
         };
 
-        List<String> actual = Collections.list(response.getHttpFields().getValues("Set-Cookie"));
+        List<String> actual = response.getHttpFields().getValuesList("Set-Cookie");
         assertThat("HttpCookie order", actual, hasItems(expected));
     }
 
@@ -2181,21 +2179,21 @@ public class ResponseTest
 
         response.addHeader(HttpHeader.SET_COOKIE.asString(), "Foo=123456");
         response.replaceCookie(new HttpCookie("Foo", "value"));
-        List<String> actual = Collections.list(response.getHttpFields().getValues("Set-Cookie"));
+        List<String> actual = response.getHttpFields().getValuesList("Set-Cookie");
         assertThat(actual, hasItems(new String[]{"Foo=value"}));
 
         response.setHeader(HttpHeader.SET_COOKIE, "Foo=123456; domain=Bah; Path=/path");
         response.replaceCookie(new HttpCookie("Foo", "other"));
-        actual = Collections.list(response.getHttpFields().getValues("Set-Cookie"));
+        actual = response.getHttpFields().getValuesList("Set-Cookie");
         assertThat(actual, hasItems(new String[]{"Foo=123456; domain=Bah; Path=/path", "Foo=other"}));
 
         response.replaceCookie(new HttpCookie("Foo", "replaced", "Bah", "/path"));
-        actual = Collections.list(response.getHttpFields().getValues("Set-Cookie"));
+        actual = response.getHttpFields().getValuesList("Set-Cookie");
         assertThat(actual, hasItems(new String[]{"Foo=replaced; Path=/path; Domain=Bah", "Foo=other"}));
 
         response.setHeader(HttpHeader.SET_COOKIE, "Foo=123456; domain=Bah; Expires=Thu, 01-Jan-1970 00:00:00 GMT; Max-Age=0; Secure; HttpOnly; Path=/path");
         response.replaceCookie(new HttpCookie("Foo", "replaced", "Bah", "/path"));
-        actual = Collections.list(response.getHttpFields().getValues("Set-Cookie"));
+        actual = response.getHttpFields().getValuesList("Set-Cookie");
         assertThat(actual, hasItems(new String[]{"Foo=replaced; Path=/path; Domain=Bah"}));
     }
 

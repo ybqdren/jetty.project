@@ -499,12 +499,8 @@ public class HttpGenerator
         // Add the chunk size to the header
         buffer.put(ZERO_CHUNK);
 
-        int n = trailer.size();
-        for (int f = 0; f < n; f++)
-        {
-            HttpField field = trailer.getField(f);
+        for (HttpField field : trailer)
             putTo(field, buffer);
-        }
 
         BufferUtil.putCRLF(buffer);
     }
@@ -594,10 +590,8 @@ public class HttpGenerator
         HttpFields fields = _info.getFields();
         if (fields != null)
         {
-            int n = fields.size();
-            for (int f = 0; f < n; f++)
+            for (HttpField field : fields)
             {
-                HttpField field = fields.getField(f);
                 HttpHeader h = field.getHeader();
                 if (h == null)
                     putTo(field, header);

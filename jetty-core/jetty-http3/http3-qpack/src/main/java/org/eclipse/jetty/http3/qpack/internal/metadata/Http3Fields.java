@@ -127,12 +127,6 @@ public class Http3Fields implements HttpFields
     }
 
     @Override
-    public HttpField getField(int index)
-    {
-        return stream().skip(index).findFirst().orElse(null);
-    }
-
-    @Override
     public int size()
     {
         return Math.toIntExact(stream().count());
