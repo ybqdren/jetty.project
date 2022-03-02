@@ -15,7 +15,6 @@
   </properties>
 
   <modules>
-    <module>jetty-ee10-handler</module>
     <module>jetty-ee10-servlet</module>
     <module>jetty-ee10-security</module>
     <module>jetty-ee10-servlets</module>
