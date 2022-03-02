@@ -14,6 +14,7 @@
 package org.eclipse.jetty.server;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 import org.eclipse.jetty.util.Attributes;
@@ -43,6 +44,8 @@ public interface Context extends Attributes, Decorator, Executor
     Path getResourceBase();
 
     Request.Processor getErrorProcessor();
+
+    List<String> getVirtualHosts();
 
     @Override
     /** execute runnable in container thread scoped to context */

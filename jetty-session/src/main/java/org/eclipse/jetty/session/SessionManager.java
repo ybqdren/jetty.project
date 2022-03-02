@@ -14,6 +14,7 @@
 package org.eclipse.jetty.session;
 
 import org.eclipse.jetty.http.HttpCookie;
+import org.eclipse.jetty.server.Context;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.component.LifeCycle;
@@ -46,7 +47,7 @@ public interface SessionManager extends LifeCycle
     
     SessionIdManager getSessionIdManager();
     
-    ContextHandler.Context getContext();
+    Context getContext();
     
     SessionCache getSessionCache();
     
