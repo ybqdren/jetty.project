@@ -342,7 +342,7 @@ public class Response implements HttpServletResponse
     public String encodeURL(String url)
     {
         final Request request = _channel.getRequest();
-        SessionHandler sessionManager = request.getSessionHandler();
+        SessionHandler sessionManager = request.getSessionManager();
 
         if (sessionManager == null)
             return url;
@@ -1190,7 +1190,7 @@ public class Response implements HttpServletResponse
         HttpSession session = request.getSession(false);
         if (session != null && session.isNew())
         {
-            SessionHandler sh = request.getSessionHandler();
+            SessionHandler sh = request.getSessionManager();
             if (sh != null)
             {
                 HttpCookie c = sh.getSessionCookie(session, request.getContextPath(), request.isSecure());
