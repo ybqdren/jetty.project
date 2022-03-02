@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-module org.eclipse.jetty.core.server
+module org.eclipse.jetty.server
 {
     requires transitive org.eclipse.jetty.http;
     requires transitive org.slf4j;
