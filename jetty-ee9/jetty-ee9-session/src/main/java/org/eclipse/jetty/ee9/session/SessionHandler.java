@@ -294,7 +294,7 @@ public class SessionHandler extends Handler.Wrapper implements SessionManager
         }
     }
     
-    public class ServletAPISession implements HttpSession
+    public class ServletAPISession implements HttpSession, Session.Wrapper
     {
         private Session _session;
         
@@ -304,11 +304,12 @@ public class SessionHandler extends Handler.Wrapper implements SessionManager
             _session.setWrapper(this);
         }
 
+        @Override
         public Session getSession()
         {
             return _session;
         }
-        
+
         @Override
         public long getCreationTime()
         {

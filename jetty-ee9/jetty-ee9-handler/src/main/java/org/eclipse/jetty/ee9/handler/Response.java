@@ -51,7 +51,8 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.io.RuntimeIOException;
-import org.eclipse.jetty.server.session.SessionHandler;
+import org.eclipse.jetty.session.Session;
+import org.eclipse.jetty.session.SessionManager;
 import org.eclipse.jetty.util.AtomicBiInteger;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.StringUtil;
@@ -342,12 +343,13 @@ public class Response implements HttpServletResponse
     public String encodeURL(String url)
     {
         final Request request = _channel.getRequest();
-        SessionHandler sessionManager = request.getSessionManager();
+        SessionManager sessionManager = request.getSessionManager();
 
         if (sessionManager == null)
             return url;
 
         HttpURI uri = null;
+        /* TODO
         if (sessionManager.isCheckingRemoteSessionIdEncoding() && URIUtil.hasScheme(url))
         {
             uri = HttpURI.from(url);
@@ -370,6 +372,7 @@ public class Response implements HttpServletResponse
         if (sessionURLPrefix == null)
             return url;
 
+
         if (url == null)
             return null;
 
@@ -391,17 +394,18 @@ public class Response implements HttpServletResponse
         }
 
         // get session;
-        HttpSession session = request.getSession(false);
+        HttpSession httpSession = request.getSession(false);
+        Session session = Session.getSession(httpSession);
 
         // no session
-        if (session == null)
+        if (httpSession == null)
             return url;
 
         // invalid session
-        if (!sessionManager.isValid(session))
+        if (!session.isValid())
             return url;
 
-        String id = sessionManager.getExtendedId(session);
+        String id = session.getExtendedId();
 
         if (uri == null)
             uri = HttpURI.from(url);
@@ -420,6 +424,7 @@ public class Response implements HttpServletResponse
                 url.substring(suffix);
         }
 
+
         // edit the session
         int suffix = url.indexOf('?');
         if (suffix < 0)
@@ -434,6 +439,8 @@ public class Response implements HttpServletResponse
         return url.substring(0, suffix) +
             ((HttpScheme.HTTPS.is(uri.getScheme()) || HttpScheme.HTTP.is(uri.getScheme())) && uri.getPath() == null ? "/" : "") + //if no path so insert the root path
             sessionURLPrefix + id + url.substring(suffix);
+         */
+        return url; // TODO
     }
 
     @Override
@@ -1187,13 +1194,13 @@ public class Response implements HttpServletResponse
 
         // recreate session cookies
         Request request = getHttpChannel().getRequest();
-        HttpSession session = request.getSession(false);
-        if (session != null && session.isNew())
+        HttpSession httpSession = request.getSession(false);
+        if (httpSession != null && httpSession.isNew())
         {
-            SessionHandler sh = request.getSessionManager();
-            if (sh != null)
+            SessionManager sessionManager = request.getSessionManager();
+            if (sessionManager != null)
             {
-                HttpCookie c = sh.getSessionCookie(session, request.getContextPath(), request.isSecure());
+                HttpCookie c = sessionManager.getSessionCookie(Session.getSession(httpSession), request.getContextPath(), request.isSecure());
                 if (c != null)
                     addCookie(c);
             }

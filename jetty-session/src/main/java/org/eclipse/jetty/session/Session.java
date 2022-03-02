@@ -35,10 +35,15 @@ import org.slf4j.LoggerFactory;
  * the help of the SessionCache/SessionDataStore.
  *
  * @see SessionManager
- * @see org.eclipse.jetty.server.SessionIdManager
+ * @see org.eclipse.jetty.session.SessionIdManager
  */
 public class Session
 {
+    public interface Wrapper
+    {
+        Session getSession();
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(Session.class);
 
     /**
@@ -104,6 +109,13 @@ public class Session
             _sessionData.setDirty(true);
         }
         _sessionInactivityTimer = handler.newSessionInactivityTimer(this);
+    }
+
+    public static Session getSession(Object session)
+    {
+        if (session instanceof Wrapper wrapper)
+            return wrapper.getSession();
+        return null;
     }
 
     @SuppressWarnings("unchecked")
