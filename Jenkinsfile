@@ -11,7 +11,7 @@ pipeline {
           agent { node { label 'linux' } }
           steps {
             container('jetty-build') {
-              timeout( time: 120, unit: 'MINUTES' ) {
+              timeout( time: 240, unit: 'MINUTES' ) {
                 mavenBuild( "jdk17", "clean install -Perrorprone", "maven3")
                 // Collect up the jacoco execution results (only on main build)
                 jacoco inclusionPattern: '**/org/eclipse/jetty/**/*.class',
@@ -36,49 +36,7 @@ pipeline {
             }
           }
         }
-
-        stage("Build / Test - JDK11") {
-          agent { node { label 'linux' } }
-          steps {
-            container( 'jetty-build' ) {
-              timeout( time: 120, unit: 'MINUTES' ) {
-                mavenBuild( "jdk11", "clean install -Dspotbugs.skip=true -Djacoco.skip=true", "maven3")
-                recordIssues id: "jdk11", name: "Static Analysis jdk11", aggregatingResults: true, enabledForFailure: true, tools: [mavenConsole(), java(), checkStyle()]
-              }
-            }
-          }
-        }
-
       }
-    }
-  }
-  post {
-    failure {
-      slackNotif()
-    }
-    unstable {
-      slackNotif()
-    }
-    fixed {
-      slackNotif()
-    }
-  }
-}
-
-def slackNotif() {
-  script {
-    try {
-      if ( env.BRANCH_NAME == 'jetty-10.0.x' || env.BRANCH_NAME == 'jetty-11.0.x') {
-        //BUILD_USER = currentBuild.rawBuild.getCause(Cause.UserIdCause).getUserId()
-        // by ${BUILD_USER}
-        COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', 'ABORTED': 'danger']
-        slackSend channel: '#jenkins',
-                  color: COLOR_MAP[currentBuild.currentResult],
-                  message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} - ${env.BUILD_URL}"
-      }
-    } catch (Exception e) {
-      e.printStackTrace()
-      echo "skip failure slack notification: " + e.getMessage()
     }
   }
 }
@@ -100,7 +58,7 @@ def mavenBuild(jdk, cmdline, mvnName) {
                "MAVEN_OPTS=-Xms2g -Xmx4g -Djava.awt.headless=true"]) {
         configFileProvider(
                 [configFile(fileId: 'oss-settings.xml', variable: 'GLOBAL_MVN_SETTINGS')]) {
-          sh "mvn --no-transfer-progress -s $GLOBAL_MVN_SETTINGS -Dmaven.repo.local=.repository -Pci -V -B -e -Djetty.testtracker.log=true $cmdline"
+          sh "mvn --no-transfer-progress -s $GLOBAL_MVN_SETTINGS -Dmaven.repo.local=.repository -Pci --show-version --batch-mode --errors -Djetty.testtracker.log=true $cmdline"
         }
       }
     }
