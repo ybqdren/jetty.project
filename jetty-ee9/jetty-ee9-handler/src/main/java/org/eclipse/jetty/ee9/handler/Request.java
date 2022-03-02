@@ -395,6 +395,7 @@ public class Request implements HttpServletRequest
      */
     public void enterSession(HttpSession s)
     {
+        // TODO s will never be a Session
         if (!(s instanceof Session))
             return;
 
