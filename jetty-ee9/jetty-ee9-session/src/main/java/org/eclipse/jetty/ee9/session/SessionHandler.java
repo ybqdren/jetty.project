@@ -753,6 +753,7 @@ public class SessionHandler extends Handler.Wrapper implements SessionManager
     /**
      * @return true if using session cookies is allowed, false otherwise
      */
+    @Override
     public boolean isUsingCookies()
     {
         return _usingCookies;

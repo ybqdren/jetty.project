@@ -85,8 +85,8 @@ import org.eclipse.jetty.io.RuntimeIOException;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.session.Session;
-import org.eclipse.jetty.server.session.SessionHandler;
+import org.eclipse.jetty.session.Session;
+import org.eclipse.jetty.session.SessionManager;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.HostPort;
@@ -114,7 +114,7 @@ import org.slf4j.LoggerFactory;
  * by {@link Request#setContext(ContextHandler.Context, String)}.</li>
  *
  * <li>the HTTP session methods will all return null sessions until such time as a request has been passed to a
- * {@link org.eclipse.jetty.server.session.SessionHandler} which checks for session cookies and enables the ability to create new sessions.</li>
+ * org.eclipse.jetty.server.ee9.SessionHandler which checks for session cookies and enables the ability to create new sessions.</li>
  *
  * <li>The {@link Request#getServletPath()} method will return "" until the request has been passed to a <code>org.eclipse.jetty.servlet.ServletHandler</code>
  * and the pathInfo matched against the servlet URL patterns and {@link Request#setServletPathMapping(ServletPathMapping)} called as a result.</li>
@@ -193,6 +193,7 @@ public class Request implements HttpServletRequest
         return null;
     }
 
+    private org.eclipse.jetty.server.Request _coreRequest; // TODO
     private final HttpChannel _channel;
     private final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
     private final HttpInput _input;
@@ -228,8 +229,8 @@ public class Request implements HttpServletRequest
     private InetSocketAddress _remote;
     private String _requestedSessionId;
     private UserIdentity.Scope _scope;
-    private HttpSession _session;
-    private SessionHandler _sessionHandler;
+    private Session _session;
+    private SessionManager _sessionManager;
     private long _timeStamp;
     private MultiPartFormInputStream _multiParts; //if the request is a multi-part mime
     private AsyncContextState _async;
@@ -392,11 +393,8 @@ public class Request implements HttpServletRequest
      *
      * @param s the session
      */
-    public void enterSession(HttpSession s)
+    public void enterSession(Session s)
     {
-        if (!(s instanceof Session))
-            return;
-
         if (_sessions == null)
             _sessions = new ArrayList<>();
         if (LOG.isDebugEnabled())
@@ -414,12 +412,15 @@ public class Request implements HttpServletRequest
         if (LOG.isDebugEnabled())
             LOG.debug("Request {} leaving session {}", this, session);
         //try and scope to a request and context before leaving the session
+        /* TODO
         ServletContext ctx = session.getServletContext();
         ContextHandler handler = ContextHandler.getContextHandler(ctx);
         if (handler == null)
             session.getSessionHandler().complete(session);
         else
             handler.handle(this, () ->  session.getSessionHandler().complete(session));
+
+         */
     }
 
     /**
@@ -435,12 +436,15 @@ public class Request implements HttpServletRequest
             LOG.debug("Response {} committing for session {}", this, session);
         
         //try and scope to a request and context before committing the session
+        /* TODO
         ServletContext ctx = session.getServletContext();
         ContextHandler handler = ContextHandler.getContextHandler(ctx);
         if (handler == null)
             session.getSessionHandler().commit(session);
         else
             handler.handle(this, () -> session.getSessionHandler().commit(session));
+
+         */
     }
 
     private MultiMap<String> getParameters()
@@ -1411,11 +1415,12 @@ public class Request implements HttpServletRequest
         if (session instanceof Session)
         {
             Session s = ((Session)session);
-            s.renewId(this);
+            // TODO need to get the core request
+            s.renewId(_coreRequest);
             if (getRemoteUser() != null)
                 s.setAttribute(Session.SESSION_CREATED_SECURE, Boolean.TRUE);
-            if (s.isIdChanged() && _sessionHandler.isUsingCookies())
-                _channel.getResponse().replaceCookie(_sessionHandler.getSessionCookie(s, getContextPath(), isSecure()));
+            if (s.isIdChanged() && _sessionManager.isUsingCookies())
+                _channel.getResponse().replaceCookie(_sessionManager.getSessionCookie(s, getContextPath(), isSecure()));
         }
 
         return session.getId();
@@ -1488,23 +1493,21 @@ public class Request implements HttpServletRequest
      * Find a session that this request has already entered for the
      * given SessionHandler
      *
-     * @param sessionHandler the SessionHandler (ie context) to check
+     * @param sessionManager the SessionManager (ie context) to check
      * @return the session for the passed session handler or null
      */
-    public HttpSession getSession(SessionHandler sessionHandler)
+    public HttpSession getSession(SessionManager sessionManager)
     {
-        if (_sessions == null || _sessions.size() == 0 || sessionHandler == null)
+        if (_sessions == null || _sessions.size() == 0 || sessionManager == null)
             return null;
 
         HttpSession session = null;
-
-        for (HttpSession s:_sessions)
+        for (Session s:_sessions)
         {
-            Session ss = (Session)s;
-            if (sessionHandler == ss.getSessionHandler())
+            if (sessionManager == s.getSessionManager())
             {
-                session = s;
-                if (ss.isValid())
+                session = s.getWrapper();
+                if (s.isValid())
                     return session;
             }
         }
@@ -1520,13 +1523,9 @@ public class Request implements HttpServletRequest
     @Override
     public HttpSession getSession(boolean create)
     {
-        if (_session != null)
-        {
-            if (_sessionHandler != null && !_sessionHandler.isValid(_session))
-                _session = null;
-            else
-                return _session;
-        }
+        if (_session != null && _session.isValid())
+            return _session.getWrapper();
+        _session = null;
 
         if (!create)
             return null;
@@ -1534,26 +1533,26 @@ public class Request implements HttpServletRequest
         if (getResponse().isCommitted())
             throw new IllegalStateException("Response is committed");
 
-        if (_sessionHandler == null)
+        if (_sessionManager == null)
             throw new IllegalStateException("No SessionManager");
 
-        _session = _sessionHandler.newHttpSession(this);
+        _session = _sessionManager.newSession(_coreRequest, getRequestedSessionId());
         if (_session == null)
             throw new IllegalStateException("Create session failed");
 
-        HttpCookie cookie = _sessionHandler.getSessionCookie(_session, getContextPath(), isSecure());
+        HttpCookie cookie = _sessionManager.getSessionCookie(_session, getContextPath(), isSecure());
         if (cookie != null)
             _channel.getResponse().replaceCookie(cookie);
 
-        return _session;
+        return _session.getWrapper();
     }
 
     /**
      * @return Returns the sessionManager.
      */
-    public SessionHandler getSessionHandler()
+    public SessionManager getSessionManager()
     {
-        return _sessionHandler;
+        return _sessionManager;
     }
 
     /**
@@ -1677,8 +1676,8 @@ public class Request implements HttpServletRequest
         if (_requestedSessionId == null)
             return false;
 
-        HttpSession session = getSession(false);
-        return (session != null && _sessionHandler.getSessionIdManager().getId(_requestedSessionId).equals(_sessionHandler.getId(session)));
+        HttpSession httpSession = getSession(false);
+        return httpSession != null && _sessionManager.getSessionIdManager().getId(_requestedSessionId).equals(httpSession.getId());
     }
 
     @Override
@@ -1859,7 +1858,7 @@ public class Request implements HttpServletRequest
         _requestedSessionId = null;
         _scope = null;
         _session = null;
-        _sessionHandler = null;
+        _sessionManager = null;
         _timeStamp = 0;
         _multiParts = null;
         if (_async != null)
@@ -2161,17 +2160,17 @@ public class Request implements HttpServletRequest
     /**
      * @param session The session to set.
      */
-    public void setSession(HttpSession session)
+    public void setSession(Session session)
     {
         _session = session;
     }
 
     /**
-     * @param sessionHandler The SessionHandler to set.
+     * @param sessionManager The SessionHandler to set.
      */
-    public void setSessionHandler(SessionHandler sessionHandler)
+    public void setSessionManager(SessionManager sessionManager)
     {
-        _sessionHandler = sessionHandler;
+        _sessionManager = sessionManager;
     }
 
     public void setTimeStamp(long ts)

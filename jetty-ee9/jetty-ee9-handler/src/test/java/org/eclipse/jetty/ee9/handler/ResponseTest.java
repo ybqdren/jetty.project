@@ -670,7 +670,7 @@ public class ResponseTest
         sessionHandler.setServer(_server);
         sessionHandler.setUsingCookies(true);
         sessionHandler.start();
-        request.setSessionHandler(sessionHandler);
+        request.setSessionManager(sessionHandler);
         HttpSession session = request.getSession(true);
 
         assertThat(session, not(nullValue()));
@@ -1664,7 +1664,7 @@ public class ResponseTest
         DefaultSessionIdManager idMgr = new DefaultSessionIdManager(_server);
         idMgr.setWorkerName(null);
         handler.setSessionIdManager(idMgr);
-        request.setSessionHandler(handler);
+        request.setSessionManager(handler);
         TestSession tsession = new TestSession(handler, "12345");
         tsession.setExtendedId(handler.getSessionIdManager().getExtendedId("12345", null));
         request.setSession(tsession);
@@ -1774,7 +1774,7 @@ public class ResponseTest
                     DefaultSessionIdManager idMgr = new DefaultSessionIdManager(_server);
                     idMgr.setWorkerName(null);
                     handler.setSessionIdManager(idMgr);
-                    request.setSessionHandler(handler);
+                    request.setSessionManager(handler);
                     request.setSession(new TestSession(handler, "12345"));
                     handler.setCheckingRemoteSessionIdEncoding(false);
 
@@ -1852,7 +1852,7 @@ public class ResponseTest
                     DefaultSessionIdManager idMgr = new DefaultSessionIdManager(_server);
                     idMgr.setWorkerName(null);
                     handler.setSessionIdManager(idMgr);
-                    request.setSessionHandler(handler);
+                    request.setSessionManager(handler);
                     request.setSession(new TestSession(handler, "12345"));
                     handler.setCheckingRemoteSessionIdEncoding(false);
 

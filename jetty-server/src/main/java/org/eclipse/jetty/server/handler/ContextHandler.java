@@ -738,6 +738,12 @@ public class ContextHandler extends Handler.Wrapper implements Attributes, Grace
             return _resourceBase;
         }
 
+        @Override
+        public List<String> getVirtualHosts()
+        {
+            return ContextHandler.this.getVirtualHosts();
+        }
+
         private <T> T get(Supplier<T> supplier, Request request)
         {
             Context lastContext = __context.get();

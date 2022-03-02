@@ -16,8 +16,7 @@ package org.eclipse.jetty.session;
 import java.util.List;
 import java.util.Objects;
 
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandler.Context;
+import org.eclipse.jetty.server.Context;
 import org.eclipse.jetty.util.StringUtil;
 
 /**
@@ -31,7 +30,7 @@ import org.eclipse.jetty.util.StringUtil;
 public class SessionContext
 {
     public static final String NULL_VHOST = "0.0.0.0";
-    private ContextHandler.Context _context;
+    private Context _context;
     private SessionManager _sessionManager;
     private String _workerName;
     private String _canonicalContextPath;
@@ -86,7 +85,7 @@ public class SessionContext
     public void run(Runnable r)
     {
         if (_context != null)
-            _context.getContextHandler().handle(r);
+            _context.run(r);
         else
             r.run();
     }
@@ -112,11 +111,11 @@ public class SessionContext
         if (context == null)
             return vhost;
 
-        String[] vhosts = context.getContextHandler().getVirtualHosts();
-        if (vhosts == null || vhosts.length == 0 || vhosts[0] == null)
+        List<String> vhosts = context.getVirtualHosts();
+        if (vhosts == null || vhosts.isEmpty())
             return vhost;
 
-        return vhosts[0];
+        return vhosts.get(0);
     }
 
     /**

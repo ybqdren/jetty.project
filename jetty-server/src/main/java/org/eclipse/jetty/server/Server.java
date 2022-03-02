@@ -20,6 +20,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -714,6 +715,12 @@ public class Server extends Handler.Wrapper implements Attributes
         public Path getResourceBase()
         {
             return null;
+        }
+
+        @Override
+        public List<String> getVirtualHosts()
+        {
+            return Collections.emptyList();
         }
 
         @Override

@@ -14,6 +14,7 @@
 package org.eclipse.jetty.session;
 
 import org.eclipse.jetty.http.HttpCookie;
+import org.eclipse.jetty.server.Context;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.component.LifeCycle;
@@ -35,6 +36,8 @@ public interface SessionManager extends LifeCycle
     void scavenge() throws Exception;
     
     boolean isIdInUse(String id) throws Exception;
+
+    boolean isUsingCookies();
     
     void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
     
@@ -46,7 +49,7 @@ public interface SessionManager extends LifeCycle
     
     SessionIdManager getSessionIdManager();
     
-    ContextHandler.Context getContext();
+    Context getContext();
     
     SessionCache getSessionCache();
     
