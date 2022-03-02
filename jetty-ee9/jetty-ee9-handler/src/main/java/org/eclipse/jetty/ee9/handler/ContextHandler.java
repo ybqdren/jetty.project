@@ -66,6 +66,7 @@ import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.server.ClassLoaderDump;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.AttributesMap;
 import org.eclipse.jetty.util.Index;
@@ -188,7 +189,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
 
     protected ContextStatus _contextStatus = ContextStatus.NOTSET;
     protected Context _scontext;
-    private final AttributesMap _attributes;
+    protected final Attributes.Mapped _persistentAttributes;
     private final Map<String, String> _initParams;
     private ClassLoader _classLoader;
     private boolean _contextPathDefault = true;
@@ -258,7 +259,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
     protected ContextHandler(Context context, HandlerContainer parent, String contextPath)
     {
         _scontext = context == null ? new Context() : context;
-        _attributes = new AttributesMap();
+        _persistentAttributes = new Attributes.Mapped();
         _initParams = new HashMap<>();
         if (File.separatorChar == '/')
             addAliasCheck(new SymlinkAllowedResourceAliasChecker(this));
@@ -276,8 +277,8 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
     {
         dumpObjects(out, indent,
             new ClassLoaderDump(getClassLoader()),
-            new DumpableCollection("handler attributes " + this, ((AttributesMap)getAttributes()).getAttributeEntrySet()),
-            new DumpableCollection("context attributes " + this, ((Context)getServletContext()).getAttributeEntrySet()),
+            new DumpableCollection("handler attributes " + this, _persistentAttributes.getAttributeEntrySet()),
+            new DumpableCollection("context attributes " + this, _scontext._attributes.getAttributeEntrySet()),
             new DumpableCollection("initparams " + this, getInitParams().entrySet()));
     }
 
@@ -498,19 +499,13 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
     @Override
     public Object getAttribute(String name)
     {
-        return _attributes.getAttribute(name);
-    }
-
-    @Override
-    public Enumeration<String> getAttributeNames()
-    {
-        return AttributesMap.getAttributeNamesCopy(_attributes);
+        return _persistentAttributes.getAttribute(name);
     }
 
     @Override
     public Set<String> getAttributeNameSet()
     {
-        return _attributes.getAttributeNameSet();
+        return _persistentAttributes.getAttributeNameSet();
     }
 
     /**
@@ -518,7 +513,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      */
     public Attributes getAttributes()
     {
-        return _attributes;
+        return _persistentAttributes;
     }
 
     /**
@@ -866,7 +861,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         Thread currentThread = null;
         Context oldContext = null;
 
-        _attributes.setAttribute("org.eclipse.jetty.server.Executor", getServer().getThreadPool());
+        _persistentAttributes.setAttribute("org.eclipse.jetty.server.Executor", getServer().getThreadPool());
 
         if (_mimeTypes == null)
             _mimeTypes = new MimeTypes();
@@ -1113,7 +1108,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
             if ((oldClassloader == null || (oldClassloader != oldWebapploader)) && currentThread != null)
                 currentThread.setContextClassLoader(oldClassloader);
 
-            _scontext.clearAttributes();
+            _scontext._attributes.clearAttributes();
         }
 
         if (mex != null)
@@ -1528,9 +1523,9 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
     }
 
     @Override
-    public void removeAttribute(String name)
+    public Object removeAttribute(String name)
     {
-        _attributes.removeAttribute(name);
+        return _persistentAttributes.removeAttribute(name);
     }
 
     /*
@@ -1540,9 +1535,9 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      * @see jakarta.servlet.ServletContext#setAttribute(java.lang.String, java.lang.Object)
      */
     @Override
-    public void setAttribute(String name, Object value)
+    public Object setAttribute(String name, Object value)
     {
-        _attributes.setAttribute(name, value);
+        return _persistentAttributes.setAttribute(name, value);
     }
 
     /**
@@ -1550,14 +1545,14 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      */
     public void setAttributes(Attributes attributes)
     {
-        _attributes.clearAttributes();
-        _attributes.addAll(attributes);
+        _persistentAttributes.clearAttributes();
+        _persistentAttributes.addAll(attributes);
     }
 
     @Override
     public void clearAttributes()
     {
-        _attributes.clearAttributes();
+        _persistentAttributes.clearAttributes();
     }
 
     /**
@@ -1642,15 +1637,12 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
 
         if (getServer() != null && (getServer().isStarting() || getServer().isStarted()))
         {
-            Class<ContextHandlerCollection> handlerClass = ContextHandlerCollection.class;
-            Handler[] contextCollections = getServer().getChildHandlersByClass(handlerClass);
-            if (contextCollections != null)
-            {
-                for (Handler contextCollection : contextCollections)
+            Arrays.stream(getServer().getChildHandlersByClass(ContextHandlerCollection.class))
+                .forEach(h ->
                 {
-                    handlerClass.cast(contextCollection).mapContexts();
-                }
-            }
+                    if (h instanceof ContextHandlerCollection chc)
+                        chc.mapContexts();
+                });
         }
     }
 
@@ -2107,11 +2099,13 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      */
     public class Context extends StaticContext
     {
+        private final Attributes.Layer _layer;
         protected boolean _enabled = true; // whether or not the dynamic API is enabled for callers
         protected boolean _extendedListenerTypes = false;
 
         protected Context()
         {
+            _layer = new Attributes.Layer(_persistentAttributes, super._attributes);
         }
 
         public ContextHandler getContextHandler()
@@ -2119,18 +2113,26 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
             return ContextHandler.this;
         }
 
+        public Attributes getAttributes()
+        {
+            return _layer;
+        }
+
         @Override
         public ServletContext getContext(String uripath)
         {
             List<ContextHandler> contexts = new ArrayList<>();
-            Handler[] handlers = getServer().getChildHandlersByClass(ContextHandler.class);
+            org.eclipse.jetty.server.Handler[] handlers = getServer().getChildHandlersByClass(ContextHandler.class);
             String matchedPath = null;
 
-            for (Handler handler : handlers)
+            for (org.eclipse.jetty.server.Handler handler : handlers)
             {
                 if (handler == null)
                     continue;
-                ContextHandler ch = (ContextHandler)handler;
+                // TODO review
+                if (!(handler instanceof ContextHandler ch))
+                    continue;
+
                 String contextPath = ch.getContextPath();
 
                 if (uripath.equals(contextPath) ||
@@ -2180,11 +2182,14 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
 
             // try again ignoring virtual hosts
             matchedPath = null;
-            for (Handler handler : handlers)
+            for (org.eclipse.jetty.server.Handler handler : handlers)
             {
                 if (handler == null)
                     continue;
-                ContextHandler ch = (ContextHandler)handler;
+                // TODO review
+                if (!(handler instanceof ContextHandler ch))
+                    continue;
+
                 String contextPath = ch.getContextPath();
 
                 if (uripath.equals(contextPath) || (uripath.startsWith(contextPath) && uripath.charAt(contextPath.length()) == '/') || "/".equals(contextPath))
@@ -2362,38 +2367,24 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         @Override
         public Object getAttribute(String name)
         {
-            Object o = ContextHandler.this.getAttribute(name);
-            if (o == null)
-                o = super.getAttribute(name);
-            return o;
+            return _layer.getAttribute(name);
+        }
+
+        public Set<String> getAttributeNamesSet()
+        {
+            return _layer.getAttributeNameSet();
         }
 
         @Override
         public Enumeration<String> getAttributeNames()
         {
-            HashSet<String> set = new HashSet<>();
-            Enumeration<String> e = super.getAttributeNames();
-            while (e.hasMoreElements())
-            {
-                set.add(e.nextElement());
-            }
-            e = ContextHandler.this.getAttributeNames();
-            while (e.hasMoreElements())
-            {
-                set.add(e.nextElement());
-            }
-            return Collections.enumeration(set);
+            return Collections.enumeration(getAttributeNamesSet());
         }
 
         @Override
         public void setAttribute(String name, Object value)
         {
-            Object oldValue = super.getAttribute(name);
-
-            if (value == null)
-                super.removeAttribute(name);
-            else
-                super.setAttribute(name, value);
+            Object oldValue = _layer.setAttribute(name, value);
 
             if (!_servletContextAttributeListeners.isEmpty())
             {
@@ -2414,8 +2405,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         @Override
         public void removeAttribute(String name)
         {
-            Object oldValue = super.getAttribute(name);
-            super.removeAttribute(name);
+            Object oldValue = _layer.removeAttribute(name);
             if (oldValue != null && !_servletContextAttributeListeners.isEmpty())
             {
                 ServletContextAttributeEvent event = new ServletContextAttributeEvent(_scontext, name, oldValue);
@@ -2608,10 +2598,17 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
      * ContextHandler.  This is also used as the base for all other ServletContext
      * implementations.
      */
-    public static class StaticContext extends AttributesMap implements ServletContext
+    public static class StaticContext implements ServletContext
     {
+        protected final Attributes.Mapped _attributes = new Attributes.Mapped();
         private int _effectiveMajorVersion = SERVLET_MAJOR_VERSION;
         private int _effectiveMinorVersion = SERVLET_MINOR_VERSION;
+
+        // TODO review
+        public Attributes.Mapped getNonPersistentAttributes()
+        {
+            return _attributes;
+        }
 
         @Override
         public ServletContext getContext(String uripath)
@@ -3007,6 +3004,30 @@ public class ContextHandler extends ScopedHandler implements Attributes, Gracefu
         public void setResponseCharacterEncoding(String encoding)
         {
             LOG.warn(UNIMPLEMENTED_USE_SERVLET_CONTEXT_HANDLER, "setResponseCharacterEncoding(String)");
+        }
+
+        @Override
+        public Object getAttribute(String name)
+        {
+            return _attributes.getAttribute(name);
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames()
+        {
+            return Collections.enumeration(_attributes.getAttributeNameSet());
+        }
+
+        @Override
+        public void setAttribute(String name, Object object)
+        {
+            _attributes.setAttribute(name, object);
+        }
+
+        @Override
+        public void removeAttribute(String name)
+        {
+            _attributes.removeAttribute(name);
         }
     }
 

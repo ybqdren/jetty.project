@@ -53,12 +53,13 @@ public class AbstractHandlerMBean extends ObjectMBean
                 Server server = handler.getServer();
                 if (server != null)
                 {
-                    ContextHandler context =
-                        AbstractHandlerContainer.findContainerOf(server,
-                            ContextHandler.class, handler);
-
-                    if (context != null)
-                        basis = getContextName(context);
+                    // TODO
+//                    ContextHandler context =
+//                        AbstractHandlerContainer.findContainerOf(server,
+//                            ContextHandler.class, handler);
+//
+//                    if (context != null)
+//                        basis = getContextName(context);
                 }
             }
             if (basis != null)

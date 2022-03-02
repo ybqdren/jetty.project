@@ -112,9 +112,10 @@ public abstract class HttpChannel implements Runnable, HttpOutput.Interceptor
         _response = new Response(this, newHttpOutput());
         _executor = connector.getServer().getThreadPool();
         _requestLog = connector.getServer().getRequestLog();
-        _combinedListener = (connector instanceof AbstractConnector)
-            ? ((AbstractConnector)connector).getHttpChannelListeners()
-            : NOOP_LISTENER;
+        _combinedListener =
+// TODO           (connector instanceof AbstractConnector)
+//            ? ((AbstractConnector)connector).getHttpChannelListeners() :
+                NOOP_LISTENER;
 
         if (LOG.isDebugEnabled())
             LOG.debug("new {} -> {},{},{}",
@@ -259,12 +260,6 @@ public abstract class HttpChannel implements Runnable, HttpOutput.Interceptor
 
     public void addRequestLog(RequestLog requestLog)
     {
-        if (_requestLog == null)
-            _requestLog = requestLog;
-        else if (_requestLog instanceof RequestLogCollection)
-            ((RequestLogCollection)_requestLog).add(requestLog);
-        else
-            _requestLog = new RequestLogCollection(_requestLog, requestLog);
     }
 
     public MetaData.Response getCommittedMetaData()
@@ -501,13 +496,14 @@ public abstract class HttpChannel implements Runnable, HttpOutput.Interceptor
 
                         dispatch(DispatcherType.REQUEST, () ->
                         {
-                            for (HttpConfiguration.Customizer customizer : _configuration.getCustomizers())
-                            {
-                                customizer.customize(getConnector(), _configuration, _request);
-                                if (_request.isHandled())
-                                    return;
-                            }
-                            getServer().handle(HttpChannel.this);
+                            // TODO replace with context dispatch
+//                            for (HttpConfiguration.Customizer customizer : _configuration.getCustomizers())
+//                            {
+//                                customizer.customize(getConnector(), _configuration, _request);
+//                                if (_request.isHandled())
+//                                    return;
+//                            }
+//                            getServer().handle(HttpChannel.this);
                         });
 
                         break;
@@ -515,7 +511,7 @@ public abstract class HttpChannel implements Runnable, HttpOutput.Interceptor
 
                     case ASYNC_DISPATCH:
                     {
-                        dispatch(DispatcherType.ASYNC, () -> getServer().handleAsync(this));
+                        // TODO dispatch(DispatcherType.ASYNC, () -> getServer().handleAsync(this));
                         break;
                     }
 

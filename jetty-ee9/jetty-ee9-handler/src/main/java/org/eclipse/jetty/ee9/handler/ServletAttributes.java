@@ -41,15 +41,15 @@ public class ServletAttributes implements Attributes
     }
 
     @Override
-    public void removeAttribute(String name)
+    public Object removeAttribute(String name)
     {
-        getAttributes().removeAttribute(name);
+        return getAttributes().removeAttribute(name);
     }
 
     @Override
-    public void setAttribute(String name, Object attribute)
+    public Object setAttribute(String name, Object attribute)
     {
-        getAttributes().setAttribute(name, attribute);
+        return getAttributes().setAttribute(name, attribute);
     }
 
     @Override

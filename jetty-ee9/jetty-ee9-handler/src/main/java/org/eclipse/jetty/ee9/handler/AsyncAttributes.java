@@ -82,7 +82,7 @@ class AsyncAttributes extends Attributes.Wrapper
     }
 
     @Override
-    public void setAttribute(String key, Object value)
+    public Object setAttribute(String key, Object value)
     {
         switch (key)
         {
@@ -94,10 +94,9 @@ class AsyncAttributes extends Attributes.Wrapper
             case AsyncContext.ASYNC_MAPPING:
                 // Ignore sets for these reserved names as this class is applied
                 // we will always override these particular attributes.
-                break;
+                return null;
             default:
-                super.setAttribute(key, value);
-                break;
+                return super.setAttribute(key, value);
         }
     }
 }

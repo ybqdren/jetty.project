@@ -60,10 +60,8 @@ public class HttpFieldsTest
         assertNull(header.get("name2"));
 
         int matches = 0;
-        Enumeration<String> e = header.getFieldNames();
-        while (e.hasMoreElements())
+        for (String o : header.getFieldNamesCollection())
         {
-            Object o = e.nextElement();
             if ("name0".equals(o))
                 matches++;
             if ("name1".equals(o))
@@ -71,10 +69,10 @@ public class HttpFieldsTest
         }
         assertEquals(2, matches);
 
-        e = header.getValues("name0");
-        assertTrue(e.hasMoreElements());
-        assertEquals(e.nextElement(), "value:0");
-        assertFalse(e.hasMoreElements());
+        Enumeration<String> values = header.getValues("name0");
+        assertTrue(values.hasMoreElements());
+        assertEquals(values.nextElement(), "value:0");
+        assertFalse(values.hasMoreElements());
     }
 
     @Test
@@ -143,9 +141,27 @@ public class HttpFieldsTest
     }
 
     @Test
+    public void testTakeImmutable()
+    {
+        HttpFields.Mutable mutable = HttpFields.build();
+        HttpFields immutable = mutable.takeAsImmutable();
+        assertThat(immutable.get(HttpHeader.HOST), nullValue());
+        assertThat(immutable.size(), is(0));
+
+        immutable = mutable
+            .put("name0", "value0")
+            .put("name1", "value1").takeAsImmutable();
+
+        assertThat(mutable.get("name0"), nullValue());
+        assertThat(mutable.get("name1"), nullValue());
+        assertThat(immutable.get("name0"), is("value0"));
+        assertThat(immutable.get("name1"), is("value1"));
+    }
+
+    @Test
     public void testMap()
     {
-        Map<HttpFields.Immutable, String> map = new HashMap<>();
+        Map<HttpFields, String> map = new HashMap<>();
         map.put(HttpFields.build().add("X", "1").add(HttpHeader.ETAG, "tag").asImmutable(), "1");
         map.put(HttpFields.build().add("X", "2").add(HttpHeader.ETAG, "other").asImmutable(), "2");
 
@@ -257,10 +273,8 @@ public class HttpFieldsTest
         assertNull(header.get("name3"));
 
         int matches = 0;
-        Enumeration<String> e = header.getFieldNames();
-        while (e.hasMoreElements())
+        for (String o : header.getFieldNamesCollection())
         {
-            String o = e.nextElement();
             if ("name0".equals(o))
                 matches++;
             if ("name1".equals(o))
@@ -270,7 +284,7 @@ public class HttpFieldsTest
         }
         assertEquals(3, matches);
 
-        e = header.getValues("name1");
+        Enumeration<String> e = header.getValues("name1");
         assertTrue(e.hasMoreElements());
         assertEquals(e.nextElement(), "value1");
         assertFalse(e.hasMoreElements());
@@ -305,10 +319,8 @@ public class HttpFieldsTest
         assertNull(header.get("name3"));
 
         int matches = 0;
-        Enumeration<String> e = header.getFieldNames();
-        while (e.hasMoreElements())
+        for (String o : header.getFieldNamesCollection())
         {
-            Object o = e.nextElement();
             if ("name0".equals(o))
                 matches++;
             if ("name1".equals(o))
@@ -318,7 +330,7 @@ public class HttpFieldsTest
         }
         assertEquals(2, matches);
 
-        e = header.getValues("name1");
+        Enumeration<String> e = header.getValues("name1");
         assertFalse(e.hasMoreElements());
     }
 
@@ -343,10 +355,8 @@ public class HttpFieldsTest
         assertNull(fields.get("name3"));
 
         int matches = 0;
-        Enumeration<String> e = fields.getFieldNames();
-        while (e.hasMoreElements())
+        for (String o : fields.getFieldNamesCollection())
         {
-            Object o = e.nextElement();
             if ("name0".equals(o))
                 matches++;
             if ("name1".equals(o))
@@ -356,7 +366,7 @@ public class HttpFieldsTest
         }
         assertEquals(3, matches);
 
-        e = fields.getValues("name1");
+        Enumeration<String> e = fields.getValues("name1");
         assertTrue(e.hasMoreElements());
         assertEquals(e.nextElement(), "valueA");
         assertTrue(e.hasMoreElements());
@@ -740,10 +750,10 @@ public class HttpFieldsTest
     @Test
     public void testAddHttpFields()
     {
-        HttpFields.Mutable fields = new HttpFields.Mutable(new HttpFields.Mutable());
+        HttpFields.Mutable fields = HttpFields.build();
         fields.add("One", "1");
 
-        fields = new HttpFields.Mutable(fields);
+        fields = HttpFields.build(fields);
 
         fields.add(HttpFields.build().add("two", "2").add("three", "3"));
         fields.add(HttpFields.build().add("four", "4").add("five", "5").asImmutable());
@@ -951,7 +961,7 @@ public class HttpFieldsTest
         // 1 existing cases
         fields.ensureField(new HttpField(HttpHeader.VARY, "one"));
         assertThat(fields.stream().map(HttpField::toString).collect(Collectors.toList()), contains("Vary: one"));
-;
+
         fields.ensureField(new HttpField(HttpHeader.VARY, "two"));
         assertThat(fields.stream().map(HttpField::toString).collect(Collectors.toList()), contains("Vary: one, two"));
 
@@ -1019,7 +1029,7 @@ public class HttpFieldsTest
         // 1 existing cases
         fields.ensureField(new HttpField("Test", "one"));
         assertThat(fields.stream().map(HttpField::toString).collect(Collectors.toList()), contains("Test: one"));
-        ;
+
         fields.ensureField(new HttpField("Test", "two"));
         assertThat(fields.stream().map(HttpField::toString).collect(Collectors.toList()), contains("Test: one, two"));
 

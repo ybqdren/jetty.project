@@ -15,6 +15,7 @@ module org.eclipse.jetty.ee9.handler
 {
     requires transitive jetty.servlet.api;
     requires transitive org.eclipse.jetty.http;
+    requires transitive org.eclipse.jetty.server;
     requires transitive org.slf4j;
 
     // Only required if using DatabaseAdaptor/JDBCSessionDataStore.

@@ -1446,8 +1446,6 @@ public class Request implements HttpServletRequest
                     getResponse().setStatus(committedResponse.getStatus());
                     // TODO: Reset the response headers to what they were when committed
                 }
-
-                requestLog.log(this, getResponse());
             }
         }
 
@@ -2442,7 +2440,7 @@ public class Request implements HttpServletRequest
 
         ServletOutputStream outputStream = response.getOutputStream();
         ServletInputStream inputStream = getInputStream();
-        HttpChannelOverHttp httpChannel11 = (HttpChannelOverHttp)_channel;
+        // TODO HttpChannelOverHttp httpChannel11 = (HttpChannelOverHttp)_channel;
         HttpConnection httpConnection = (HttpConnection)_channel.getConnection();
 
         T upgradeHandler;
@@ -2455,7 +2453,7 @@ public class Request implements HttpServletRequest
             throw new ServletException("Unable to instantiate handler class", e);
         }
 
-        httpChannel11.servletUpgrade(); // tell the HTTP 1.1 channel that it is now handling an upgraded servlet
+        // TODO httpChannel11.servletUpgrade(); // tell the HTTP 1.1 channel that it is now handling an upgraded servlet
         AsyncContext asyncContext = forceStartAsync(); // force the servlet in async mode
 
         outputStream.flush(); // commit the 101 response

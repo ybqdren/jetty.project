@@ -340,13 +340,13 @@ public class Dispatcher implements RequestDispatcher
         }
 
         @Override
-        public void setAttribute(String key, Object value)
+        public Object setAttribute(String key, Object value)
         {
             // Allow any attribute to be set, even if a reserved name. If a reserved
             // name is set here, it will be hidden by this class during the forward,
             // but revealed after the forward is complete just as if the reserved name
             // attribute had be set by the application before the forward.
-            _attributes.setAttribute(key, value);
+            return _attributes.setAttribute(key, value);
         }
 
         @Override
@@ -362,9 +362,9 @@ public class Dispatcher implements RequestDispatcher
         }
 
         @Override
-        public void removeAttribute(String name)
+        public Object removeAttribute(String name)
         {
-            setAttribute(name, null);
+            return setAttribute(name, null);
         }
     }
 
@@ -478,11 +478,11 @@ public class Dispatcher implements RequestDispatcher
         }
 
         @Override
-        public void setAttribute(String key, Object value)
+        public Object setAttribute(String key, Object value)
         {
             // Allow any attribute to be set, even if a reserved name. If a reserved
             // name is set here, it will be revealed after the include is complete.
-            _attributes.setAttribute(key, value);
+            return _attributes.setAttribute(key, value);
         }
 
         @Override
@@ -498,9 +498,9 @@ public class Dispatcher implements RequestDispatcher
         }
 
         @Override
-        public void removeAttribute(String name)
+        public Object removeAttribute(String name)
         {
-            setAttribute(name, null);
+            return setAttribute(name, null);
         }
     }
 }

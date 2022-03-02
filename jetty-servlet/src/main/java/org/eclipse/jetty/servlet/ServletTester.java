@@ -15,9 +15,11 @@ package org.eclipse.jetty.servlet;
 
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import jakarta.servlet.DispatcherType;
@@ -143,9 +145,14 @@ public class ServletTester extends ContainerLifeCycle
         return _context.getAttribute(name);
     }
 
+    public Set<String> getAttributeNameSet()
+    {
+        return _context.getAttributeNameSet();
+    }
+
     public Enumeration<String> getAttributeNames()
     {
-        return _context.getAttributeNames();
+        return Collections.enumeration(getAttributeNameSet());
     }
 
     public Attributes getAttributes()
