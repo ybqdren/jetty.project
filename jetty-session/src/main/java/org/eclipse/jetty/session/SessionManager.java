@@ -36,6 +36,8 @@ public interface SessionManager extends LifeCycle
     void scavenge() throws Exception;
     
     boolean isIdInUse(String id) throws Exception;
+
+    boolean isUsingCookies();
     
     void renewSessionId(String oldId, String oldExtendedId, String newId, String newExtendedId) throws Exception;
     
