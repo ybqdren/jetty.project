@@ -16,7 +16,6 @@ package org.eclipse.jetty.core.server;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
@@ -50,12 +49,6 @@ class ResponseHttpFields implements HttpFields.Mutable
     {
         _committed.set(false);
         _fields.clear();
-    }
-
-    @Override
-    public HttpField getField(int index)
-    {
-        return _fields.getField(index);
     }
 
     @Override
@@ -146,102 +139,6 @@ class ResponseHttpFields implements HttpFields.Mutable
     }
 
     @Override
-    public Iterator<HttpField> iterator()
-    {
-        Iterator<HttpField> i = _fields.iterator();
-        return new Iterator<>()
-        {
-            @Override
-            public boolean hasNext()
-            {
-                return i.hasNext();
-            }
-
-            @Override
-            public HttpField next()
-            {
-                return i.next();
-            }
-
-            @Override
-            public void remove()
-            {
-                if (_committed.get())
-                    throw new UnsupportedOperationException("Read Only");
-                i.remove();
-            }
-        };
-    }
-
-    @Override
-    public ListIterator<HttpField> listIterator()
-    {
-        ListIterator<HttpField> i = _fields.listIterator();
-        return new ListIterator<>()
-        {
-            @Override
-            public boolean hasNext()
-            {
-                return i.hasNext();
-            }
-
-            @Override
-            public HttpField next()
-            {
-                return i.next();
-            }
-
-            @Override
-            public boolean hasPrevious()
-            {
-                return i.hasPrevious();
-            }
-
-            @Override
-            public HttpField previous()
-            {
-                return i.previous();
-            }
-
-            @Override
-            public int nextIndex()
-            {
-                return i.nextIndex();
-            }
-
-            @Override
-            public int previousIndex()
-            {
-                return i.previousIndex();
-            }
-
-            @Override
-            public void remove()
-            {
-                if (_committed.get())
-                    throw new UnsupportedOperationException("Read Only");
-                i.remove();
-            }
-
-            @Override
-            public void set(HttpField httpField)
-            {
-                if (_committed.get())
-                    throw new UnsupportedOperationException("Read Only");
-                i.set(httpField);
-            }
-
-            @Override
-            public void add(HttpField httpField)
-            {
-                if (_committed.get())
-                    throw new UnsupportedOperationException("Read Only");
-                i.add(httpField);
-            }
-        };
-    }
-
-    @Override
     public Mutable put(HttpField field)
     {
         return _committed.get() ? this : _fields.put(field);
@@ -293,6 +190,14 @@ class ResponseHttpFields implements HttpFields.Mutable
     public Mutable putLongField(String name, long value)
     {
         return _committed.get() ? this : _fields.putLongField(name, value);
+    }
+
+    @Override
+    public <T> boolean replaceField(HttpHeader header, T t, BiFunction<HttpField, T, HttpField> replaceFn)
+    {
+        if (_committed.get())
+            return false;
+        return _fields.replaceField(header, t, replaceFn);
     }
 
     @Override

@@ -19,9 +19,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -462,6 +460,12 @@ public interface HttpFields extends Iterable<HttpField>
 
     Stream<HttpField> stream();
 
+    @Override
+    default Iterator<HttpField> iterator()
+    {
+        return stream().iterator();
+    }
+
     /**
      * A mutable HttpFields interface.
      */
@@ -542,8 +546,6 @@ public interface HttpFields extends Iterable<HttpField>
          */
         void ensureField(HttpField field);
 
-        ListIterator<HttpField> listIterator();
-
         Mutable put(HttpField field);
 
         /**
@@ -610,6 +612,8 @@ public interface HttpFields extends Iterable<HttpField>
          * @return this builder
          */
         Mutable putLongField(String name, long value);
+
+        <T> boolean replaceField(HttpHeader header, T t, BiFunction<HttpField, T, HttpField> replaceFn);
 
         /**
          * <p>Computes a single field for the given HttpHeader and for existing fields with the same header.</p>
@@ -1107,41 +1111,6 @@ public interface HttpFields extends Iterable<HttpField>
         }
 
         @Override
-        public Iterator<HttpField> iterator()
-        {
-            return new Iterator<>()
-            {
-                int _index = 0;
-
-                @Override
-                public boolean hasNext()
-                {
-                    return _index < _size;
-                }
-
-                @Override
-                public HttpField next()
-                {
-                    return _fields[_index++];
-                }
-
-                @Override
-                public void remove()
-                {
-                    if (_size == 0)
-                        throw new IllegalStateException();
-                    MutableHttpFields.this.remove(--_index);
-                }
-            };
-        }
-
-        @Override
-        public ListIterator<HttpField> listIterator()
-        {
-            return new ListItr();
-        }
-
-        @Override
         public Mutable put(HttpField field)
         {
             boolean put = false;
@@ -1223,6 +1192,22 @@ public interface HttpFields extends Iterable<HttpField>
         public Mutable putLongField(String name, long value)
         {
             return put(name, Long.toString(value));
+        }
+
+        @Override
+        public <T> boolean replaceField(HttpHeader header, T t, BiFunction<HttpField, T, HttpField> replaceFn)
+        {
+            for (int i = 0; i < _fields.length; i++)
+            {
+                HttpField field = _fields[i];
+                if (field != null && field.getHeader() == header)
+                {
+                    _fields[i] = replaceFn.apply(field, t);
+                    if (field != _fields[i])
+                        return true;
+                }
+            }
+            return false;
         }
 
         @Override
@@ -1342,7 +1327,7 @@ public interface HttpFields extends Iterable<HttpField>
         @Override
         public Stream<HttpField> stream()
         {
-            return Arrays.stream(_fields, 0, _size);
+            return _fields == null ? Stream.of() : Arrays.stream(_fields, 0, _size);
         }
 
         @Override
@@ -1385,87 +1370,6 @@ public interface HttpFields extends Iterable<HttpField>
             }
 
             return null;
-        }
-
-        private class ListItr implements ListIterator<HttpField>
-        {
-            int _cursor;       // index of next element to return
-            int _current = -1;
-
-            @Override
-            public void add(HttpField field)
-            {
-                if (field == null)
-                    return;
-
-                _fields = Arrays.copyOf(_fields, _fields.length + 1);
-                System.arraycopy(_fields, _cursor, _fields, _cursor + 1, _size++);
-                _fields[_cursor++] = field;
-                _current = -1;
-            }
-
-            @Override
-            public boolean hasNext()
-            {
-                return _cursor != _size;
-            }
-
-            @Override
-            public boolean hasPrevious()
-            {
-                return _cursor > 0;
-            }
-
-            @Override
-            public HttpField next()
-            {
-                if (_cursor == _size)
-                    throw new NoSuchElementException();
-                _current = _cursor++;
-                return _fields[_current];
-            }
-
-            @Override
-            public int nextIndex()
-            {
-                return _cursor + 1;
-            }
-
-            @Override
-            public HttpField previous()
-            {
-                if (_cursor == 0)
-                    throw new NoSuchElementException();
-                _current = --_cursor;
-                return _fields[_current];
-            }
-
-            @Override
-            public int previousIndex()
-            {
-                return _cursor - 1;
-            }
-
-            @Override
-            public void remove()
-            {
-                if (_current < 0)
-                    throw new IllegalStateException();
-                MutableHttpFields.this.remove(_current);
-                _cursor = _current;
-                _current = -1;
-            }
-
-            @Override
-            public void set(HttpField field)
-            {
-                if (_current < 0)
-                    throw new IllegalStateException();
-                if (field == null)
-                    remove();
-                else
-                    _fields[_current] = field;
-            }
         }
     }
 
@@ -1569,27 +1473,6 @@ public interface HttpFields extends Iterable<HttpField>
             for (int i = _fields.length; i-- > 0; )
                 hash ^= _fields[i].hashCode();
             return hash;
-        }
-
-        @Override
-        public Iterator<HttpField> iterator()
-        {
-            return new Iterator<>()
-            {
-                int _index = 0;
-
-                @Override
-                public boolean hasNext()
-                {
-                    return _index < _size;
-                }
-
-                @Override
-                public HttpField next()
-                {
-                    return _fields[_index++];
-                }
-            };
         }
 
         @Override

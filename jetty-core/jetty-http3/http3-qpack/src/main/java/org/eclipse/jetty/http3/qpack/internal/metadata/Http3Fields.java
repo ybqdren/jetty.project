@@ -161,10 +161,4 @@ public class Http3Fields implements HttpFields
         else
             return Stream.concat(pseudoHeadersStream, httpFieldStream);
     }
-
-    @Override
-    public Iterator<HttpField> iterator()
-    {
-        return stream().iterator();
-    }
 }

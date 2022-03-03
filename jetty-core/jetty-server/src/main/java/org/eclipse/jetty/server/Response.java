@@ -20,7 +20,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
-import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -295,46 +294,40 @@ public class Response implements HttpServletResponse
      */
     public void replaceCookie(HttpCookie cookie)
     {
-        for (ListIterator<HttpField> i = _fields.listIterator(); i.hasNext(); )
+        boolean replaced = _fields.replaceField(HttpHeader.SET_COOKIE, cookie, (field, newCookie) ->
         {
-            HttpField field = i.next();
+            CookieCompliance compliance = getHttpChannel().getHttpConfiguration().getResponseCookieCompliance();
 
-            if (field.getHeader() == HttpHeader.SET_COOKIE)
+            HttpCookie oldCookie;
+            if (field instanceof SetCookieHttpField)
+                oldCookie = ((SetCookieHttpField)field).getHttpCookie();
+            else
+                oldCookie = new HttpCookie(field.getValue());
+
+            if (!newCookie.getName().equals(oldCookie.getName()))
+                return field;
+
+            if (newCookie.getDomain() == null)
             {
-                CookieCompliance compliance = getHttpChannel().getHttpConfiguration().getResponseCookieCompliance();
-
-                HttpCookie oldCookie;
-                if (field instanceof SetCookieHttpField)
-                    oldCookie = ((SetCookieHttpField)field).getHttpCookie();
-                else
-                    oldCookie = new HttpCookie(field.getValue());
-
-                if (!cookie.getName().equals(oldCookie.getName()))
-                    continue;
-
-                if (cookie.getDomain() == null)
-                {
-                    if (oldCookie.getDomain() != null)
-                        continue;
-                }
-                else if (!cookie.getDomain().equalsIgnoreCase(oldCookie.getDomain()))
-                    continue;
-
-                if (cookie.getPath() == null)
-                {
-                    if (oldCookie.getPath() != null)
-                        continue;
-                }
-                else if (!cookie.getPath().equals(oldCookie.getPath()))
-                    continue;
-
-                i.set(new SetCookieHttpField(checkSameSite(cookie), compliance));
-                return;
+                if (oldCookie.getDomain() != null)
+                    return field;
             }
-        }
+            else if (!newCookie.getDomain().equalsIgnoreCase(oldCookie.getDomain()))
+                return field;
 
-        // Not replaced, so add normally
-        addCookie(cookie);
+            if (newCookie.getPath() == null)
+            {
+                if (oldCookie.getPath() != null)
+                    return field;
+            }
+            else if (!newCookie.getPath().equals(oldCookie.getPath()))
+                return field;
+
+            return new SetCookieHttpField(checkSameSite(newCookie), compliance);
+        });
+
+        if (!replaced)
+            addCookie(cookie); // Not replaced, so add normally
     }
 
     public boolean containsHeader(String name)
