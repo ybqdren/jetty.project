@@ -47,7 +47,7 @@ public class DefaultHandlerTest
 
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         handler = new DefaultHandler();
-        server.setHandler(new Handler.HandlerCollection(contexts, handler));
+        server.setHandler(new Handler.Collection(contexts, handler));
 
         handler.setServeIcon(true);
         handler.setShowContexts(true);

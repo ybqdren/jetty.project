@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * handles the request.
  */
 @ManagedObject("Context Handler Collection")
-public class ContextHandlerCollection extends Handler.HandlerCollection
+public class ContextHandlerCollection extends Handler.Collection
 {
     private static final Logger LOG = LoggerFactory.getLogger(ContextHandlerCollection.class);
     private final SerializedExecutor _serializedExecutor = new SerializedExecutor();

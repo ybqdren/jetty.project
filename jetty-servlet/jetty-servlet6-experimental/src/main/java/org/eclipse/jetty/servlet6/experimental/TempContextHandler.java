@@ -174,8 +174,8 @@ abstract class TempContextHandler extends ContextHandler implements Graceful
             setContextPath(contextPath);
         if (parent instanceof Handler.Wrapper)
             ((Handler.Wrapper)parent).setHandler(this);
-        else if (parent instanceof HandlerCollection)
-            ((HandlerCollection)parent).addHandler(this);
+        else if (parent instanceof Collection)
+            ((Collection)parent).addHandler(this);
     }
 
     @Override

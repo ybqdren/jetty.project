@@ -16,7 +16,6 @@ package org.eclipse.jetty.servlet6.experimental;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.EventListener;
@@ -123,7 +122,7 @@ public class ServletHandler extends Handler.Wrapper
         return _lock.lock();
     }
 
-    private <T> void updateAndSet(Collection<T> target, Collection<T> values)
+    private <T> void updateAndSet(java.util.Collection<T> target, java.util.Collection<T> values)
     {
         updateBeans(target, values);
         target.clear();
@@ -631,7 +630,7 @@ public class ServletHandler extends Handler.Wrapper
         return _initialized;
     }
 
-    protected void initializeHolders(Collection<? extends BaseHolder<?>> holders)
+    protected void initializeHolders(java.util.Collection<? extends BaseHolder<?>> holders)
     {
         for (BaseHolder<?> holder : holders)
         {

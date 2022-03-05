@@ -20,7 +20,6 @@ import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Enumeration;
@@ -226,8 +225,8 @@ public class ServletContextHandler extends TempContextHandler
     {
         if (parent instanceof Handler.Wrapper)
             ((Handler.Wrapper)parent).setHandler(this);
-        else if (parent instanceof HandlerCollection)
-            ((HandlerCollection)parent).addHandler(this);
+        else if (parent instanceof Handler.Collection)
+            ((Handler.Collection)parent).addHandler(this);
     }
 
     /**
@@ -923,7 +922,7 @@ public class ServletContextHandler extends TempContextHandler
         private String _errorOnUndeclaredNamespace;
 
         @Override
-        public Collection<String> getUrlPatterns()
+        public java.util.Collection<String> getUrlPatterns()
         {
             return new ArrayList<>(_urlPatterns); // spec says must be a copy
         }
@@ -1010,7 +1009,7 @@ public class ServletContextHandler extends TempContextHandler
         }
 
         @Override
-        public Collection<String> getIncludePreludes()
+        public java.util.Collection getIncludePreludes()
         {
             return new ArrayList<>(_includePreludes); //must be a copy
         }
@@ -1022,7 +1021,7 @@ public class ServletContextHandler extends TempContextHandler
         }
 
         @Override
-        public Collection<String> getIncludeCodas()
+        public java.util.Collection getIncludeCodas()
         {
             return new ArrayList<>(_includeCodas); //must be a copy
         }
@@ -1133,7 +1132,7 @@ public class ServletContextHandler extends TempContextHandler
         }
 
         @Override
-        public Collection<TaglibDescriptor> getTaglibs()
+        public java.util.Collection getTaglibs()
         {
             return new ArrayList<>(_taglibs);
         }
@@ -1144,7 +1143,7 @@ public class ServletContextHandler extends TempContextHandler
         }
 
         @Override
-        public Collection<JspPropertyGroupDescriptor> getJspPropertyGroups()
+        public java.util.Collection getJspPropertyGroups()
         {
             return new ArrayList<>(_jspPropertyGroups);
         }
@@ -2272,7 +2271,7 @@ public class ServletContextHandler extends TempContextHandler
                 addBean(holder, true);
         }
         
-        public Collection<ServletContainerInitializerHolder> getServletContainerInitializerHolders()
+        public java.util.Collection getServletContainerInitializerHolders()
         {
             return getContainedBeans(ServletContainerInitializerHolder.class);
         }
@@ -2289,7 +2288,7 @@ public class ServletContextHandler extends TempContextHandler
         protected void doStop() throws Exception
         {
             //remove all of the non-programmatic holders
-            Collection<ServletContainerInitializerHolder> holders = getServletContainerInitializerHolders();
+            java.util.Collection<ServletContainerInitializerHolder> holders = getServletContainerInitializerHolders();
             for (ServletContainerInitializerHolder h : holders)
             {
                 if (h.getSource().getOrigin() != Source.Origin.EMBEDDED)

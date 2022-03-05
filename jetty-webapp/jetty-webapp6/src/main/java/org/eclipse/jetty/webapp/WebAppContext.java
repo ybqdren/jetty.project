@@ -547,7 +547,7 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
 
     private void wrapConfigurations()
     {
-        HandlerCollection<Configuration.WrapperFunction> wrappers = getBeans(Configuration.WrapperFunction.class);
+        Collection<Configuration.WrapperFunction> wrappers = getBeans(Configuration.WrapperFunction.class);
         if (wrappers == null || wrappers.isEmpty())
             return;
 
@@ -1353,7 +1353,7 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
         this method establishes the security constraint for that pattern from the argument ServletSecurityElement. 
          */
 
-        HandlerCollection<String> pathMappings = registration.getMappings();
+        Collection<String> pathMappings = registration.getMappings();
         if (pathMappings != null)
         {
             ConstraintSecurityHandler.createConstraint(registration.getName(), servletSecurityElement);

@@ -316,17 +316,17 @@ public interface Handler extends LifeCycle, Destroyable
      * A Handler Container that wraps a list of other Handlers.
      * By default, each handler is called in turn until one returns true from {@link Handler#handle(Request)}.
      */
-    class HandlerCollection extends AbstractContainer
+    class Collection extends AbstractContainer
     {
         private volatile List<Handler> _handlers = new ArrayList<>();
 
-        public HandlerCollection(Handler... handlers)
+        public Collection(Handler... handlers)
         {
             if (handlers.length > 0)
                 setHandlers(handlers);
         }
 
-        public HandlerCollection(List<Handler> handlers)
+        public Collection(List<Handler> handlers)
         {
             setHandlers(handlers);
         }

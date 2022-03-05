@@ -185,8 +185,8 @@ public class ServletContextHandler extends ContextHandler
     {
         if (parent instanceof HandlerWrapper)
             ((HandlerWrapper)parent).setHandler(this);
-        else if (parent instanceof HandlerCollection)
-            ((HandlerCollection)parent).addHandler(this);
+        else if (parent instanceof Collection)
+            ((Collection)parent).addHandler(this);
     }
 
     /**
@@ -595,7 +595,7 @@ public class ServletContextHandler extends ContextHandler
     public Set<String> setServletSecurity(ServletRegistration.Dynamic registration, ServletSecurityElement servletSecurityElement)
     {
         //Default implementation is to just accept them all. If using a webapp, then this behaviour is overridden in WebAppContext.setServletSecurity       
-        HandlerCollection<String> pathSpecs = registration.getMappings();
+        Collection<String> pathSpecs = registration.getMappings();
         if (pathSpecs != null)
         {
             for (String pathSpec : pathSpecs)
@@ -786,7 +786,7 @@ public class ServletContextHandler extends ContextHandler
         private String _errorOnUndeclaredNamespace;
 
         @Override
-        public HandlerCollection<String> getUrlPatterns()
+        public Collection<String> getUrlPatterns()
         {
             return new ArrayList<>(_urlPatterns); // spec says must be a copy
         }
@@ -867,7 +867,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public HandlerCollection<String> getIncludePreludes()
+        public Collection<String> getIncludePreludes()
         {
             return new ArrayList<>(_includePreludes); //must be a copy
         }
@@ -879,7 +879,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public HandlerCollection<String> getIncludeCodas()
+        public Collection<String> getIncludeCodas()
         {
             return new ArrayList<>(_includeCodas); //must be a copy
         }
@@ -990,7 +990,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public HandlerCollection<TaglibDescriptor> getTaglibs()
+        public Collection<TaglibDescriptor> getTaglibs()
         {
             return new ArrayList<>(_taglibs);
         }
@@ -1001,7 +1001,7 @@ public class ServletContextHandler extends ContextHandler
         }
 
         @Override
-        public HandlerCollection<JspPropertyGroupDescriptor> getJspPropertyGroups()
+        public Collection<JspPropertyGroupDescriptor> getJspPropertyGroups()
         {
             return new ArrayList<>(_jspPropertyGroups);
         }
@@ -1645,7 +1645,7 @@ public class ServletContextHandler extends ContextHandler
                 addBean(holder, true);
         }
         
-        public HandlerCollection<ServletContainerInitializerHolder> getServletContainerInitializerHolders()
+        public Collection<ServletContainerInitializerHolder> getServletContainerInitializerHolders()
         {
             return getContainedBeans(ServletContainerInitializerHolder.class);
         }
@@ -1662,7 +1662,7 @@ public class ServletContextHandler extends ContextHandler
         protected void doStop() throws Exception
         {
             //remove all of the non-programmatic holders
-            HandlerCollection<ServletContainerInitializerHolder> holders = getServletContainerInitializerHolders();
+            Collection<ServletContainerInitializerHolder> holders = getServletContainerInitializerHolders();
             for (ServletContainerInitializerHolder h : holders)
             {
                 if (h.getSource().getOrigin() != Source.Origin.EMBEDDED)

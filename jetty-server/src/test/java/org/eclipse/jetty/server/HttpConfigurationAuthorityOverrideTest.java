@@ -636,7 +636,7 @@ public class HttpConfigurationAuthorityOverrideTest
         connector.setPort(0);
         server.addConnector(connector);
 
-        Handler.HandlerCollection handlers = new Handler.HandlerCollection();
+        Handler.Collection handlers = new Handler.Collection();
         handlers.addHandler(new RedirectHandler());
         handlers.addHandler(new DumpHandler());
         handlers.addHandler(new ErrorMsgHandler());
