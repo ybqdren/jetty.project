@@ -11,7 +11,7 @@ pipeline {
           agent { node { label 'linux' } }
           steps {
             container('jetty-build') {
-              timeout( time: 120, unit: 'MINUTES' ) {
+              timeout( time: 4, unit: 'HOURS' ) {
                 mavenBuild( "jdk17", "clean install -Perrorprone", "maven3")
                 // Collect up the jacoco execution results (only on main build)
                 jacoco inclusionPattern: '**/org/eclipse/jetty/**/*.class',
@@ -37,6 +37,7 @@ pipeline {
           }
         }
 
+        /*
         stage("Build / Test - JDK11") {
           agent { node { label 'linux' } }
           steps {
@@ -48,6 +49,7 @@ pipeline {
             }
           }
         }
+        */
 
       }
     }
