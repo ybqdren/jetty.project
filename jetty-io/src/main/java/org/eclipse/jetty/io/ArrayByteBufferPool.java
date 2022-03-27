@@ -42,7 +42,13 @@ public class ArrayByteBufferPool extends AbstractByteBufferPool implements Dumpa
 
     private final int _maxCapacity;
     private final int _minCapacity;
+    /**
+     * 存储直接内存的 ByteBuffer
+     */
     private final ByteBufferPool.Bucket[] _direct;
+    /**
+     * 存储非直接内存的 ByteBuffer
+     */
     private final ByteBufferPool.Bucket[] _indirect;
     private boolean _detailedDump = false;
 
@@ -104,9 +110,12 @@ public class ArrayByteBufferPool extends AbstractByteBufferPool implements Dumpa
         _minCapacity = minCapacity;
 
         // Initialize all buckets in constructor and never modify the array again.
+        // ByteBuffer 的数量和 maxCapacity 有关
         int length = bucketFor(maxCapacity) + 1;
         _direct = new ByteBufferPool.Bucket[length];
         _indirect = new ByteBufferPool.Bucket[length];
+
+        // 相同大小的 ByteBuffer 将会有一个 Bucket 管理，不同大小的 ByteBuffer 必然存放在不同的 ByteBuffer 中
         for (int i = 0; i < length; i++)
         {
             _direct[i] = newBucket(i, true);
@@ -118,6 +127,9 @@ public class ArrayByteBufferPool extends AbstractByteBufferPool implements Dumpa
     public ByteBuffer acquire(int size, boolean direct)
     {
         int capacity = size < _minCapacity ? size : capacityFor(bucketFor(size));
+        // 在ByteBufferPool初始化时，并不会预先申请ByteBuffer填充到对象池中，而是在系统执行过程中对新建的ByteBuffer进行管理，
+        // ByteBufferPool既是一个对象池，同时也是一个工厂
+        // 根据所需要的 ByteBuffer 大小去查找一个最合适的 Bucket
         ByteBufferPool.Bucket bucket = bucketFor(size, direct);
         if (bucket == null)
             return newByteBuffer(capacity, direct);
@@ -127,6 +139,7 @@ public class ArrayByteBufferPool extends AbstractByteBufferPool implements Dumpa
         return buffer;
     }
 
+    // Byteuffer 使用完成需要归还对象池
     @Override
     public void release(ByteBuffer buffer)
     {
@@ -147,12 +160,16 @@ public class ArrayByteBufferPool extends AbstractByteBufferPool implements Dumpa
             return;
 
         boolean direct = buffer.isDirect();
+        // 找到对应的 Bucket
         ByteBufferPool.Bucket bucket = bucketFor(capacity, direct);
+        // 如果找到Bucket则重置buffer，并且加入Bucket中。
         if (bucket != null)
         {
             bucket.release(buffer);
             releaseExcessMemory(direct, this::releaseMemory);
         }
+        // 如果找不到则不进行归还
+        // 很明显，当归还的ByteBuffer过大或者过小时，归还总是不成功的，在这种情况下ByteBufferPool将失去其对象池的复用功能。
     }
 
     private Bucket newBucket(int key, boolean direct)
@@ -205,6 +222,9 @@ public class ArrayByteBufferPool extends AbstractByteBufferPool implements Dumpa
         return bucket * getCapacityFactor();
     }
 
+    // 大于等于请求大小，并且最接近请求大小的一个Bucket。如果找到这么一个Bucket，并且Bucket中也确实存在空闲的ByteBuffer，
+    // 那么直接返回ByteBuffer。如果找不到合适的Bucket（比如，请求的大小超过maxSize），或者Bucket中已经没有可用的ByteBuffer，
+    // 则根据Bucket的大小（优先）或者请求大小创建一个ByteBuffer并返回
     private ByteBufferPool.Bucket bucketFor(int capacity, boolean direct)
     {
         if (capacity < _minCapacity)

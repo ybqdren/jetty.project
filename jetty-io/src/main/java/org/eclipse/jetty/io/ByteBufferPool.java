@@ -150,6 +150,7 @@ public interface ByteBufferPool
 
     public static class Bucket
     {
+        // 一个 Bucket 维护了一组 ByteBuffer，同时为了应对高并发场景，这里使用了高并发队列 ConcurrentLinkedQueue
         private final Queue<ByteBuffer> _queue = new ConcurrentLinkedQueue<>();
         private final int _capacity;
         private final int _maxSize;

@@ -27,12 +27,15 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
+ * 是一个基于数组的队列，可以是有界的，也可以是无界动态扩展，默认使用无界的 {@link BlockingArrayQueue}
+ *
+ *
  * A BlockingQueue backed by a circular array capable or growing.
  * <p>
  * This queue is uses a variant of the two lock queue algorithm to provide an efficient queue or list backed by a growable circular array.
  * </p>
  * <p>
- * Unlike {@link java.util.concurrent.ArrayBlockingQueue}, this class is able to grow and provides a blocking put call.
+ * Unlike {@link java.util.concurrent.e}, this class is able to grow and provides a blocking put call.
  * </p>
  * <p>
  * The queue has both a capacity (the size of the array currently allocated) and a max capacity (the maximum size that may be allocated), which defaults to
@@ -43,11 +46,14 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class BlockingArrayQueue<E> extends AbstractList<E> implements BlockingQueue<E>
 {
+    // 和 ArrayBlockingQueue 类似，BlockingArrayQueue 也采用了环形数据结构。
+    // 都使用两个变量来保存头部和尾部的当前索引
     /**
      * The head offset in the {@link #_indexes} array, displaced by 15 slots to avoid false sharing with the array length (stored before the first element of
      * the array itself).
      */
-    private static final int HEAD_OFFSET = MemoryUtils.getIntegersPerCacheLine() - 1;
+    private static final int HEAD_OFFSET = MemoryUt
+        ils.getIntegersPerCacheLine() - 1;
     /**
      * The tail offset in the {@link #_indexes} array, displaced by 16 slots from the head to avoid false sharing with it.
      */

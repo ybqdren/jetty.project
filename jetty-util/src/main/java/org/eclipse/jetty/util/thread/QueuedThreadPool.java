@@ -40,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 一个可以设置最大和最小线程数，以及线程空闲退出时间的线程池
+ *
  * <p>A thread pool with a queue of jobs to execute.</p>
  * <p>Jetty components that need threads (such as network acceptors and selector) may lease threads
  * from this thread pool using a {@link ThreadPoolBudget}; these threads are "active" from the point
