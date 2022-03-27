@@ -285,6 +285,7 @@ public class ManagedSelector extends ContainerLifeCycle implements Dumpable
         Selector selector = null;
         try (AutoLock l = _lock.lock())
         {
+            // ManagedSelector 中维护了一个 _update 集合
             _updates.offer(update);
 
             if (_selecting && !lazy)

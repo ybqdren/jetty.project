@@ -148,6 +148,10 @@ public abstract class SelectorManager extends ContainerLifeCycle implements Dump
         return _selectors.length;
     }
 
+    // 会在多个线程中被调用，所以使用原子类
+    // 它轮询选择一个可用的 Selector 线程
+    // 在之前的设计 _selectorIndex 并没有使用线程安全的原子操作，
+    // 因为这里只需要发生变化即可，而不要求计算精度，但是现在使用了原子类
     protected ManagedSelector chooseSelector()
     {
         return _selectors[_selectorIndex.updateAndGet(_selectorIndexUpdate)];
@@ -179,6 +183,7 @@ public abstract class SelectorManager extends ContainerLifeCycle implements Dump
     }
 
     /**
+     *
      * <p>Registers a channel to perform non-blocking read/write operations.</p>
      * <p>This method is called just after a channel has been accepted by {@link ServerSocketChannel#accept()},
      * or just after having performed a blocking connect via {@link Socket#connect(SocketAddress, int)}, or
@@ -190,6 +195,7 @@ public abstract class SelectorManager extends ContainerLifeCycle implements Dump
      */
     public void accept(SelectableChannel channel, Object attachment)
     {
+        // 在得到所需的 Selector 线程后，将对应的任务提交到 ManagedSelector
         ManagedSelector selector = chooseSelector();
         selector.submit(selector.new Accept(channel, attachment));
     }

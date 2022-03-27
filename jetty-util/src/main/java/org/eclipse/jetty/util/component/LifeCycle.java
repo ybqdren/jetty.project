@@ -19,6 +19,8 @@ import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
 
 /**
+ * 管理 Jetty 中各个组件的生命周期，{@link org.eclipse.jetty.util.ssl.SslContextFactory.Server} 也是这个接口的实现
+ * 
  * The lifecycle interface for generic components.
  * <br>
  * Classes implementing this interface have a defined life cycle

@@ -411,14 +411,18 @@ public class ServerConnector extends AbstractNetworkConnector
         }
     }
 
+    // 在ServerConnector中，当Accept成功后，便会着手处理这个客户端连接。
     private void accepted(SocketChannel channel) throws IOException
     {
+        // 将对应的 channel 设置为非阻塞模式
         channel.configureBlocking(false);
+        // 配日志 socket 相关的属性（如 TCP_NODELAY 和 SO_LINGER)
         setSocketOption(channel, StandardSocketOptions.TCP_NODELAY, _acceptedTcpNoDelay);
         if (_acceptedReceiveBufferSize > -1)
             setSocketOption(channel, StandardSocketOptions.SO_RCVBUF, _acceptedReceiveBufferSize);
         if (_acceptedSendBufferSize > -1)
             setSocketOption(channel, StandardSocketOptions.SO_SNDBUF, _acceptedSendBufferSize);
+        // 使用 SelectorManager 进行处理
         _manager.accept(channel);
     }
 
